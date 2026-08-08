@@ -1,0 +1,97 @@
+.incident-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 24px 0 16px;
+}
+.incident-list {
+  background: #fff;
+  border: 1px solid #e2e8ef;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.incident-list > button {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #edf1f4;
+  background: #fff;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 8px 2fr 0.5fr 0.7fr 0.8fr 18px;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.incident-list > button:hover {
+  background: #fffafa;
+}
+.incident-list button > span:nth-child(2) {
+  display: grid;
+  gap: 4px;
+}
+.incident-list b {
+  font-size: 11px;
+}
+.incident-list small,
+.incident-list button > span:nth-last-child(2) {
+  color: #8794a5;
+  font-size: 9px;
+}
+.incident-level {
+  width: 8px;
+  height: 36px;
+  border-radius: 8px;
+  background: #e0484e;
+}
+.incident-level.warning {
+  background: #e48a34;
+}
+.incident-peak {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  background: #fff1f1;
+  border-radius: 10px;
+  padding: 16px;
+  margin: 18px 0;
+}
+.incident-peak span {
+  font-size: 10px;
+}
+.incident-peak b {
+  font-size: 25px;
+  color: #bd343b;
+}
+.incident-peak em {
+  grid-column: 1/-1;
+}
+.related-card {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  background: #f3f7fb;
+  border-radius: 9px;
+  margin: 8px 0;
+  color: #2773ba;
+}
+.related-card span {
+  display: grid;
+  color: #1f2b3d;
+  font-size: 10px;
+}
+.related-card small {
+  color: #8794a5;
+}
+@media (max-width: 720px) {
+  .incident-summary {
+    grid-template-columns: 1fr;
+  }
+  .incident-list {
+    overflow-x: auto;
+  }
+  .incident-list > button {
+    min-width: 700px;
+  }
+}

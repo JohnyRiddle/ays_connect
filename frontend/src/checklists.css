@@ -1,0 +1,148 @@
+.checklist-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 24px 0 16px;
+}
+.checklist-list {
+  background: #fff;
+  border: 1px solid #e2e8ef;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.checklist-list > button {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #edf1f4;
+  background: #fff;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 44px 1fr auto 100px 18px;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.checklist-list > button:hover {
+  background: #f8fbff;
+}
+.check-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #eaf3fc;
+  color: #2673bf;
+  display: grid;
+  place-items: center;
+}
+.check-icon.haccp {
+  background: #e9f8f1;
+  color: #27865d;
+}
+.checklist-list button > span:nth-child(2) {
+  display: grid;
+  gap: 4px;
+}
+.checklist-list b {
+  font-size: 12px;
+}
+.checklist-list small,
+.check-due {
+  font-size: 9px;
+  color: #8593a5;
+}
+.check-meta {
+  display: flex;
+  justify-content: space-between;
+  background: #f6f8fb;
+  border-radius: 9px;
+  padding: 11px;
+  margin: 18px 0;
+  font-size: 10px;
+}
+.question-list {
+  display: grid;
+  gap: 12px;
+}
+.question-list > label {
+  display: grid;
+  gap: 9px;
+  padding: 14px;
+  border: 1px solid #e4eaf0;
+  border-radius: 10px;
+}
+.question-list label b {
+  font-size: 11px;
+}
+.question-list sup {
+  color: #d9454c;
+}
+.question-list input {
+  border: 1px solid #dbe3ec;
+  border-radius: 8px;
+  padding: 10px;
+  outline: 0;
+}
+.boolean-choice {
+  display: flex;
+  gap: 8px;
+}
+.boolean-choice button {
+  border: 1px solid #dbe3ec;
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px 20px;
+}
+.boolean-choice button.chosen {
+  background: #e9f7f0;
+  border-color: #58ae83;
+  color: #267b55;
+}
+.boolean-choice button.chosen.bad {
+  background: #fff0f1;
+  border-color: #df777c;
+  color: #b5353c;
+}
+.complete-check {
+  border: 0;
+  background: #236fc7;
+  color: #fff;
+  border-radius: 9px;
+  padding: 12px;
+  font-weight: 800;
+}
+.check-result {
+  text-align: center;
+  padding: 45px 15px;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+.check-result > svg {
+  color: #2ba66f;
+  width: 42px;
+  height: 42px;
+}
+.check-result > b {
+  font-size: 28px;
+  color: #236fc7;
+}
+.check-result span {
+  padding: 9px;
+  background: #fff0f1;
+  color: #aa3b41;
+  border-radius: 7px;
+  font-size: 9px;
+}
+@media (max-width: 720px) {
+  .checklist-summary {
+    grid-template-columns: 1fr;
+  }
+  .checklist-list > button {
+    grid-template-columns: 42px 1fr 18px;
+  }
+  .checklist-list .status-pill,
+  .check-due {
+    display: none;
+  }
+}

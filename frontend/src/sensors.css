@@ -1,0 +1,146 @@
+.sensor-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 24px 0 16px;
+}
+.sensor-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.sensor-grid > button {
+  border: 1px solid #e1e8ef;
+  background: #fff;
+  border-radius: 12px;
+  padding: 18px;
+  text-align: left;
+  cursor: pointer;
+}
+.sensor-grid h3 {
+  margin: 16px 0 4px;
+  font-size: 14px;
+}
+.sensor-grid p {
+  margin: 0;
+  color: #8794a5;
+  font-size: 9px;
+}
+.sensor-grid strong {
+  display: block;
+  font-size: 28px;
+  margin: 20px 0;
+}
+.sensor-grid strong small {
+  font-size: 12px;
+}
+.sensor-grid > button > div {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid #edf1f4;
+  padding-top: 12px;
+  font-size: 9px;
+}
+.sensor-label {
+  font-style: normal;
+  padding: 5px 8px;
+  border-radius: 12px;
+  background: #e9f7f0;
+  color: #277d58;
+  font-size: 8px;
+  font-weight: 800;
+}
+.sensor-label.warning {
+  background: #fff3e4;
+  color: #b96a27;
+}
+.sensor-label.critical {
+  background: #ffedef;
+  color: #be343c;
+}
+.sensor-label.offline {
+  background: #eef1f4;
+  color: #687585;
+}
+.sensor-current {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f5f8fb;
+  border-radius: 10px;
+  padding: 18px;
+  margin: 20px 0;
+}
+.sensor-current > b {
+  font-size: 30px;
+}
+.thresholds {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.thresholds span {
+  display: grid;
+  gap: 5px;
+  background: #f7f9fb;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 9px;
+}
+.sensor-chart {
+  height: 190px;
+  position: relative;
+  border: 1px solid #e4eaf0;
+  border-radius: 10px;
+  padding: 12px;
+}
+.sensor-chart svg {
+  width: 100%;
+  height: 150px;
+  overflow: visible;
+}
+.sensor-chart line {
+  stroke: #dfe6ed;
+}
+.sensor-chart polyline {
+  fill: none;
+  stroke: #2779c8;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+.sensor-chart > span {
+  font-size: 8px;
+  color: #7d8a9a;
+  margin-right: 15px;
+}
+.sensor-events > div {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  border-bottom: 1px solid #edf1f4;
+}
+.sensor-events i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e0484e;
+  margin-top: 4px;
+}
+.sensor-events span {
+  display: grid;
+  font-size: 10px;
+}
+.sensor-events small {
+  color: #8794a5;
+}
+@media (max-width: 850px) {
+  .sensor-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 600px) {
+  .sensor-summary,
+  .sensor-grid {
+    grid-template-columns: 1fr;
+  }
+}

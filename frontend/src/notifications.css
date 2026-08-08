@@ -1,0 +1,104 @@
+.sidebar nav a i {
+  margin-left: auto;
+  background: #e64d52;
+  border-radius: 20px;
+  color: #fff;
+  padding: 2px 7px;
+  font-style: normal;
+  font-size: 10px;
+}
+.notification-tabs {
+  display: flex;
+  gap: 12px;
+  margin: 24px 0 14px;
+}
+.notification-tabs span {
+  background: #fff;
+  border: 1px solid #e2e8ef;
+  border-radius: 18px;
+  padding: 7px 11px;
+  font-size: 9px;
+}
+.notification-tabs b {
+  color: #2471ba;
+}
+.notification-tabs .telegram-mock {
+  margin-left: auto;
+  background: #edf7f2;
+  color: #28805a;
+}
+.notification-list {
+  background: #fff;
+  border: 1px solid #e2e8ef;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.notification-list > button {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #edf1f4;
+  background: #fafdff;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 42px 1fr 8px auto;
+  gap: 12px;
+  align-items: center;
+  text-align: left;
+  cursor: pointer;
+}
+.notification-list > button.read {
+  background: #fff;
+  opacity: 0.72;
+}
+.notification-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: #eaf3fc;
+  color: #2673bb;
+}
+.notification-icon.warning {
+  background: #fff3e7;
+  color: #c46b24;
+}
+.notification-icon.critical {
+  background: #ffedef;
+  color: #c13d44;
+}
+.notification-list button > span {
+  display: grid;
+  gap: 3px;
+}
+.notification-list b {
+  font-size: 11px;
+}
+.notification-list p {
+  margin: 0;
+  color: #526175;
+  font-size: 10px;
+}
+.notification-list small {
+  color: #8996a6;
+  font-size: 8px;
+}
+.notification-list button > i {
+  width: 7px;
+  height: 7px;
+  background: #2a7ac6;
+  border-radius: 50%;
+}
+.notification-list em {
+  font-style: normal;
+  font-size: 8px;
+  color: #33805d;
+}
+@media (max-width: 600px) {
+  .notification-list > button {
+    grid-template-columns: 40px 1fr 7px;
+  }
+  .notification-list em {
+    display: none;
+  }
+}

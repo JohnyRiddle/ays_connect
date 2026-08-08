@@ -1,0 +1,325 @@
+.performance-hero {
+  display: grid;
+  grid-template-columns: 140px 1fr auto;
+  gap: 28px;
+  align-items: center;
+  background: linear-gradient(120deg, #173a60, #215f92);
+  color: #fff;
+  border-radius: 15px;
+  padding: 28px;
+  margin: 24px 0 16px;
+}
+.performance-ring {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: conic-gradient(#57d3a0 var(--score), #ffffff22 0);
+  display: grid;
+  place-items: center;
+}
+.performance-ring:before {
+  content: "";
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  background: #1d507d;
+  position: absolute;
+}
+.performance-ring span {
+  z-index: 1;
+  display: grid;
+  text-align: center;
+}
+.performance-ring b {
+  font-size: 30px;
+}
+.performance-ring small {
+  font-size: 9px;
+  color: #bdd1e3;
+}
+.performance-hero h2 {
+  margin: 0 0 5px;
+}
+.performance-hero p {
+  color: #bfd1e1;
+  font-size: 11px;
+}
+.performance-hero em {
+  display: inline-block;
+  background: #ffffff18;
+  border-radius: 16px;
+  padding: 6px 10px;
+  font-style: normal;
+  font-size: 9px;
+}
+.performance-numbers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.performance-numbers span {
+  display: grid;
+  background: #ffffff10;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 8px;
+  color: #bdd1e3;
+}
+.performance-numbers b {
+  font-size: 18px;
+  color: #fff;
+}
+.metric-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.metric-grid article {
+  background: #fff;
+  border: 1px solid #e3e9f0;
+  border-radius: 12px;
+  padding: 18px;
+}
+.metric-grid article > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+}
+.metric-grid strong {
+  font-size: 17px;
+  color: #226fbb;
+}
+.metric-bar {
+  height: 7px;
+  background: #ebf0f5;
+  border-radius: 10px;
+  margin: 14px 0;
+}
+.metric-bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #277ac8, #45b98a);
+  border-radius: 10px;
+}
+.metric-grid p {
+  font-size: 9px;
+  color: #8794a5;
+  margin: 0;
+}
+.method-card {
+  display: flex;
+  gap: 14px;
+  background: #edf5fc;
+  color: #27659f;
+  border-radius: 12px;
+  padding: 18px;
+  margin-top: 12px;
+}
+.method-card h3 {
+  margin: 0 0 5px;
+  font-size: 12px;
+}
+.method-card p {
+  margin: 0;
+  color: #5f7790;
+  font-size: 9px;
+  line-height: 1.6;
+}
+.analytics-switch {
+  display: flex;
+  align-self: center;
+  background: #e9eef4;
+  border-radius: 9px;
+  padding: 3px;
+}
+.analytics-switch button {
+  border: 0;
+  background: transparent;
+  color: #637285;
+  padding: 9px 13px;
+  border-radius: 7px;
+  font-size: 9px;
+  font-weight: 700;
+}
+.analytics-switch button.active {
+  background: #fff;
+  color: #216db7;
+  box-shadow: 0 2px 8px #21384d18;
+}
+.management-summary {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin: 24px 0 14px;
+}
+.management-summary article {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  background: #fff;
+  border: 1px solid #e2e8ef;
+  border-radius: 11px;
+  padding: 15px;
+  color: #3478b9;
+}
+.management-summary article.warning {
+  color: #d18a2c;
+  background: #fffbf2;
+}
+.management-summary article.danger {
+  color: #c84a50;
+  background: #fff6f6;
+}
+.management-summary article span {
+  display: grid;
+  color: #748294;
+  font-size: 8px;
+}
+.management-summary article b {
+  color: #223448;
+  font-size: 20px;
+}
+.management-columns {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 14px;
+}
+.management-card {
+  background: #fff;
+  border: 1px solid #e2e8ef;
+  border-radius: 13px;
+  padding: 20px;
+}
+.card-heading h2 {
+  margin: 0;
+  font-size: 15px;
+}
+.card-heading p {
+  margin: 5px 0 16px;
+  color: #8492a3;
+  font-size: 9px;
+}
+.facility-health,
+.team-ranking {
+  display: grid;
+  gap: 8px;
+}
+.facility-health article {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #edf0f4;
+  border-radius: 10px;
+  padding: 12px;
+}
+.health-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #41af80;
+}
+.health-dot.risk {
+  background: #d85055;
+  box-shadow: 0 0 0 4px #fce7e8;
+}
+.facility-health article > div {
+  display: grid;
+}
+.facility-health b,
+.team-ranking b {
+  font-size: 10px;
+}
+.facility-health small,
+.team-ranking small {
+  color: #8794a4;
+  font-size: 8px;
+}
+.facility-health dl {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 2px 0 0;
+}
+.facility-health dl div {
+  display: grid;
+}
+.facility-health dt {
+  color: #929dac;
+  font-size: 7px;
+}
+.facility-health dd {
+  margin: 2px 0;
+  font-size: 10px;
+  font-weight: 800;
+}
+.team-ranking article {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  border-bottom: 1px solid #edf0f4;
+  padding: 8px 0;
+}
+.team-ranking article > em {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  background: #eef4fa;
+  color: #3279bb;
+  border-radius: 50%;
+  font-size: 8px;
+  font-style: normal;
+}
+.team-ranking article > div:nth-child(2) {
+  display: grid;
+}
+.team-ranking article > span {
+  font-size: 14px;
+  font-weight: 900;
+  color: #d18a2c;
+}
+.team-ranking article > span.good {
+  color: #36a578;
+}
+.team-ranking article > span.low {
+  color: #cf4d53;
+}
+.mini-progress {
+  grid-column: 2 / 4;
+  height: 4px;
+  background: #edf1f5;
+  border-radius: 6px;
+}
+.mini-progress i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #2e78bd, #48b78b);
+  border-radius: 6px;
+}
+.team-ranking article > small {
+  grid-column: 2 / 4;
+}
+@media (max-width: 720px) {
+  .performance-hero {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  .performance-ring {
+    margin: auto;
+  }
+  .performance-numbers,
+  .metric-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .management-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+  .management-columns {
+    grid-template-columns: 1fr;
+  }
+  .analytics-switch {
+    margin-top: 10px;
+  }
+}
