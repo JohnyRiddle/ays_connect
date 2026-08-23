@@ -1,5 +1,57 @@
 from django.conf import settings
 from django.db import models
+import uuid
+
+
+class TimestampedUUIDModel(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True
+
+
+class LegalEntity(TimestampedUUIDModel):
+    name = models.CharField(max_length=200)
+    short_name = models.CharField(max_length=80, blank=True)
+    code = models.CharField(max_length=64, blank=True, null=True, unique=True)
+
+    def __str__(self):
+        return self.short_name or self.name
+
+
+class OrgUnit(TimestampedUUIDModel):
+    name = models.CharField(max_length=150)
+    code = models.CharField(max_length=64, blank=True, null=True, unique=True)
+    parent = models.ForeignKey("self", on_delete=models.PROTECT, null=True, blank=True, related_name="children")
+    legal_entity = models.ForeignKey(LegalEntity, on_delete=models.PROTECT, null=True, blank=True, related_name="org_units")
+    unit_type = models.CharField(max_length=64, blank=True)
+    manager_position = models.ForeignKey("employees.Position", on_delete=models.SET_NULL, null=True, blank=True, related_name="managed_org_units")
+    manager_employee = models.ForeignKey("employees.Employee", on_delete=models.SET_NULL, null=True, blank=True, related_name="managed_org_units")
+
+    class Meta:
+        indexes = [models.Index(fields=["parent"]), models.Index(fields=["legal_entity"])]
+        constraints = [models.CheckConstraint(condition=~models.Q(id=models.F("parent_id")), name="org_unit_parent_not_self")]
+
+    def __str__(self):
+        return self.name
+
+
+class Location(TimestampedUUIDModel):
+    name = models.CharField(max_length=200)
+    code = models.CharField(max_length=64, blank=True, null=True, unique=True)
+    parent = models.ForeignKey("self", on_delete=models.PROTECT, null=True, blank=True, related_name="children")
+    legal_entity = models.ForeignKey(LegalEntity, on_delete=models.PROTECT, null=True, blank=True, related_name="locations")
+    location_type = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["parent"]), models.Index(fields=["legal_entity"])]
+        constraints = [models.CheckConstraint(condition=~models.Q(id=models.F("parent_id")), name="location_parent_not_self")]
+
+    def __str__(self):
+        return self.name
 
 class Company(models.Model):
     name = models.CharField(max_length=200)

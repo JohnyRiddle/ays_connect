@@ -11,7 +11,7 @@ ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,backend,t
 INSTALLED_APPS = [
     "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",
     "django.contrib.sessions", "django.contrib.messages", "django.contrib.staticfiles",
-    "corsheaders", "rest_framework", "drf_spectacular", "accounts", "organizations", "employees", "audit", "tasks", "checklists", "sensors", "incidents", "analytics", "notifications", "knowledge_base", "learning",
+    "corsheaders", "rest_framework", "drf_spectacular", "accounts", "organizations", "employees", "access_control", "audit", "events", "work_tasks", "service_requests", "tasks", "checklists", "sensors", "incidents", "analytics", "notifications", "knowledge_base", "learning",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware", "corsheaders.middleware.CorsMiddleware",
@@ -47,7 +47,16 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 25,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "EXCEPTION_HANDLER": "config.exceptions.api_exception_handler",
 }
 SPECTACULAR_SETTINGS = {"TITLE": "AYS Connect API", "VERSION": "1.6.0", "SERVE_INCLUDE_SCHEMA": False}
 KNOWLEDGE_MAX_FILE_SIZE_MB = int(os.getenv("KNOWLEDGE_MAX_FILE_SIZE_MB", "50"))
+TASK_ATTACHMENT_MAX_SIZE = int(os.getenv("TASK_ATTACHMENT_MAX_SIZE", str(25 * 1024 * 1024)))
+TASK_ATTACHMENT_ALLOWED_TYPES = tuple(filter(None, os.getenv(
+    "TASK_ATTACHMENT_ALLOWED_TYPES",
+    "application/pdf,image/jpeg,image/png,image/webp,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,application/zip",
+).split(",")))
+TASK_RECURRENCE_HORIZON_HOURS = int(os.getenv("TASK_RECURRENCE_HORIZON_HOURS", "24"))
+TASK_MAX_OCCURRENCES_PER_RULE_PER_RUN = int(os.getenv("TASK_MAX_OCCURRENCES_PER_RULE_PER_RUN", "100"))
+TASK_MAX_TOTAL_OCCURRENCES_PER_RUN = int(os.getenv("TASK_MAX_TOTAL_OCCURRENCES_PER_RUN", "500"))
 SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(minutes=15), "REFRESH_TOKEN_LIFETIME": timedelta(days=1), "ROTATE_REFRESH_TOKENS": True}
