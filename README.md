@@ -53,3 +53,15 @@ python manage.py test
 ```
 
 Архитектура и этапы описаны в `PROJECT_PLAN.md`, принятые решения — в `DECISIONS.md`. Описание базы знаний находится в `docs/KNOWLEDGE_BASE.md`. Максимальный размер файла задаётся переменной `KNOWLEDGE_MAX_FILE_SIZE_MB` (по умолчанию 50 МБ).
+
+## Восстановление контекста
+
+Перед продолжением разработки на другом компьютере прочитайте:
+
+- `AGENTS.md` — практические правила работы;
+- `docs/CURRENT_STATE.md` — актуальная точка передачи;
+- `docs/PROJECT.md` — назначение и ближайшие цели;
+- `docs/ARCHITECTURE.md` — фактическая архитектура;
+- `docs/DECISIONS.md` и корневой `DECISIONS.md` — подтверждённые решения.
+
+Production internal API доступен под `/api/internal/v1/`; канонические задачи реализованы в `backend/work_tasks`, а каталог услуг — в `backend/service_requests`.
