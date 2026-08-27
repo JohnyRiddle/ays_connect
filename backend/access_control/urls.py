@@ -4,7 +4,7 @@ from organizations.internal_api import LegalEntityViewSet, LocationViewSet, OrgU
 from .views import PermissionViewSet, RolePermissionViewSet, RoleViewSet
 from work_tasks.views import ChecklistTemplateViewSet, ProductionTaskViewSet
 from work_tasks.automation_views import OccurrenceViewSet, RecurrenceViewSet, SavedViewViewSet, TaskTemplateViewSet
-from service_requests.views import CategoryViewSet, ServiceViewSet, RequestTypeViewSet, ServiceCatalogView
+from service_requests.views import CategoryViewSet, ServiceViewSet, RequestTypeViewSet, ServiceCatalogView, ServiceRequestViewSet
 from django.urls import path
 
 router = DefaultRouter()
@@ -26,4 +26,5 @@ router.register("task-saved-views", SavedViewViewSet, basename="internal-task-sa
 router.register("service-categories", CategoryViewSet, basename="internal-service-categories")
 router.register("services", ServiceViewSet, basename="internal-services")
 router.register("request-types", RequestTypeViewSet, basename="internal-request-types")
+router.register("requests", ServiceRequestViewSet, basename="internal-requests")
 urlpatterns = router.urls + [path("service-catalog/", ServiceCatalogView.as_view(), name="internal-service-catalog")]

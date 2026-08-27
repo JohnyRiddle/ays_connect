@@ -51,11 +51,14 @@ REST_FRAMEWORK = {
 }
 SPECTACULAR_SETTINGS = {"TITLE": "AYS Connect API", "VERSION": "1.6.0", "SERVE_INCLUDE_SCHEMA": False}
 KNOWLEDGE_MAX_FILE_SIZE_MB = int(os.getenv("KNOWLEDGE_MAX_FILE_SIZE_MB", "50"))
-TASK_ATTACHMENT_MAX_SIZE = int(os.getenv("TASK_ATTACHMENT_MAX_SIZE", str(25 * 1024 * 1024)))
-TASK_ATTACHMENT_ALLOWED_TYPES = tuple(filter(None, os.getenv(
+ATTACHMENT_MAX_SIZE = int(os.getenv("ATTACHMENT_MAX_SIZE", os.getenv("TASK_ATTACHMENT_MAX_SIZE", str(25 * 1024 * 1024))))
+ATTACHMENT_ALLOWED_TYPES = tuple(filter(None, os.getenv(
+    "ATTACHMENT_ALLOWED_TYPES", os.getenv(
     "TASK_ATTACHMENT_ALLOWED_TYPES",
     "application/pdf,image/jpeg,image/png,image/webp,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,application/zip",
-).split(",")))
+)).split(",")))
+TASK_ATTACHMENT_MAX_SIZE = ATTACHMENT_MAX_SIZE
+TASK_ATTACHMENT_ALLOWED_TYPES = ATTACHMENT_ALLOWED_TYPES
 TASK_RECURRENCE_HORIZON_HOURS = int(os.getenv("TASK_RECURRENCE_HORIZON_HOURS", "24"))
 TASK_MAX_OCCURRENCES_PER_RULE_PER_RUN = int(os.getenv("TASK_MAX_OCCURRENCES_PER_RULE_PER_RUN", "100"))
 TASK_MAX_TOTAL_OCCURRENCES_PER_RUN = int(os.getenv("TASK_MAX_TOTAL_OCCURRENCES_PER_RUN", "500"))

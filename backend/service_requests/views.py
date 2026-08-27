@@ -2,18 +2,23 @@ from django.db import transaction
 from django.db.models import Prefetch
 from django.db.models import Q
 from django.utils import timezone
+from django.http import FileResponse
 from access_control.models import EmployeeRole
 from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.exceptions import NotFound, ValidationError, MethodNotAllowed
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from audit.services import AuditService
 from events.services import DomainEventService
-from .models import ServiceCategory, Service, RequestType, RequestTypeAccessRule, RequestFieldDefinition, RequestFieldOption
-from .serializers import CategorySerializer, ServiceSerializer, RequestTypeSerializer, AccessRuleSerializer, FieldSerializer, OptionSerializer, SchemaVersionSerializer
-from .services import CategoryService, RequestTypeAccessPolicy, SchemaService, require, CatalogError
+from .models import ServiceCategory, Service, RequestType, RequestTypeAccessRule, RequestFieldDefinition, RequestFieldOption, ServiceRequest, RequestRoutingRule, RequestStatus, ServiceRequestComment, ServiceRequestAttachment, CollaborationVisibility
+from .serializers import CategorySerializer, ServiceSerializer, RequestTypeSerializer, AccessRuleSerializer, FieldSerializer, OptionSerializer, SchemaVersionSerializer, RoutingRuleSerializer, ServiceRequestSerializer, RequestCreateSerializer, RequestTaskLinkSerializer, RequestCommentSerializer, RequestCommentWriteSerializer, RequestAttachmentSerializer, RequestWatcherSerializer, RequestWatcherWriteSerializer
+from .services import CategoryService, RequestTypeAccessPolicy, SchemaService, require, CatalogError, ServiceRequestService, ServiceRequestTaskService
+from .policies import ServiceRequestAccessPolicy
+from .collaboration import RequestCollaborationService
+from .activity import ServiceRequestActivitySelector
+from employees.models import AssignmentTarget, Employee
 
 
 class ActorMixin:
@@ -97,6 +102,16 @@ class RequestTypeViewSet(ActorMixin,viewsets.ModelViewSet):
         obj=self.get_object()
         if not obj.is_active or not obj.service.is_active or not RequestTypeAccessPolicy.category_path_active(obj.service.category) or not obj.current_schema_version_id or not RequestTypeAccessPolicy.allows(obj,self.actor(),request.user): raise NotFound()
         return Response(obj.current_schema_version.schema_json)
+    @action(detail=True,methods=["get","post"],url_path="routing-rules")
+    def routing_rules(self,request,pk=None):
+        self.manage("request_routing.view" if request.method=="GET" else "request_routing.manage");obj=self.get_object()
+        if request.method=="GET":return Response(RoutingRuleSerializer(obj.routing_rules.all(),many=True).data)
+        s=RoutingRuleSerializer(data=request.data);s.is_valid(raise_exception=True);rule=s.save(request_type=obj);self._record(rule,"request_routing.created");return Response(RoutingRuleSerializer(rule).data,status=201)
+    @action(detail=True,methods=["patch","delete"],url_path=r"routing-rules/(?P<rule_id>[^/.]+)")
+    def routing_rule_detail(self,request,pk=None,rule_id=None):
+        self.manage("request_routing.manage");rule=get_object_or_404(self.get_object().routing_rules,pk=rule_id)
+        if request.method=="DELETE":rule.is_active=False;rule.save(update_fields=["is_active","updated_at"]);self._record(rule,"request_routing.deactivated");return Response(status=204)
+        s=RoutingRuleSerializer(rule,data=request.data,partial=True);s.is_valid(raise_exception=True);s.save();self._record(rule,"request_routing.updated");return Response(s.data)
 
 
 class ServiceCatalogView(ActorMixin,APIView):
@@ -136,3 +151,112 @@ class ServiceCatalogView(ActorMixin,APIView):
             for item in items:
                 item["services"].sort(key=lambda x:(x["position"],x["name"],x["id"])); sort_tree(item["children"])
         sort_tree(roots); return Response(roots)
+
+
+class ServiceRequestViewSet(viewsets.ModelViewSet):
+    serializer_class=ServiceRequestSerializer;http_method_names=["get","post","patch","delete","head","options"]
+    def destroy(self,request,*args,**kwargs):raise MethodNotAllowed("DELETE")
+    def actor(self):
+        try:return self.request.user.employee
+        except Exception:raise ValidationError("Authenticated user has no employee profile.")
+    def get_queryset(self):
+        qs=ServiceRequest.objects.select_related("request_type","schema_version","service","category","requester","assigned_employee","responsible_employee").prefetch_related("field_values","task_links__task","comments","attachments","watcher_records__employee")
+        if not self.request.user.is_superuser:qs=qs.filter(ServiceRequestAccessPolicy.visibility_query(employee=self.actor())).distinct()
+        params=self.request.query_params
+        for key in ("status","priority","request_type","service","requester","assigned_employee","responsible_employee","org_unit","legal_entity","location"):
+            if params.get(key):qs=qs.filter(**{key:params[key]})
+        if params.get("created_from"):qs=qs.filter(created_at__gte=params["created_from"])
+        if params.get("created_to"):qs=qs.filter(created_at__lte=params["created_to"])
+        if params.get("resolved_from"):qs=qs.filter(resolved_at__gte=params["resolved_from"])
+        if params.get("resolved_to"):qs=qs.filter(resolved_at__lte=params["resolved_to"])
+        if params.get("search"):qs=qs.filter(Q(number__icontains=params["search"])|Q(subject__icontains=params["search"])|Q(description__icontains=params["search"]))
+        ordering=params.get("ordering","-created_at");allowed={"created_at","updated_at","priority","number","resolved_at"};field=ordering.lstrip("-")
+        return qs.order_by(ordering if field in allowed else "-created_at")
+    def create(self,request,*args,**kwargs):
+        s=RequestCreateSerializer(data=request.data);s.is_valid(raise_exception=True);obj=ServiceRequestService.create(actor=self.actor(),actor_user=request.user,**s.validated_data);return Response(ServiceRequestSerializer(obj,context=self.get_serializer_context()).data,status=201)
+    def partial_update(self,request,*args,**kwargs):
+        allowed={"subject","description","priority","payload","version"}
+        if set(request.data)-allowed:raise ValidationError("Protected request fields cannot be patched.")
+        data={k:v for k,v in request.data.items() if k not in {"version","payload"}}
+        obj=ServiceRequestService.update(request=self.get_object(),actor=self.actor(),actor_user=request.user,version=request.data.get("version"),payload=request.data.get("payload") if "payload" in request.data else None,**data);return Response(self.get_serializer(obj).data)
+    def _call(self,request,method,**extra):
+        obj=getattr(ServiceRequestService,method)(request=self.get_object(),actor=self.actor(),actor_user=request.user,version=request.data.get("version"),**extra);return Response(self.get_serializer(obj).data)
+    @action(detail=True,methods=["post"])
+    def assign(self,request,pk=None):return self._call(request,"assign",target=get_object_or_404(AssignmentTarget,pk=request.data.get("target")),reason=request.data.get("reason",""))
+    @action(detail=True,methods=["post"])
+    def reassign(self,request,pk=None):return self._call(request,"assign",target=get_object_or_404(AssignmentTarget,pk=request.data.get("target")),reason=request.data.get("reason",""),reassign=True)
+    @action(detail=True,methods=["post"])
+    def start(self,request,pk=None):return self._call(request,"start",reason=request.data.get("reason",""))
+    @action(detail=True,methods=["post"],url_path="wait-requester")
+    def wait_requester(self,request,pk=None):return self._call(request,"wait",waiting_type=RequestStatus.WAITING_REQUESTER,comment=request.data.get("comment",""))
+    @action(detail=True,methods=["post"],url_path="wait-external")
+    def wait_external(self,request,pk=None):return self._call(request,"wait",waiting_type=RequestStatus.WAITING_EXTERNAL,comment=request.data.get("comment",""))
+    @action(detail=True,methods=["post"])
+    def resume(self,request,pk=None):return self._call(request,"resume",reason=request.data.get("reason",""))
+    @action(detail=True,methods=["post"])
+    def resolve(self,request,pk=None):
+        duplicate=ServiceRequest.objects.filter(pk=request.data.get("duplicate_of")).first() if request.data.get("duplicate_of") else None
+        return self._call(request,"resolve",resolution_code=request.data.get("resolution_code","RESOLVED"),resolution_comment=request.data.get("resolution_comment",""),duplicate_of=duplicate)
+    @action(detail=True,methods=["post"])
+    def close(self,request,pk=None):return self._call(request,"close",reason=request.data.get("reason",""))
+    @action(detail=True,methods=["post"])
+    def reopen(self,request,pk=None):return self._call(request,"reopen",reason=request.data.get("reason",""))
+    @action(detail=True,methods=["post"])
+    def cancel(self,request,pk=None):return self._call(request,"cancel",reason=request.data.get("reason",""))
+    @action(detail=True,methods=["get","post"])
+    def tasks(self,request,pk=None):
+        obj=self.get_object()
+        if request.method=="GET":return Response(RequestTaskLinkSerializer(obj.task_links.select_related("task"),many=True).data)
+        data=request.data.copy();version=data.pop("version",None);template_id=data.pop("template",None);relation=data.pop("relation_type","execution")
+        template=get_object_or_404(__import__('work_tasks.models',fromlist=['TaskTemplate']).TaskTemplate,pk=template_id) if template_id else None
+        task=ServiceRequestTaskService.create_task(request=obj,actor=self.actor(),actor_user=request.user,version=version,relation_type=relation,template=template,**data);return Response({"id":str(task.pk),"number":task.number},status=201)
+    @action(detail=True,methods=["get"])
+    def history(self,request,pk=None):
+        obj=self.get_object();return Response({"status":[{"from_status":x.from_status,"to_status":x.to_status,"reason":x.reason,"created_at":x.created_at} for x in obj.status_history.all()],"assignments":[{"old_employee":str(x.old_employee_id or ""),"new_employee":str(x.new_employee_id),"reason":x.reason,"created_at":x.created_at} for x in obj.assignment_history.all()],"waiting":[{"type":x.waiting_type,"comment":x.comment,"started_at":x.started_at,"ended_at":x.ended_at} for x in obj.waiting_periods.all()]})
+    def _internal(self,obj,kind="comment"):return self.request.user.is_superuser or ServiceRequestAccessPolicy.can_view_internal(employee=self.actor(),request=obj,kind=kind)
+    @action(detail=True,methods=["get","post"])
+    def comments(self,request,pk=None):
+        obj=self.get_object();qs=obj.comments.select_related("author","deleted_by").prefetch_related("mention_records__employee")
+        if not self._internal(obj,"comment"):qs=qs.filter(visibility=CollaborationVisibility.PUBLIC)
+        if request.method=="GET":return Response(RequestCommentSerializer(qs,many=True).data)
+        s=RequestCommentWriteSerializer(data=request.data);s.is_valid(raise_exception=True);comment=RequestCollaborationService.add_comment(request=obj,actor=self.actor(),actor_user=request.user,**s.validated_data);return Response(RequestCommentSerializer(comment).data,status=201)
+    @action(detail=True,methods=["patch","delete"],url_path=r"comments/(?P<comment_id>[^/.]+)")
+    def comment_detail(self,request,pk=None,comment_id=None):
+        obj=self.get_object();qs=ServiceRequestComment.objects.select_related("request")
+        if not self._internal(obj,"comment"):qs=qs.filter(visibility=CollaborationVisibility.PUBLIC)
+        comment=get_object_or_404(qs,pk=comment_id,request=obj)
+        if request.method=="DELETE":RequestCollaborationService.delete_comment(comment=comment,actor=self.actor(),actor_user=request.user);return Response(status=204)
+        if "visibility" in request.data:raise ValidationError("Comment visibility is immutable.")
+        s=RequestCommentWriteSerializer(data=request.data);s.is_valid(raise_exception=True);comment=RequestCollaborationService.edit_comment(comment=comment,actor=self.actor(),actor_user=request.user,body=s.validated_data["body"],mentions=s.validated_data.get("mentions",()));return Response(RequestCommentSerializer(comment).data)
+    @action(detail=True,methods=["get","post"])
+    def attachments(self,request,pk=None):
+        obj=self.get_object();qs=obj.attachments.filter(deleted_at__isnull=True).select_related("uploaded_by")
+        if not self._internal(obj,"attachment"):qs=qs.filter(visibility=CollaborationVisibility.PUBLIC)
+        if request.method=="GET":return Response(RequestAttachmentSerializer(qs,many=True).data)
+        attachment=RequestCollaborationService.add_attachment(request=obj,actor=self.actor(),actor_user=request.user,uploaded_file=request.FILES.get("file"),visibility=request.data.get("visibility",CollaborationVisibility.PUBLIC));return Response(RequestAttachmentSerializer(attachment).data,status=201)
+    @action(detail=True,methods=["delete"],url_path=r"attachments/(?P<attachment_id>[^/.]+)")
+    def attachment_detail(self,request,pk=None,attachment_id=None):
+        obj=self.get_object();qs=ServiceRequestAttachment.objects.filter(deleted_at__isnull=True)
+        if not self._internal(obj,"attachment"):qs=qs.filter(visibility=CollaborationVisibility.PUBLIC)
+        attachment=get_object_or_404(qs,pk=attachment_id,request=obj);RequestCollaborationService.delete_attachment(attachment=attachment,actor=self.actor(),actor_user=request.user);return Response(status=204)
+    @action(detail=True,methods=["get"],url_path=r"attachments/(?P<attachment_id>[^/.]+)/download")
+    def attachment_download(self,request,pk=None,attachment_id=None):
+        obj=self.get_object();qs=ServiceRequestAttachment.objects.filter(deleted_at__isnull=True)
+        if not self._internal(obj,"attachment"):qs=qs.filter(visibility=CollaborationVisibility.PUBLIC)
+        attachment=get_object_or_404(qs,pk=attachment_id,request=obj);return FileResponse(attachment.file.open("rb"),as_attachment=True,filename=attachment.original_filename,content_type=attachment.content_type)
+    @action(detail=True,methods=["post","delete"])
+    def watch(self,request,pk=None):
+        obj=self.get_object();actor=self.actor()
+        if request.method=="POST":return Response(RequestWatcherSerializer(RequestCollaborationService.add_watcher(request=obj,employee=actor,actor=actor,actor_user=request.user)).data,status=201)
+        RequestCollaborationService.remove_watcher(request=obj,employee=actor,actor=actor,actor_user=request.user);return Response(status=204)
+    @action(detail=True,methods=["get","post"])
+    def watchers(self,request,pk=None):
+        obj=self.get_object()
+        if request.method=="GET":return Response(RequestWatcherSerializer(obj.watcher_records.filter(removed_at__isnull=True,employee__is_active=True).select_related("employee","added_by"),many=True).data)
+        s=RequestWatcherWriteSerializer(data=request.data);s.is_valid(raise_exception=True);watcher=RequestCollaborationService.add_watcher(request=obj,employee=s.validated_data["employee"],actor=self.actor(),actor_user=request.user);return Response(RequestWatcherSerializer(watcher).data,status=201)
+    @action(detail=True,methods=["delete"],url_path=r"watchers/(?P<employee_id>[^/.]+)")
+    def watcher_detail(self,request,pk=None,employee_id=None):
+        obj=self.get_object();employee=get_object_or_404(Employee,pk=employee_id);RequestCollaborationService.remove_watcher(request=obj,employee=employee,actor=self.actor(),actor_user=request.user);return Response(status=204)
+    @action(detail=True,methods=["get"])
+    def activity(self,request,pk=None):
+        return Response(ServiceRequestActivitySelector.page(request=self.get_object(),employee=self.actor(),page=request.query_params.get("page",1),page_size=request.query_params.get("page_size",25)))

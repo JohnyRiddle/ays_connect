@@ -1,26 +1,18 @@
 from __future__ import annotations
 
-import hashlib
-from pathlib import Path
-
-from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
 from access_control.services import PermissionService
 from audit.services import AuditService
 from events.services import DomainEventService
+from config.attachments import AttachmentScanner, AttachmentSecurityError, validate_attachment
 from .exceptions import TaskBusinessError, TaskValidationError
 from .models import (
     ChecklistTemplate, ChecklistTemplateItem, Task, TaskAttachment, TaskChecklist,
     TaskChecklistItem, TaskComment, TaskCommentMention, TaskCommentRevision, TaskWatcher,
 )
 from .policies import TaskAccessPolicy
-
-
-class AttachmentScanner:
-    def scan(self, uploaded_file):
-        return None
 
 
 class CollaborationService:
@@ -104,25 +96,10 @@ class CollaborationService:
 
     @classmethod
     def _validate_file(cls, uploaded_file):
-        if not uploaded_file or uploaded_file.size <= 0:
-            raise TaskValidationError("Файл пуст.", code="task_attachment_empty")
-        if uploaded_file.size > settings.TASK_ATTACHMENT_MAX_SIZE:
-            raise TaskValidationError("Файл превышает допустимый размер.", code="task_attachment_too_large")
-        content_type = (uploaded_file.content_type or "application/octet-stream").lower()
-        if content_type not in settings.TASK_ATTACHMENT_ALLOWED_TYPES:
-            raise TaskValidationError("Тип файла запрещён политикой безопасности.", code="task_attachment_type_forbidden")
-        original = Path(uploaded_file.name).name.strip().replace("\x00", "")
-        if not original or len(original) > 255:
-            raise TaskValidationError("Некорректное имя файла.", code="task_attachment_filename_invalid")
-        header = uploaded_file.read(8)
-        uploaded_file.seek(0)
-        if header.startswith((b"MZ", b"\x7fELF", b"#!")):
-            raise TaskValidationError("Исполняемые файлы запрещены.", code="task_attachment_type_forbidden")
-        digest = hashlib.sha256()
-        for chunk in uploaded_file.chunks():
-            digest.update(chunk)
-        uploaded_file.seek(0)
-        return original, content_type, digest.hexdigest()
+        try:
+            return validate_attachment(uploaded_file)
+        except AttachmentSecurityError as exc:
+            raise TaskValidationError(str(exc), code=f"task_{exc.code}") from exc
 
     @classmethod
     def add_attachment(cls, *, task, actor, actor_user, uploaded_file, scanner=None, correlation_id=None):
