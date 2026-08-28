@@ -217,7 +217,10 @@ class ServiceRequestService:
         ServiceRequestFieldValue.objects.bulk_create([ServiceRequestFieldValue(request=obj,field_key=k,field_type=fields[k]["field_type"],label=fields[k]["label"],value_json=v) for k,v in cleaned.items()])
         ServiceRequestStatusHistory.objects.create(request=obj,to_status=obj.status,actor=actor)
         if target:ServiceRequestAssignmentHistory.objects.create(request=obj,new_target=target,new_employee=employee,changed_by=actor,reason="Automatic routing")
-        cls._record(obj,actor,actor_user,"request.created",new={"status":obj.status,"schema_version":obj.schema_version.version}); return obj
+        cls._record(obj,actor,actor_user,"request.created",new={"status":obj.status,"schema_version":obj.schema_version.version})
+        from sla.runtime import SLAInstanceService
+        SLAInstanceService.create_for_request(obj,actor=actor,actor_user=actor_user)
+        return obj
     @classmethod
     @transaction.atomic
     def assign(cls,*,request,actor,actor_user,version,target,reason="",reassign=False):
@@ -252,7 +255,10 @@ class ServiceRequestService:
         if to_status==RequestStatus.RESOLVED: request.resolved_at=now
         if to_status==RequestStatus.CLOSED: request.closed_at=now
         if to_status==RequestStatus.CANCELLED: request.cancelled_at=now
-        request.status=to_status; request.version+=1; request.updated_by=actor_user; request.save(); ServiceRequestStatusHistory.objects.create(request=request,from_status=old,to_status=to_status,actor=actor,reason=reason); cls._record(request,actor,actor_user,f"request.{to_status}",old={"status":old},new={"status":to_status}); return request
+        request.status=to_status; request.version+=1; request.updated_by=actor_user; request.save(); ServiceRequestStatusHistory.objects.create(request=request,from_status=old,to_status=to_status,actor=actor,reason=reason); cls._record(request,actor,actor_user,f"request.{to_status}",old={"status":old},new={"status":to_status})
+        from sla.runtime import SLAInstanceService
+        SLAInstanceService.handle_lifecycle(request,event_at=now,actor=actor,actor_user=actor_user,previous_status=old)
+        return request
     @classmethod
     @transaction.atomic
     def start(cls,**kw):return cls._transition(to_status=RequestStatus.IN_PROGRESS,permission="request.start",**kw)

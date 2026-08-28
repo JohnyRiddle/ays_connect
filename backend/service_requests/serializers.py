@@ -47,7 +47,7 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
     dynamic_values=RequestFieldValueSerializer(source="field_values",many=True,read_only=True)
     tasks=RequestTaskLinkSerializer(source="task_links",many=True,read_only=True)
     available_actions=serializers.SerializerMethodField()
-    collaboration=serializers.SerializerMethodField();tasks_summary=serializers.SerializerMethodField()
+    collaboration=serializers.SerializerMethodField();tasks_summary=serializers.SerializerMethodField();sla=serializers.SerializerMethodField()
     request_type_name=serializers.CharField(source="request_type.name",read_only=True)
     schema_version_number=serializers.IntegerField(source="schema_version.version",read_only=True)
     class Meta:
@@ -79,6 +79,11 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
         return data
     def get_tasks_summary(self,obj):
         statuses=[link.task.status for link in obj.task_links.all()];return {"total":len(statuses),"open":statuses.count("open"),"in_progress":statuses.count("in_progress"),"completed":statuses.count("completed")}
+    def get_sla(self,obj):
+        try:instance=obj.sla_instance
+        except Exception:return {"has_sla":False}
+        metrics=list(instance.metrics.all());response=next((x for x in metrics if x.metric_type=="response"),None);resolution=next((x for x in reversed(metrics) if x.metric_type=="resolution"),None)
+        return {"has_sla":True,"response_status":response.status if response else None,"resolution_status":resolution.status if resolution else None,"resolution_due_at":resolution.due_at if resolution else None,"is_paused":instance.status=="paused"}
 
 class RequestCreateSerializer(serializers.Serializer):
     request_type=serializers.PrimaryKeyRelatedField(queryset=RequestType.objects.all());requester=serializers.PrimaryKeyRelatedField(queryset=Employee.objects.all(),required=False)

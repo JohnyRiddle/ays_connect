@@ -7,7 +7,7 @@
 
 ## Текущая задача
 
-Phase 1.2C: production collaboration-слой заявок и финальное hardening Service Requests Domain.
+Phase 1.3B: SLA Instances / Runtime / Pause Accounting / Timers.
 
 ## Сделано
 
@@ -22,26 +22,33 @@ Phase 1.2C: production collaboration-слой заявок и финальное
 - PUBLIC/INTERNAL comments, revisions, mentions и soft delete;
 - защищённые PUBLIC/INTERNAL attachments с общим storage security pipeline;
 - watchers, расширенный PARTICIPATING, privacy-filtered Activity Feed и collaboration summary;
+- отдельный SLA domain: версионируемые бизнес-календари, политики, warning thresholds и assignment rules;
+- timezone-aware business-time calculator и preview API без изменения runtime заявок;
+- SLAInstance, response metric, cycle-based resolution metrics, pause accounting, thresholds и breach history;
+- транзакционные hooks ServiceRequest lifecycle, reconciliation и `process_sla` worker;
+- SLA status/history API и request list filters;
 - проект опубликован в `origin/main` коммитом `bfe8313` до текущего обновления документации;
 - добавлены проектные документы передачи контекста и универсальные инструкции Codex.
 
 ## Осталось
 
-- проверить и закоммитить текущие изменения документации после подтверждения пользователя;
-- проектировать SLA/Automation отдельной следующей фазой;
+- реализовать escalation policies и delivery integration отдельной следующей фазой;
 - перед развёртыванием поверх старой базы подготовить план миграции существующих bigint ID к актуальным UUID-моделям либо использовать чистую базу.
 
 ## Известные проблемы и риски
 
 - локальный Docker PostgreSQL volume создан ранним прототипом и не должен обновляться без резервной копии/плана данных;
 - production и legacy Tasks временно сосуществуют;
-- SLA, notifications и сложный workflow по-прежнему находятся вне завершённого Request Domain;
+- escalation runtime, notification delivery и performance scoring пока не реализованы;
 - PostgreSQL 17.11 quality gate Phase 1.2C пройден: clean migrations, upgrade-клон Phase 1.2B → `0004`, 121 тест и 7 PostgreSQL concurrency/atomicity проверок;
+- PostgreSQL 17.11 quality gate Phase 1.3A пройден: clean/upgrade migrations и 129 backend-тестов, включая 8 SLA domain tests;
+- PostgreSQL 17.11 quality gate Phase 1.3B пройден: clean/upgrade migrations и 139 backend-тестов, включая 18 SLA tests и concurrency gate;
+- устранена PostgreSQL-specific несовместимость `SELECT FOR UPDATE` с nullable outer join при публикации SLA policy;
 - Docker Desktop установлен, но Docker Linux engine требует установки WSL; gate выполнен на изолированном native PostgreSQL.
 
 ## Рекомендуемый следующий шаг
 
-По подтверждению создать общий commit Phase 1.2B–1.2C. Следующая продуктовая фаза проектируется отдельно: SLA & Escalations.
+После PostgreSQL quality gate зафиксировать Phase 1.3A–1.3B. Следующая продуктовая фаза: SLA Warnings / Escalations.
 
 ## Команды проверки
 

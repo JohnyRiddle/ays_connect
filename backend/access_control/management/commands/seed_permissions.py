@@ -74,6 +74,15 @@ PERMISSIONS = {
     "request.attachment_delete": "Удаление вложений заявок",
     "request.watch": "Наблюдение за заявками",
     "request.watcher_manage": "Управление наблюдателями заявок",
+    "sla_calendar.view": "Просмотр бизнес-календарей",
+    "sla_calendar.manage": "Управление бизнес-календарями",
+    "sla_policy.view": "Просмотр SLA-политик",
+    "sla_policy.manage": "Управление SLA-политиками",
+    "sla_policy.publish": "Публикация SLA-политик",
+    "sla_assignment_rule.view": "Просмотр правил SLA",
+    "sla_assignment_rule.manage": "Управление правилами SLA",
+    "sla.instance.view": "Просмотр runtime SLA",
+    "sla.instance.manage": "Администрирование runtime SLA",
 }
 
 

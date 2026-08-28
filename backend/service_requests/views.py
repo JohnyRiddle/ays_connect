@@ -160,7 +160,7 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
         try:return self.request.user.employee
         except Exception:raise ValidationError("Authenticated user has no employee profile.")
     def get_queryset(self):
-        qs=ServiceRequest.objects.select_related("request_type","schema_version","service","category","requester","assigned_employee","responsible_employee").prefetch_related("field_values","task_links__task","comments","attachments","watcher_records__employee")
+        qs=ServiceRequest.objects.select_related("request_type","schema_version","service","category","requester","assigned_employee","responsible_employee","sla_instance__policy_version__policy").prefetch_related("field_values","task_links__task","comments","attachments","watcher_records__employee","sla_instance__metrics__resolution_cycle")
         if not self.request.user.is_superuser:qs=qs.filter(ServiceRequestAccessPolicy.visibility_query(employee=self.actor())).distinct()
         params=self.request.query_params
         for key in ("status","priority","request_type","service","requester","assigned_employee","responsible_employee","org_unit","legal_entity","location"):
@@ -169,6 +169,10 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
         if params.get("created_to"):qs=qs.filter(created_at__lte=params["created_to"])
         if params.get("resolved_from"):qs=qs.filter(resolved_at__gte=params["resolved_from"])
         if params.get("resolved_to"):qs=qs.filter(resolved_at__lte=params["resolved_to"])
+        if params.get("has_sla") in {"true","false"}:qs=qs.filter(sla_instance__isnull=params["has_sla"]=="false")
+        if params.get("sla_response_breached") in {"true","false"}:qs=qs.filter(sla_instance__metrics__metric_type="response",sla_instance__metrics__breached_at__isnull=params["sla_response_breached"]=="false")
+        if params.get("sla_resolution_breached") in {"true","false"}:qs=qs.filter(sla_instance__metrics__metric_type="resolution",sla_instance__metrics__breached_at__isnull=params["sla_resolution_breached"]=="false")
+        if params.get("sla_resolution_paused") in {"true","false"}:qs=qs.filter(sla_instance__status="paused" if params["sla_resolution_paused"]=="true" else "active")
         if params.get("search"):qs=qs.filter(Q(number__icontains=params["search"])|Q(subject__icontains=params["search"])|Q(description__icontains=params["search"]))
         ordering=params.get("ordering","-created_at");allowed={"created_at","updated_at","priority","number","resolved_at"};field=ordering.lstrip("-")
         return qs.order_by(ordering if field in allowed else "-created_at")
@@ -213,6 +217,21 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
     @action(detail=True,methods=["get"])
     def history(self,request,pk=None):
         obj=self.get_object();return Response({"status":[{"from_status":x.from_status,"to_status":x.to_status,"reason":x.reason,"created_at":x.created_at} for x in obj.status_history.all()],"assignments":[{"old_employee":str(x.old_employee_id or ""),"new_employee":str(x.new_employee_id),"reason":x.reason,"created_at":x.created_at} for x in obj.assignment_history.all()],"waiting":[{"type":x.waiting_type,"comment":x.comment,"started_at":x.started_at,"ended_at":x.ended_at} for x in obj.waiting_periods.all()]})
+    @action(detail=True,methods=["get"],url_path="sla")
+    def sla_status(self,request,pk=None):
+        from sla.serializers import SLAInstanceSerializer
+        obj=self.get_object()
+        try:instance=obj.sla_instance
+        except Exception:return Response({"has_sla":False})
+        return Response({"has_sla":True,**SLAInstanceSerializer(instance).data})
+    @action(detail=True,methods=["get"],url_path="sla/history")
+    def sla_history(self,request,pk=None):
+        from sla.serializers import ResolutionCycleSerializer
+        obj=self.get_object()
+        try:instance=obj.sla_instance
+        except Exception:return Response({"has_sla":False,"cycles":[],"thresholds":[]})
+        thresholds=[{"metric_type":x.metric_instance.metric_type,"cycle":x.metric_instance.resolution_cycle.cycle_number if x.metric_instance.resolution_cycle_id else None,"threshold_percent":x.threshold_percent,"reached_at":x.reached_at} for x in instance.metrics.prefetch_related("threshold_events").all() for x in x.threshold_events.all()]
+        return Response({"has_sla":True,"created_at":instance.created_at,"cycles":ResolutionCycleSerializer(instance.resolution_cycles.prefetch_related("pause_periods","metric"),many=True).data,"thresholds":thresholds})
     def _internal(self,obj,kind="comment"):return self.request.user.is_superuser or ServiceRequestAccessPolicy.can_view_internal(employee=self.actor(),request=obj,kind=kind)
     @action(detail=True,methods=["get","post"])
     def comments(self,request,pk=None):
