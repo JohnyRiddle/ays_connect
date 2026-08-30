@@ -137,6 +137,9 @@ class CollaborationService:
         cls._authorize(actor=actor, actor_user=actor_user, permission=permission, task=task)
         if not employee.is_active:
             raise TaskValidationError("Нельзя добавить неактивного наблюдателя.", code="task_watcher_invalid")
+        # A missing watcher row cannot be locked. Serialize additions through the
+        # stable parent row so concurrent requests return the same active watcher.
+        Task.objects.select_for_update().get(pk=task.pk)
         watcher = TaskWatcher.objects.select_for_update().filter(task=task, employee=employee, removed_at__isnull=True).first()
         if watcher:
             return watcher

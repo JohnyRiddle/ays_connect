@@ -55,8 +55,10 @@ AuditService and Outbox. Hard deletion of production Tasks is prohibited.
 
 ## Deployment gate
 
-SQLite validates functional behavior and migration compatibility. Before deployment,
-PostgreSQL must verify migrations, concurrent numbering, optimistic locking,
-checklist/completion locking, watcher constraints, recurrence idempotency and Outbox
-rollback semantics. Production file policy should also connect the existing scanner
+The accumulated Tasks gate passed on PostgreSQL 17.11 on 30 August 2026: clean and
+upgrade migrations, 45/45 Tasks tests and 181/181 backend tests. PostgreSQL transaction
+tests verify concurrent numbering, optimistic locking, watcher uniqueness and
+recurrence idempotency; rollback tests cover Task/Audit/Outbox atomicity. Concurrent
+watcher creation is serialized by locking the parent Task before checking the partial
+unique constraint. Production file policy should still connect the existing scanner
 hook to malware scanning where required.

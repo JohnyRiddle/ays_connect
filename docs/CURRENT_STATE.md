@@ -1,6 +1,6 @@
 # Текущее состояние AYS Connect
 
-> 30.08.2026: Phase 1.4A + 1.4B замыкают Notification Domain: IN_APP, Telegram и Email, secure linking/webhook, centralized routing, quiet hours, retry/UNKNOWN safety и self-service settings. PostgreSQL 17.11 gate: clean/upgrade preservation PASS, notification 23/23, full backend 176/176, frontend build PASS. Исходный commit `98d68f2`.
+> 30.08.2026: ретроспективный PostgreSQL quality gate Phase 1.1D пройден на PostgreSQL 17.11: clean/upgrade migrations PASS, Tasks 45/45, full backend 181/181. Исправлена гонка concurrent watcher creation. Phase 1.4A + 1.4B ранее завершили Notification Domain; checkpoint `95d1e88`.
 
 **Обновлено:** 28.08.2026
 
@@ -9,7 +9,7 @@
 
 ## Текущая задача
 
-Phase 1.3C: Escalation Policies / Runtime / Actions.
+Phase 1.1D: accumulated PostgreSQL quality gate Tasks Completion.
 
 ## Сделано
 
@@ -36,24 +36,26 @@ Phase 1.3C: Escalation Policies / Runtime / Actions.
 
 ## Осталось
 
-- реализовать физический Notification Domain отдельной следующей фазой;
+- определить следующую product-фазу после завершённых Notification Core и delivery;
 - перед развёртыванием поверх старой базы подготовить план миграции существующих bigint ID к актуальным UUID-моделям либо использовать чистую базу.
 
 ## Известные проблемы и риски
 
 - локальный Docker PostgreSQL volume создан ранним прототипом и не должен обновляться без резервной копии/плана данных;
 - production и legacy Tasks временно сосуществуют;
-- notification delivery и performance scoring пока не реализованы;
+- performance scoring пока не реализован;
+- PostgreSQL 17.11 quality gate Phase 1.1D пройден: clean/upgrade migrations, Tasks 45/45, full backend 181/181 и 4 PostgreSQL concurrency tests;
+- исправлена PostgreSQL-specific гонка при одновременном добавлении одного Task watcher;
 - PostgreSQL 17.11 quality gate Phase 1.2C пройден: clean migrations, upgrade-клон Phase 1.2B → `0004`, 121 тест и 7 PostgreSQL concurrency/atomicity проверок;
 - PostgreSQL 17.11 quality gate Phase 1.3A пройден: clean/upgrade migrations и 129 backend-тестов, включая 8 SLA domain tests;
 - PostgreSQL 17.11 quality gate Phase 1.3B пройден: clean/upgrade migrations и 139 backend-тестов, включая 18 SLA tests и concurrency gate;
 - PostgreSQL 17.11 quality gate Phase 1.3C пройден: clean/upgrade migrations и 154 backend-теста, включая 33 SLA/escalation tests, concurrency и E2E actions;
 - устранена PostgreSQL-specific несовместимость `SELECT FOR UPDATE` с nullable outer join при публикации SLA policy;
-- Docker Desktop установлен, но Docker Linux engine требует установки WSL; gate выполнен на изолированном native PostgreSQL.
+- Docker Desktop и Linux engine доступны; gate выполнен в изолированном PostgreSQL 17 container.
 
 ## Рекомендуемый следующий шаг
 
-После PostgreSQL quality gate зафиксировать Phase 1.3C. Следующая продуктовая фаза: Notification Domain.
+Зафиксировать ретроспективный Tasks PostgreSQL gate отдельным checkpoint и определить следующую product-фазу.
 
 ## Команды проверки
 

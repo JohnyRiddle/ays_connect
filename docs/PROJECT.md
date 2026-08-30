@@ -17,15 +17,13 @@ AYS Connect объединяет сотрудников, оргструктур�
 
 ## Текущее состояние
 
-Завершены production-фазы 1.1A–1.1D и 1.2A. Последний полный gate: 101 тест на PostgreSQL. Текущее состояние передачи работы поддерживается в `docs/CURRENT_STATE.md`.
+Завершены production-фазы 1.1A–1.4B. Последний полный gate: 181 тест на PostgreSQL 17.11. Текущее состояние передачи работы поддерживается в `docs/CURRENT_STATE.md`.
 
 ## Ограничения
 
-- lifecycle заявок, routing, assignment и SLA ещё не реализованы;
 - production и legacy-контуры задач временно сосуществуют;
-- `FILE` в динамической форме пока является контрактом схемы без Request attachment lifecycle;
 - локальный старый PostgreSQL volume может требовать отдельного плана миграции данных к UUID-моделям.
 
 ## Ближайшая цель
 
-Phase 1.2B: production Request Model, lifecycle, routing, assignment, resolution и reopen без переработки завершённого Tasks Domain.
+Определить следующую product-фазу поверх завершённых Requests, SLA и Notification domains без переработки стабильного Tasks Domain.

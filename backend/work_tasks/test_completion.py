@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 from django.utils import timezone
@@ -6,6 +7,7 @@ from rest_framework.test import APIClient
 
 from access_control.models import EmployeeRole, Permission, Role, RolePermission, Scope
 from accounts.models import User
+from audit.models import AuditEvent
 from employees.models import AssignmentTarget, Employee
 from events.models import OutboxEvent
 from organizations.models import LegalEntity, OrgUnit
@@ -75,6 +77,25 @@ class TaskTemplateTests(CompletionPhaseTestCase):
         with self.assertRaises(TaskBusinessError):
             TaskTemplateService.create_task(template=template, actor=self.actor, actor_user=self.user)
         self.assertEqual(Task.objects.count(), count)
+
+    def test_template_instantiation_rolls_back_task_audit_and_outbox(self):
+        template = self.template()
+        task_count = Task.objects.count()
+        audit_count = AuditEvent.objects.count()
+        outbox_count = OutboxEvent.objects.count()
+
+        with patch(
+            "work_tasks.services.DomainEventService.publish",
+            side_effect=RuntimeError("outbox unavailable"),
+        ):
+            with self.assertRaises(RuntimeError):
+                TaskTemplateService.create_task(
+                    template=template, actor=self.actor, actor_user=self.user
+                )
+
+        self.assertEqual(Task.objects.count(), task_count)
+        self.assertEqual(AuditEvent.objects.count(), audit_count)
+        self.assertEqual(OutboxEvent.objects.count(), outbox_count)
 
 
 class RecurrenceTests(CompletionPhaseTestCase):

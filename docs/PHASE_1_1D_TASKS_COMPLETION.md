@@ -67,6 +67,11 @@ reachable only through an accessible recurrence. Saved Views are owner-only.
 Template instantiation and occurrence generation use AuditEvent and Transactional
 Outbox without introducing parallel audit systems.
 
-The local SQLite gate cannot verify PostgreSQL row locks, partial constraints or true
-concurrent occurrence generation. PostgreSQL remains a deployment blocker until the
-accumulated A–D integration gate passes.
+The accumulated PostgreSQL gate passed on PostgreSQL 17.11 on 30 August 2026. Clean
+migrations and an upgrade cycle from `work_tasks 0002` to `0003` preserved an existing
+Task. The complete backend suite passed 181/181; the Tasks suite passed 45/45.
+Dedicated transaction tests cover concurrent numbering, optimistic locking,
+occurrence idempotency and watcher creation. The gate exposed a missing-row race in
+watcher creation; additions are now serialized through the stable parent Task row.
+Template instantiation also has a regression test proving Task, Audit and Outbox
+rollback together.
