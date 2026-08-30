@@ -47,7 +47,7 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
     dynamic_values=RequestFieldValueSerializer(source="field_values",many=True,read_only=True)
     tasks=RequestTaskLinkSerializer(source="task_links",many=True,read_only=True)
     available_actions=serializers.SerializerMethodField()
-    collaboration=serializers.SerializerMethodField();tasks_summary=serializers.SerializerMethodField();sla=serializers.SerializerMethodField()
+    collaboration=serializers.SerializerMethodField();tasks_summary=serializers.SerializerMethodField();sla=serializers.SerializerMethodField();escalation=serializers.SerializerMethodField()
     request_type_name=serializers.CharField(source="request_type.name",read_only=True)
     schema_version_number=serializers.IntegerField(source="schema_version.version",read_only=True)
     class Meta:
@@ -84,6 +84,10 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
         except Exception:return {"has_sla":False}
         metrics=list(instance.metrics.all());response=next((x for x in metrics if x.metric_type=="response"),None);resolution=next((x for x in reversed(metrics) if x.metric_type=="resolution"),None)
         return {"has_sla":True,"response_status":response.status if response else None,"resolution_status":resolution.status if resolution else None,"resolution_due_at":resolution.due_at if resolution else None,"is_paused":instance.status=="paused"}
+    def get_escalation(self,obj):
+        try:instance=obj.sla_instance.escalation_instance
+        except Exception:return {"has_escalation":False}
+        executions=list(instance.executions.all());return {"has_escalation":True,"current_level":max((x.rule_snapshot.get("level",0) for x in executions if x.status in {"succeeded","skipped"}),default=0),"last_triggered_at":max((x.triggered_at for x in executions),default=None),"has_failed_actions":any(x.status=="failed" for x in executions)}
 
 class RequestCreateSerializer(serializers.Serializer):
     request_type=serializers.PrimaryKeyRelatedField(queryset=RequestType.objects.all());requester=serializers.PrimaryKeyRelatedField(queryset=Employee.objects.all(),required=False)

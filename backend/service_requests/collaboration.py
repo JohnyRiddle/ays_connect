@@ -99,8 +99,8 @@ class RequestCollaborationService:
         return attachment
     @classmethod
     @transaction.atomic
-    def add_watcher(cls,*,request,employee,actor,actor_user):
-        cls._authorize(request=request,actor=actor,actor_user=actor_user,permission="request.watch" if employee.pk==actor.pk else "request.watcher_manage")
+    def add_watcher(cls,*,request,employee,actor,actor_user,system=False):
+        if not system:cls._authorize(request=request,actor=actor,actor_user=actor_user,permission="request.watch" if employee.pk==actor.pk else "request.watcher_manage")
         if not employee.is_active:raise RequestBusinessError("Inactive employee cannot watch.",code="request_watcher_invalid")
         watcher=ServiceRequestWatcher.objects.filter(request=request,employee=employee,removed_at__isnull=True).first()
         if watcher:return watcher

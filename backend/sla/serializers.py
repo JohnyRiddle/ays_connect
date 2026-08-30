@@ -10,6 +10,9 @@ from .models import (BusinessCalendar, BusinessCalendarException,
                      SLAWarningThreshold, TimeMode, SLAInstance,
                      SLAMetricInstance, SLAResolutionCycle, SLAPausePeriod,
                      SLAThresholdEvent)
+from .models import (EscalationPolicy,EscalationRule,EscalationActionDefinition,
+                     EscalationPolicyVersion,SLAEscalationBinding,
+                     EscalationInstance,EscalationExecution,EscalationSchedule)
 
 
 class WorkingIntervalSerializer(serializers.ModelSerializer):
@@ -65,3 +68,30 @@ class SLAInstanceSerializer(serializers.ModelSerializer):
         metric=next((m for m in obj.metrics.all() if m.metric_type=="response"),None);return RuntimeMetricSerializer(metric).data if metric else None
     def get_resolution(self,obj):
         metric=next((m for m in reversed(list(obj.metrics.all())) if m.metric_type=="resolution"),None);return RuntimeMetricSerializer(metric).data if metric else None
+
+class EscalationActionSerializer(serializers.ModelSerializer):
+    class Meta:model=EscalationActionDefinition;fields="__all__";read_only_fields=("id","rule","created_at","updated_at")
+class EscalationRuleSerializer(serializers.ModelSerializer):
+    actions=EscalationActionSerializer(many=True,read_only=True)
+    class Meta:model=EscalationRule;fields="__all__";read_only_fields=("id","policy","created_at","updated_at")
+class EscalationPolicySerializer(serializers.ModelSerializer):
+    rules=EscalationRuleSerializer(source="draft_rules",many=True,read_only=True);current_version_number=serializers.IntegerField(source="current_version.version",read_only=True)
+    class Meta:model=EscalationPolicy;fields="__all__";read_only_fields=("id","created_by","current_version","created_at","updated_at")
+class EscalationPolicyVersionSerializer(serializers.ModelSerializer):
+    class Meta:model=EscalationPolicyVersion;fields="__all__";read_only_fields=fields
+class EscalationBindingSerializer(serializers.ModelSerializer):
+    class Meta:model=SLAEscalationBinding;fields="__all__";read_only_fields=("id","created_by","created_at","updated_at")
+    def validate(self,data):
+        sla_version=data.get("sla_policy_version",getattr(self.instance,"sla_policy_version",None));escalation_version=data.get("escalation_policy_version",getattr(self.instance,"escalation_policy_version",None))
+        if sla_version and escalation_version:
+            for rule in escalation_version.rules_snapshot:
+                if rule["trigger_type"]=="on_warning" and not sla_version.warning_thresholds.filter(metric_type=rule["metric_type"],threshold_percent=rule["threshold_percent"]).exists():raise serializers.ValidationError("Warning rule has no matching immutable SLA threshold.")
+        return data
+class EscalationExecutionSerializer(serializers.ModelSerializer):
+    metric_type=serializers.CharField(source="metric_instance.metric_type",read_only=True);cycle=serializers.IntegerField(source="resolution_cycle.cycle_number",read_only=True,allow_null=True)
+    class Meta:model=EscalationExecution;fields=("id","trigger_type","triggered_at","action_type","status","target_snapshot","result_metadata","completed_at","error_code","metric_type","cycle","rule_snapshot")
+class EscalationInstanceSerializer(serializers.ModelSerializer):
+    policy=serializers.SerializerMethodField();current_level=serializers.SerializerMethodField();executions=EscalationExecutionSerializer(many=True,read_only=True)
+    class Meta:model=EscalationInstance;fields=("id","status","policy","current_level","executions","created_at","updated_at")
+    def get_policy(self,obj):return {"id":str(obj.policy_version.policy_id),"name":obj.policy_version.policy.name,"version":obj.policy_version.version}
+    def get_current_level(self,obj):return max((x.rule_snapshot.get("level",0) for x in obj.executions.all() if x.status in {"succeeded","skipped"}),default=0)

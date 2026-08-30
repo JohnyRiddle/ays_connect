@@ -6,7 +6,7 @@ from work_tasks.views import ChecklistTemplateViewSet, ProductionTaskViewSet
 from work_tasks.automation_views import OccurrenceViewSet, RecurrenceViewSet, SavedViewViewSet, TaskTemplateViewSet
 from service_requests.views import CategoryViewSet, ServiceViewSet, RequestTypeViewSet, ServiceCatalogView, ServiceRequestViewSet
 from django.urls import path
-from sla.views import CalendarViewSet, PolicyViewSet, AssignmentRuleViewSet, PreviewViewSet
+from sla.views import CalendarViewSet, PolicyViewSet, AssignmentRuleViewSet, PreviewViewSet, EscalationPolicyViewSet, EscalationPolicyVersionViewSet, EscalationBindingViewSet
 
 router = DefaultRouter()
 router.register("employees", EmployeeViewSet, basename="internal-employees")
@@ -31,5 +31,8 @@ router.register("requests", ServiceRequestViewSet, basename="internal-requests")
 router.register("sla/calendars", CalendarViewSet, basename="internal-sla-calendars")
 router.register("sla/policies", PolicyViewSet, basename="internal-sla-policies")
 router.register("sla/assignment-rules", AssignmentRuleViewSet, basename="internal-sla-assignment-rules")
+router.register("sla/escalation-policies", EscalationPolicyViewSet, basename="internal-sla-escalation-policies")
+router.register("sla/escalation-policy-versions", EscalationPolicyVersionViewSet, basename="internal-sla-escalation-policy-versions")
+router.register("sla/escalation-bindings", EscalationBindingViewSet, basename="internal-sla-escalation-bindings")
 router.register("sla", PreviewViewSet, basename="internal-sla-preview")
 urlpatterns = router.urls + [path("service-catalog/", ServiceCatalogView.as_view(), name="internal-service-catalog")]

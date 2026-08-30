@@ -11,9 +11,12 @@ from service_requests.models import (RequestTypeSchemaVersion, ServiceRequest,
                                      ServiceCategory, Service, RequestType)
 
 from .models import (PausePolicy, SLAInstance, SLAPausePeriod, SLAPolicy,
-                     SLAPolicyAssignmentRule, SLAThresholdEvent, TimeMode)
+                     SLAPolicyAssignmentRule, SLAThresholdEvent, TimeMode,
+                     EscalationPolicy,EscalationRule,EscalationActionDefinition,
+                     SLAEscalationBinding,EscalationInstance)
 from .runtime import SLAInstanceService, SLARuntimeEvaluator
 from .services import SLAPolicyService
+from .escalation import EscalationPolicyService,EscalationInstanceService,EscalationRuntimeService
 
 
 @skipUnlessDBFeature("has_select_for_update")
@@ -22,7 +25,7 @@ class SLARuntimePostgreSQLTests(TransactionTestCase):
     def setUp(self):
         self.user=User.objects.create_superuser(username="sla-pg",email="sla-pg@test.local",password="x");self.actor=Employee.objects.create(user=self.user,first_name="SLA");self.le=LegalEntity.objects.create(name="PG LE");self.unit=OrgUnit.objects.create(name="PG Unit",legal_entity=self.le);self.location=Location.objects.create(name="PG Location",legal_entity=self.le)
         category=ServiceCategory.objects.create(name="PG");self.service=Service.objects.create(category=category,name="PG");self.rt=RequestType.objects.create(service=self.service,name="PG",code="PG_RUNTIME",created_by=self.actor);schema=RequestTypeSchemaVersion.objects.create(request_type=self.rt,version=1,schema_json={"fields":[]},created_by=self.actor);self.rt.current_schema_version=schema;self.rt.save(update_fields=["current_schema_version"]);self.base=datetime(2026,8,31,9,tzinfo=dt_timezone.utc)
-        policy=SLAPolicy.objects.create(name="PG",code="PG_POLICY",draft_time_mode=TimeMode.ELAPSED_TIME,draft_response_duration_seconds=None,draft_resolution_duration_seconds=3600,draft_pause_policy=PausePolicy.BOTH,draft_thresholds=[{"metric_type":"resolution","threshold_percent":50},{"metric_type":"resolution","threshold_percent":100}],created_by=self.actor);SLAPolicyService.publish(policy=policy,actor=self.actor,user=self.user);SLAPolicyAssignmentRule.objects.create(policy=policy,request_type=self.rt)
+        policy=SLAPolicy.objects.create(name="PG",code="PG_POLICY",draft_time_mode=TimeMode.ELAPSED_TIME,draft_response_duration_seconds=None,draft_resolution_duration_seconds=3600,draft_pause_policy=PausePolicy.BOTH,draft_thresholds=[{"metric_type":"resolution","threshold_percent":50},{"metric_type":"resolution","threshold_percent":100}],created_by=self.actor);self.sla_version=SLAPolicyService.publish(policy=policy,actor=self.actor,user=self.user);SLAPolicyAssignmentRule.objects.create(policy=policy,request_type=self.rt)
         self.request=ServiceRequest.objects.create(number="REQ-PG-SLA",request_type=self.rt,schema_version=schema,requester=self.actor,created_by=self.user,updated_by=self.user,subject="PG",priority="normal",status="new",service=self.service,category=category,submitted_at=self.base)
     def _create(self):
         close_old_connections()
@@ -41,3 +44,19 @@ class SLARuntimePostgreSQLTests(TransactionTestCase):
         self.assertEqual(SLAThresholdEvent.objects.count(),2)
         cycle=instance.resolution_cycles.get();SLAPausePeriod.objects.create(sla_instance=instance,resolution_cycle=cycle,reason="waiting_requester",started_at=self.base)
         with self.assertRaises(IntegrityError):SLAPausePeriod.objects.create(sla_instance=instance,resolution_cycle=cycle,reason="waiting_external",started_at=self.base)
+    def _bind_escalation(self):
+        policy=EscalationPolicy.objects.create(name="PG Esc",code="PG_ESC",created_by=self.actor);rule=EscalationRule.objects.create(policy=policy,name="Breach",trigger_type="on_breach",metric_type="resolution");EscalationActionDefinition.objects.create(rule=rule,action_type="request_notification",target_type="request_requester");version=EscalationPolicyService.publish(policy,self.actor,self.user);SLAEscalationBinding.objects.create(sla_policy_version=self.sla_version,escalation_policy_version=version,created_by=self.actor)
+    def test_concurrent_escalation_creation_and_worker(self):
+        sla=SLAInstanceService.create_for_request(self.request);self._bind_escalation()
+        def create(_):
+            close_old_connections()
+            try:return str(EscalationInstanceService.create_for_sla(SLAInstance.objects.get(pk=sla.pk)).pk)
+            finally:connection.close()
+        with ThreadPoolExecutor(max_workers=8) as pool:ids=list(pool.map(create,range(8)))
+        self.assertEqual(len(set(ids)),1);self.assertEqual(EscalationInstance.objects.count(),1);SLARuntimeEvaluator.evaluate_instance(sla,self.base+timedelta(hours=2));instance=EscalationInstance.objects.get()
+        def process(_):
+            close_old_connections()
+            try:return EscalationRuntimeService.process_instance(EscalationInstance.objects.get(pk=instance.pk),self.base+timedelta(hours=2))
+            finally:connection.close()
+        with ThreadPoolExecutor(max_workers=4) as pool:list(pool.map(process,range(4)))
+        self.assertEqual(instance.executions.count(),1)

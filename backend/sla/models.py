@@ -150,3 +150,61 @@ class SLAPausePeriod(models.Model):
 class SLAThresholdEvent(models.Model):
     id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False);metric_instance=models.ForeignKey(SLAMetricInstance,on_delete=models.PROTECT,related_name="threshold_events");threshold=models.ForeignKey(SLAWarningThreshold,on_delete=models.PROTECT,related_name="runtime_events");threshold_percent=models.PositiveSmallIntegerField();reached_at=models.DateTimeField();created_at=models.DateTimeField(auto_now_add=True)
     class Meta:ordering=("reached_at","id");constraints=[models.UniqueConstraint(fields=["metric_instance","threshold"],name="unique_sla_metric_threshold_event")]
+
+
+class EscalationTrigger(models.TextChoices):
+    ON_WARNING="on_warning","On warning";ON_BREACH="on_breach","On breach";AFTER_BREACH_DURATION="after_breach_duration","After breach duration"
+class EscalationActionType(models.TextChoices):
+    REQUEST_NOTIFICATION="request_notification","Request notification";ADD_WATCHER="add_watcher","Add watcher";CHANGE_PRIORITY="change_priority","Change priority";REASSIGN="reassign","Reassign"
+class EscalationTargetType(models.TextChoices):
+    REQUEST_EXECUTOR="request_executor","Request executor";REQUEST_RESPONSIBLE="request_responsible","Request responsible";REQUEST_REQUESTER="request_requester","Request requester";REQUEST_EXECUTOR_MANAGER="request_executor_manager","Executor manager";REQUEST_RESPONSIBLE_MANAGER="request_responsible_manager","Responsible manager";ASSIGNMENT_TARGET="assignment_target","Assignment target"
+
+
+class EscalationPolicy(UUIDTimeModel):
+    name=models.CharField(max_length=200);code=models.CharField(max_length=64,unique=True);description=models.TextField(blank=True);is_active=models.BooleanField(default=True,db_index=True);created_by=models.ForeignKey("employees.Employee",on_delete=models.PROTECT,related_name="created_escalation_policies");current_version=models.OneToOneField("EscalationPolicyVersion",on_delete=models.PROTECT,null=True,blank=True,related_name="current_for_policy")
+    class Meta:ordering=("name","id")
+
+
+class EscalationRule(UUIDTimeModel):
+    policy=models.ForeignKey(EscalationPolicy,on_delete=models.CASCADE,related_name="draft_rules");name=models.CharField(max_length=200);trigger_type=models.CharField(max_length=32,choices=EscalationTrigger.choices);metric_type=models.CharField(max_length=16,choices=MetricType.choices);threshold_percent=models.PositiveSmallIntegerField(null=True,blank=True);delay_seconds=models.PositiveBigIntegerField(null=True,blank=True);level=models.PositiveIntegerField(default=1);position=models.PositiveIntegerField(default=0)
+    class Meta:ordering=("level","position","id");constraints=[models.CheckConstraint(condition=models.Q(level__gt=0),name="escalation_rule_positive_level")]
+
+
+class EscalationActionDefinition(UUIDTimeModel):
+    rule=models.ForeignKey(EscalationRule,on_delete=models.CASCADE,related_name="actions");action_type=models.CharField(max_length=32,choices=EscalationActionType.choices);target_type=models.CharField(max_length=40,choices=EscalationTargetType.choices,blank=True);assignment_target=models.ForeignKey("employees.AssignmentTarget",on_delete=models.PROTECT,null=True,blank=True,related_name="escalation_actions");target_config=models.JSONField(default=dict,blank=True);action_config=models.JSONField(default=dict,blank=True);position=models.PositiveIntegerField(default=0)
+    class Meta:ordering=("position","id")
+
+
+class EscalationPolicyVersion(models.Model):
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False);policy=models.ForeignKey(EscalationPolicy,on_delete=models.PROTECT,related_name="versions");version=models.PositiveIntegerField();rules_snapshot=models.JSONField();created_at=models.DateTimeField(auto_now_add=True);created_by=models.ForeignKey("employees.Employee",on_delete=models.PROTECT,related_name="published_escalation_policy_versions")
+    class Meta:ordering=("-version",);constraints=[models.UniqueConstraint(fields=["policy","version"],name="unique_escalation_policy_version")]
+    def save(self,*args,**kwargs):
+        if self.pk and type(self).objects.filter(pk=self.pk).exists():raise ValidationError("Published escalation policy versions are immutable.")
+        return super().save(*args,**kwargs)
+    def delete(self,*args,**kwargs):raise ValidationError("Published escalation policy versions are immutable.")
+
+
+class SLAEscalationBinding(UUIDTimeModel):
+    sla_policy_version=models.ForeignKey(SLAPolicyVersion,on_delete=models.PROTECT,related_name="escalation_bindings");escalation_policy_version=models.ForeignKey(EscalationPolicyVersion,on_delete=models.PROTECT,related_name="sla_bindings");effective_from=models.DateTimeField(null=True,blank=True);is_active=models.BooleanField(default=True,db_index=True);created_by=models.ForeignKey("employees.Employee",on_delete=models.PROTECT,related_name="created_escalation_bindings")
+    class Meta:ordering=("-effective_from","-created_at");constraints=[models.UniqueConstraint(fields=["sla_policy_version"],condition=models.Q(is_active=True),name="unique_active_sla_escalation_binding")];indexes=[models.Index(fields=["sla_policy_version","is_active"])]
+
+
+class EscalationInstanceStatus(models.TextChoices):ACTIVE="active","Active";COMPLETED="completed","Completed";CANCELLED="cancelled","Cancelled"
+class EscalationExecutionStatus(models.TextChoices):PENDING="pending","Pending";RUNNING="running","Running";SUCCEEDED="succeeded","Succeeded";SKIPPED="skipped","Skipped";FAILED="failed","Failed"
+class EscalationScheduleStatus(models.TextChoices):PENDING="pending","Pending";PROCESSING="processing","Processing";COMPLETED="completed","Completed";CANCELLED="cancelled","Cancelled"
+
+
+class EscalationInstance(UUIDTimeModel):
+    sla_instance=models.OneToOneField(SLAInstance,on_delete=models.PROTECT,related_name="escalation_instance");policy_version=models.ForeignKey(EscalationPolicyVersion,on_delete=models.PROTECT,related_name="runtime_instances");status=models.CharField(max_length=16,choices=EscalationInstanceStatus.choices,default=EscalationInstanceStatus.ACTIVE,db_index=True);version=models.PositiveIntegerField(default=1)
+    class Meta:indexes=[models.Index(fields=["status","updated_at"])]
+
+
+class EscalationSchedule(models.Model):
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False);escalation_instance=models.ForeignKey(EscalationInstance,on_delete=models.PROTECT,related_name="schedules");metric_instance=models.ForeignKey(SLAMetricInstance,on_delete=models.PROTECT,related_name="escalation_schedules");rule_key=models.UUIDField();rule_snapshot=models.JSONField();due_at=models.DateTimeField(db_index=True);status=models.CharField(max_length=16,choices=EscalationScheduleStatus.choices,default=EscalationScheduleStatus.PENDING,db_index=True);created_at=models.DateTimeField(auto_now_add=True);updated_at=models.DateTimeField(auto_now=True)
+    class Meta:constraints=[models.UniqueConstraint(fields=["escalation_instance","metric_instance","rule_key"],name="unique_escalation_schedule_context")];indexes=[models.Index(fields=["status","due_at"])]
+
+
+class EscalationExecution(models.Model):
+    id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False);escalation_instance=models.ForeignKey(EscalationInstance,on_delete=models.PROTECT,related_name="executions");metric_instance=models.ForeignKey(SLAMetricInstance,on_delete=models.PROTECT,related_name="escalation_executions");resolution_cycle=models.ForeignKey(SLAResolutionCycle,on_delete=models.PROTECT,null=True,blank=True,related_name="escalation_executions");rule_key=models.UUIDField();action_key=models.UUIDField();rule_snapshot=models.JSONField();action_snapshot=models.JSONField();trigger_type=models.CharField(max_length=32,choices=EscalationTrigger.choices);triggered_at=models.DateTimeField();due_at=models.DateTimeField(null=True,blank=True);action_type=models.CharField(max_length=32,choices=EscalationActionType.choices);status=models.CharField(max_length=16,choices=EscalationExecutionStatus.choices,default=EscalationExecutionStatus.PENDING,db_index=True);target_snapshot=models.JSONField(default=list,blank=True);result_metadata=models.JSONField(default=dict,blank=True);started_at=models.DateTimeField(null=True,blank=True);completed_at=models.DateTimeField(null=True,blank=True);error_code=models.CharField(max_length=64,blank=True);created_at=models.DateTimeField(auto_now_add=True)
+    class Meta:ordering=("triggered_at","created_at");constraints=[models.UniqueConstraint(fields=["escalation_instance","metric_instance","rule_key","action_key"],name="unique_escalation_execution_context")];indexes=[models.Index(fields=["status","triggered_at"])]
+    def delete(self,*args,**kwargs):raise ValidationError("Escalation execution history is immutable.")

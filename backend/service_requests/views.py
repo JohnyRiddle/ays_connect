@@ -160,7 +160,7 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
         try:return self.request.user.employee
         except Exception:raise ValidationError("Authenticated user has no employee profile.")
     def get_queryset(self):
-        qs=ServiceRequest.objects.select_related("request_type","schema_version","service","category","requester","assigned_employee","responsible_employee","sla_instance__policy_version__policy").prefetch_related("field_values","task_links__task","comments","attachments","watcher_records__employee","sla_instance__metrics__resolution_cycle")
+        qs=ServiceRequest.objects.select_related("request_type","schema_version","service","category","requester","assigned_employee","responsible_employee","sla_instance__policy_version__policy","sla_instance__escalation_instance__policy_version__policy").prefetch_related("field_values","task_links__task","comments","attachments","watcher_records__employee","sla_instance__metrics__resolution_cycle","sla_instance__escalation_instance__executions")
         if not self.request.user.is_superuser:qs=qs.filter(ServiceRequestAccessPolicy.visibility_query(employee=self.actor())).distinct()
         params=self.request.query_params
         for key in ("status","priority","request_type","service","requester","assigned_employee","responsible_employee","org_unit","legal_entity","location"):
@@ -232,6 +232,20 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
         except Exception:return Response({"has_sla":False,"cycles":[],"thresholds":[]})
         thresholds=[{"metric_type":x.metric_instance.metric_type,"cycle":x.metric_instance.resolution_cycle.cycle_number if x.metric_instance.resolution_cycle_id else None,"threshold_percent":x.threshold_percent,"reached_at":x.reached_at} for x in instance.metrics.prefetch_related("threshold_events").all() for x in x.threshold_events.all()]
         return Response({"has_sla":True,"created_at":instance.created_at,"cycles":ResolutionCycleSerializer(instance.resolution_cycles.prefetch_related("pause_periods","metric"),many=True).data,"thresholds":thresholds})
+    @action(detail=True,methods=["get"],url_path="escalations")
+    def escalations(self,request,pk=None):
+        from sla.serializers import EscalationInstanceSerializer
+        obj=self.get_object()
+        try:instance=obj.sla_instance.escalation_instance
+        except Exception:return Response({"has_escalation":False})
+        return Response({"has_escalation":True,**EscalationInstanceSerializer(instance).data})
+    @action(detail=True,methods=["get"],url_path="escalations/history")
+    def escalation_history(self,request,pk=None):
+        from sla.serializers import EscalationExecutionSerializer
+        obj=self.get_object()
+        try:instance=obj.sla_instance.escalation_instance
+        except Exception:return Response({"has_escalation":False,"executions":[]})
+        return Response({"has_escalation":True,"executions":EscalationExecutionSerializer(instance.executions.select_related("metric_instance","resolution_cycle"),many=True).data})
     def _internal(self,obj,kind="comment"):return self.request.user.is_superuser or ServiceRequestAccessPolicy.can_view_internal(employee=self.actor(),request=obj,kind=kind)
     @action(detail=True,methods=["get","post"])
     def comments(self,request,pk=None):

@@ -83,6 +83,13 @@ PERMISSIONS = {
     "sla_assignment_rule.manage": "Управление правилами SLA",
     "sla.instance.view": "Просмотр runtime SLA",
     "sla.instance.manage": "Администрирование runtime SLA",
+    "sla.escalation_policy.view": "Просмотр политик эскалации",
+    "sla.escalation_policy.manage": "Управление политиками эскалации",
+    "sla.escalation_policy.publish": "Публикация политик эскалации",
+    "sla.escalation_binding.view": "Просмотр связей SLA и эскалаций",
+    "sla.escalation_binding.manage": "Управление связями SLA и эскалаций",
+    "sla.escalation_instance.view": "Просмотр runtime эскалаций",
+    "sla.escalation_instance.manage": "Администрирование runtime эскалаций",
 }
 
 

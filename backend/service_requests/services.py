@@ -298,6 +298,22 @@ class ServiceRequestService:
     def cancel(cls,**kw):
         if not kw.get("reason"):raise RequestBusinessError("Cancellation reason is required.",code="request_cancel_reason_required")
         obj=cls._transition(to_status=RequestStatus.CANCELLED,permission="request.cancel",**kw);obj.cancellation_reason=kw["reason"];obj.save(update_fields=["cancellation_reason","updated_at"]);return obj
+    @classmethod
+    @transaction.atomic
+    def escalation_change_priority(cls,*,request,target_priority,actor,actor_user):
+        order={"low":0,"normal":1,"high":2,"critical":3};request=ServiceRequest.objects.select_for_update().get(pk=request.pk)
+        if target_priority not in order:raise RequestBusinessError("Unknown target priority.",code="request_priority_invalid")
+        if order[target_priority]<=order[request.priority]:return request,False
+        old=request.priority;request.priority=target_priority;request.version+=1;request.updated_by=actor_user;request.save(update_fields=["priority","version","updated_by","updated_at"]);cls._record(request,actor,actor_user,"request.priority_escalated",old={"priority":old},new={"priority":target_priority});return request,True
+    @classmethod
+    @transaction.atomic
+    def escalation_reassign(cls,*,request,target,actor,actor_user):
+        request=ServiceRequest.objects.select_for_update().get(pk=request.pk)
+        if request.status in {RequestStatus.CLOSED,RequestStatus.CANCELLED}:raise RequestBusinessError("Terminal request cannot be reassigned.",code="request_immutable")
+        employee=cls._resolve_one(target)
+        if request.assigned_target_id==target.pk and request.assigned_employee_id==employee.pk:return request,False
+        ServiceRequestAssignmentHistory.objects.create(request=request,old_target=request.assigned_target,old_employee=request.assigned_employee,new_target=target,new_employee=employee,changed_by=actor,reason="SLA escalation")
+        request.assigned_target=target;request.assigned_employee=employee;request.version+=1;request.updated_by=actor_user;request.save(update_fields=["assigned_target","assigned_employee","version","updated_by","updated_at"]);cls._record(request,actor,actor_user,"request.reassigned",new={"reason":"sla_escalation"});return request,True
 
 
 class ServiceRequestTaskService:

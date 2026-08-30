@@ -45,6 +45,8 @@ class SLAInstanceService:
             SLAMetricInstance.objects.create(sla_instance=instance,metric_type=MetricType.RESPONSE,duration_seconds=version.response_duration_seconds,started_at=request.submitted_at,due_at=_deadline(version,request.submitted_at,version.response_duration_seconds))
         if version.resolution_duration_seconds:cls._new_cycle(instance,request.submitted_at)
         _emit(instance,"sla.instance.created",request.submitted_at,actor_user=actor_user,actor=actor)
+        from .escalation import EscalationInstanceService
+        EscalationInstanceService.create_for_sla(instance)
         return instance
 
     @staticmethod
@@ -73,6 +75,8 @@ class SLAInstanceService:
             instance.status=SLAInstanceStatus.COMPLETED;instance.version+=1;instance.save(update_fields=["status","version","updated_at"])
         elif request.status==RequestStatus.CANCELLED:
             instance.metrics.filter(achieved_at__isnull=True).update(status=SLAMetricStatus.CANCELLED,updated_at=event_at);instance.status=SLAInstanceStatus.CANCELLED;instance.version+=1;instance.save(update_fields=["status","version","updated_at"]);_emit(instance,"sla.instance.cancelled",request.cancelled_at or event_at,actor_user=actor_user,actor=actor)
+            from .models import EscalationSchedule, EscalationScheduleStatus
+            EscalationSchedule.objects.filter(escalation_instance__sla_instance=instance,status=EscalationScheduleStatus.PENDING).update(status=EscalationScheduleStatus.CANCELLED,updated_at=event_at)
         return instance
 
     @staticmethod
@@ -106,6 +110,8 @@ class SLAInstanceService:
         SLARuntimeEvaluator.evaluate_metric(metric,at)
         metric.refresh_from_db();metric.achieved_at=at;metric.status=SLAMetricStatus.ACHIEVED;metric.save(update_fields=["achieved_at","status","updated_at"])
         if metric.resolution_cycle_id:metric.resolution_cycle.achieved_at=at;metric.resolution_cycle.breached_at=metric.breached_at;metric.resolution_cycle.save(update_fields=["achieved_at","breached_at"])
+        from .models import EscalationSchedule, EscalationScheduleStatus
+        EscalationSchedule.objects.filter(metric_instance=metric,status=EscalationScheduleStatus.PENDING).update(status=EscalationScheduleStatus.CANCELLED,updated_at=at)
         _emit(metric.sla_instance,f"sla.{metric.metric_type}.achieved",at,metric,actor_user=actor_user,actor=actor);return metric
 
 

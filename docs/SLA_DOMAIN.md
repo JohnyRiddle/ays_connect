@@ -42,6 +42,18 @@ Elapsed-time исключает wall-clock duration закрытых pauses. Bus
 
 `process_sla` выполняет evaluator batches с row locking/`SKIP LOCKED`; режим `--reconcile` восстанавливает runtime из canonical request timestamps и истории.
 
+## Escalation configuration и binding
+
+Escalation policy редактируется как draft rules/actions и публикуется immutable JSON snapshot. Отдельный `SLAEscalationBinding` связывает конкретную immutable SLA policy version с опубликованной escalation version. Созданный `EscalationInstance` фиксирует эту версию навсегда.
+
+## Escalation runtime
+
+ON_WARNING потребляет `SLAThresholdEvent`, ON_BREACH — `breached_at`, delayed rule — materialized `EscalationSchedule` с elapsed due timestamp. `EscalationExecution` содержит rule/action snapshots, metric и resolution cycle, фактические targets и controlled outcome. Unique context не позволяет двум workers выполнить одно action повторно.
+
+Notification action создаёт только `notification.requested`. Watcher, priority и reassignment выполняются через production Service Request services. Достигнутая metric или cancelled Request отменяет будущие schedules без удаления истории.
+
+`process_escalations` отделён от SLA calculator, использует batching/row locking/`SKIP LOCKED`; reconciliation восстанавливает instance и отсутствующие executions из SLA facts.
+
 ## Следующая фаза
 
-Escalation policies, доставка уведомлений и автоматические breach actions должны внедряться отдельной фазой поверх runtime events.
+Физическая доставка уведомлений, templates, preferences и provider retries должны внедряться отдельным Notification Domain.

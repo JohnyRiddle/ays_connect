@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import (BusinessCalendar,BusinessCalendarWorkingInterval,BusinessCalendarException,BusinessCalendarExceptionInterval,BusinessCalendarVersion,SLAPolicy,SLAPolicyVersion,SLAWarningThreshold,SLAPolicyAssignmentRule,SLAInstance,SLAMetricInstance,SLAResolutionCycle,SLAPausePeriod,SLAThresholdEvent)
+from .models import (EscalationPolicy,EscalationRule,EscalationActionDefinition,EscalationPolicyVersion,SLAEscalationBinding,EscalationInstance,EscalationSchedule,EscalationExecution)
 
 for model in (BusinessCalendar,BusinessCalendarWorkingInterval,BusinessCalendarException,BusinessCalendarExceptionInterval,SLAPolicy,SLAPolicyAssignmentRule):admin.site.register(model)
 @admin.register(BusinessCalendarVersion)
@@ -21,3 +22,5 @@ class RuntimeReadOnlyAdmin(admin.ModelAdmin):
     def has_delete_permission(self,request,obj=None):return False
 
 for runtime_model in (SLAInstance,SLAMetricInstance,SLAResolutionCycle,SLAPausePeriod,SLAThresholdEvent):admin.site.register(runtime_model,RuntimeReadOnlyAdmin)
+for configuration_model in (EscalationPolicy,EscalationRule,EscalationActionDefinition,SLAEscalationBinding):admin.site.register(configuration_model)
+for readonly_model in (EscalationPolicyVersion,EscalationInstance,EscalationSchedule,EscalationExecution):admin.site.register(readonly_model,RuntimeReadOnlyAdmin)
