@@ -330,6 +330,7 @@ input {
   right: 2px;
   top: 0;
 }
+.notification-bell{position:relative}.notification-bell>button{cursor:pointer}.notification-bell>button b{position:absolute;right:-8px;top:-9px;min-width:18px;height:18px;padding:0 4px;border-radius:10px;background:#e84d51;color:white;font-size:10px;display:grid;place-items:center}.notification-popover{position:absolute;right:0;top:42px;width:min(360px,calc(100vw - 32px));background:white;border:1px solid #e3e9f0;border-radius:12px;box-shadow:0 18px 55px #17203326;padding:12px;display:grid;gap:8px;z-index:40}.notification-popover>strong{padding:5px 7px}.notification-popover>button{display:grid;text-align:left;gap:4px;padding:10px;border-radius:8px;background:#f7f9fc;color:#172033}.notification-popover>button span{font-weight:700}.notification-popover>button small,.notification-popover p{color:#718096;margin:0}.notification-popover>a{text-align:center;padding:8px;color:#236fc7;font-weight:700;text-decoration:none}
 .avatar.small {
   width: 34px;
   height: 34px;

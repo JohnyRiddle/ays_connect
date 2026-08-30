@@ -22,6 +22,8 @@ urlpatterns = [
     path("api/v1/incidents/", include("incidents.urls")),
     path("api/v1/analytics/", include("analytics.urls")),
     path("api/v1/notifications/", include("notifications.urls")),
+    path("api/internal/v1/notification-channels/", include("notifications.channel_urls")),
+    path("api/integrations/telegram/", include("notifications.integration_urls")),
     path("api/v1/knowledge/", include("knowledge_base.urls")),
     path("api/v1/learning/", include("learning.urls")),
     path("api/internal/v1/", include("access_control.urls")),

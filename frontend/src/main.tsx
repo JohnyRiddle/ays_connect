@@ -43,6 +43,7 @@ import "./knowledge.css";
 import "./learning.css";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
+const INTERNAL_API = API.replace(/\/api\/v1\/?$/, "/api/internal/v1");
 type Profile = {
   id: number;
   full_name: string;
@@ -230,11 +231,13 @@ type NotificationData = {
   title: string;
   message: string;
   entity_type: string;
-  entity_id: number | null;
+  entity_id: string | null;
+  action_url: string;
   is_read: boolean;
   telegram_status: string;
   created_at: string;
 };
+type ChannelStatus = {telegram:{available:boolean;linked:boolean;username:string;linked_at:string|null};email:{available:boolean;address_masked:string};in_app:{available:boolean}};
 type MaterialVersionData = {
   id: number;
   version: number;
@@ -445,6 +448,7 @@ function App() {
     | "knowledge"
     | "learning"
     | "notifications"
+    | "notification-settings"
   >(
     window.location.hash === "#tasks"
       ? "tasks"
@@ -460,6 +464,8 @@ function App() {
                 ? "knowledge"
                 : window.location.hash.startsWith("#learning")
                   ? "learning"
+              : window.location.hash === "#notification-settings"
+                ? "notification-settings"
               : window.location.hash === "#notifications"
                 ? "notifications"
                 : "dashboard",
@@ -481,6 +487,8 @@ function App() {
                     ? "knowledge"
                     : window.location.hash.startsWith("#learning")
                       ? "learning"
+                  : window.location.hash === "#notification-settings"
+                    ? "notification-settings"
                   : window.location.hash === "#notifications"
                     ? "notifications"
                     : "dashboard",
@@ -610,7 +618,7 @@ function App() {
           </a>
         </nav>
         <div className="sidebar-bottom">
-          <button>
+          <button onClick={() => window.location.hash="#notification-settings"}>
             <Settings size={19} />
             Настройки
           </button>
@@ -639,15 +647,14 @@ function App() {
             <kbd>⌘ K</kbd>
           </div>
           <div className="header-actions">
-            <button>
-              <Bell />
-              <i />
-            </button>
+            <NotificationBell />
             <div className="avatar small">{initials(profile.full_name)}</div>
           </div>
         </header>
         {view === "notifications" ? (
           <NotificationsView />
+        ) : view === "notification-settings" ? (
+          <NotificationSettingsView />
         ) : view === "learning" ? (
           <LearningView />
         ) : view === "knowledge" ? (
@@ -1739,6 +1746,33 @@ function NotificationsView() {
       </section>
     </main>
   );
+}
+
+function NotificationBell() {
+  const [open,setOpen]=useState(false);const [items,setItems]=useState<NotificationData[]>([]);
+  const load=()=>api("/notifications/?unread=true").then(d=>setItems(d.results||[])).catch(()=>undefined);
+  useEffect(()=>{load();const timer=window.setInterval(load,45000);return()=>window.clearInterval(timer)},[]);
+  async function select(item:NotificationData){await api(`/notifications/${item.id}/read/`,{method:"POST"});setOpen(false);await load();if(item.action_url)window.location.href=item.action_url}
+  return <div className="notification-bell"><button aria-label="Уведомления" onClick={()=>setOpen(!open)}><Bell/>{items.length>0&&<b>{items.length>99?"99+":items.length}</b>}</button>{open&&<div className="notification-popover"><strong>Непрочитанные</strong>{items.slice(0,5).map(item=><button key={item.id} onClick={()=>select(item)}><span>{item.title}</span><small>{item.message}</small></button>)}{!items.length&&<p>Новых уведомлений нет</p>}<a href="#notifications" onClick={()=>setOpen(false)}>Все уведомления</a></div>}</div>;
+}
+
+async function internalApi(path:string,options:RequestInit={}) {
+  const token=sessionStorage.getItem("access");const response=await fetch(`${INTERNAL_API}${path}`,{...options,headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`,...options.headers}});
+  if(!response.ok)throw new Error("API error");return response.status===204?null:response.json();
+}
+function NotificationSettingsView(){
+  const [status,setStatus]=useState<ChannelStatus|null>(null);const [quiet,setQuiet]=useState({enabled:false,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,starts_at:"22:00",ends_at:"08:00"});const [link,setLink]=useState("");
+  const load=()=>Promise.all([internalApi("/notification-channels/"),internalApi("/notification-channels/quiet-hours/")]).then(([s,q])=>{setStatus(s);setQuiet(q)});
+  useEffect(()=>{load().catch(()=>undefined)},[]);
+  async function connect(){const result=await internalApi("/notification-channels/telegram/link/",{method:"POST"});setLink(result.deep_link)}
+  async function unlink(){await internalApi("/notification-channels/telegram/unlink/",{method:"POST"});await load()}
+  async function saveQuiet(){await internalApi("/notification-channels/quiet-hours/",{method:"PUT",body:JSON.stringify(quiet)});await load()}
+  async function preference(channel:string,enabled:boolean){await internalApi("/notification-channels/preferences/",{method:"PUT",body:JSON.stringify({reason:"*",channel,enabled})})}
+  return <main className="tasks-page notification-settings-page"><div className="tasks-title"><div><p className="eyebrow blue">Каналы связи</p><h1>Настройки уведомлений</h1><p>Telegram, email и время, когда внешние сообщения следует отложить.</p></div></div>
+    <section className="notification-settings-card"><h2>Telegram</h2><p>{status?.telegram.linked?`Подключён${status.telegram.username?` · @${status.telegram.username}`:""}`:"Не подключён"}</p>{status?.telegram.linked?<button onClick={unlink}>Отключить</button>:<button className="new-task" onClick={connect}>Подключить Telegram</button>}{link&&<a href={link} target="_blank" rel="noreferrer">Открыть Telegram</a>}</section>
+    <section className="notification-settings-card"><h2>Каналы</h2><label><input type="checkbox" defaultChecked disabled/> In-App — обязательный для критических событий</label><label><input type="checkbox" defaultChecked onChange={e=>preference("telegram",e.target.checked)}/> Telegram</label><label><input type="checkbox" defaultChecked onChange={e=>preference("email",e.target.checked)}/> Email {status?.email.address_masked&&`· ${status.email.address_masked}`}</label></section>
+    <section className="notification-settings-card"><h2>Не беспокоить</h2><label><input type="checkbox" checked={quiet.enabled} onChange={e=>setQuiet({...quiet,enabled:e.target.checked})}/> Включено</label><div><input type="time" value={quiet.starts_at} onChange={e=>setQuiet({...quiet,starts_at:e.target.value})}/><span>—</span><input type="time" value={quiet.ends_at} onChange={e=>setQuiet({...quiet,ends_at:e.target.value})}/></div><input value={quiet.timezone} onChange={e=>setQuiet({...quiet,timezone:e.target.value})}/><button className="new-task" onClick={saveQuiet}>Сохранить</button></section>
+  </main>
 }
 
 function LiveDashboard({

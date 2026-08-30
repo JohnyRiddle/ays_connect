@@ -7,6 +7,7 @@
   font-style: normal;
   font-size: 10px;
 }
+.notification-settings-page{display:grid;gap:18px}.notification-settings-card{background:#fff;border:1px solid #e4eaf1;border-radius:14px;padding:22px;display:grid;gap:12px;max-width:760px}.notification-settings-card h2,.notification-settings-card p{margin:0}.notification-settings-card label{display:flex;gap:10px;align-items:center}.notification-settings-card>div{display:flex;gap:10px;align-items:center}.notification-settings-card input:not([type=checkbox]){border:1px solid #dce3ec;border-radius:8px;padding:10px}.notification-settings-card a{color:#236fc7;font-weight:700}
 .notification-tabs {
   display: flex;
   gap: 12px;

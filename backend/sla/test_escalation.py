@@ -9,6 +9,8 @@ from accounts.models import User
 from employees.models import AssignmentTarget,Employee
 from events.models import OutboxEvent
 from service_requests.models import RequestStatus,ServiceRequestWatcher
+from notifications.models import Notification
+from notifications.services import ingest_pending,process_deliveries
 
 from .escalation import (EscalationInstanceService,EscalationPolicyService,
                          EscalationReconciliationService,
@@ -54,6 +56,7 @@ class EscalationTests(SLARuntimeTests):
             ({"name":"Delay","trigger_type":"after_breach_duration","metric_type":"resolution","delay_seconds":1800,"level":3},[{"action_type":"change_priority","action_config":{"target_priority":"high"}}]),
         ]);self.bind(sla_version,policy);request=self.request();request.assigned_employee=self.actor;request.responsible_employee=self.actor;request.save();sla=SLAInstanceService.create_for_request(request);instance=sla.escalation_instance
         SLARuntimeEvaluator.evaluate_instance(sla,self.base+timedelta(minutes=31));EscalationRuntimeService.process_instance(instance,self.base+timedelta(minutes=31));self.assertEqual(OutboxEvent.objects.filter(event_type="notification.requested").count(),1)
+        ingest_pending();process_deliveries();inbox=Notification.objects.get(recipient=self.user);self.assertEqual(inbox.entity_id,str(request.pk));self.assertIsNotNone(inbox.delivered_at)
         SLARuntimeEvaluator.evaluate_instance(sla,self.base+timedelta(minutes=61));EscalationRuntimeService.process_instance(instance,self.base+timedelta(minutes=61));self.assertTrue(ServiceRequestWatcher.objects.filter(request=request,employee=manager,removed_at__isnull=True).exists());self.assertEqual(instance.schedules.get().status,EscalationScheduleStatus.PENDING)
         EscalationRuntimeService.process_instance(instance,self.base+timedelta(minutes=92));request.refresh_from_db();self.assertEqual(request.priority,"high");self.assertEqual(instance.executions.count(),3);self.assertTrue(instance.executions.filter(triggered_at=self.base+timedelta(minutes=90)).exists())
         client=APIClient();client.force_authenticate(self.user);self.assertEqual(client.get(f"/api/internal/v1/requests/{request.pk}/escalations/").status_code,200);self.assertEqual(client.get(f"/api/internal/v1/requests/{request.pk}/escalations/history/").status_code,200)

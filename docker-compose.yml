@@ -29,12 +29,34 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-ays}:${POSTGRES_PASSWORD:-ays_dev_password}@db:5432/${POSTGRES_DB:-ays_connect}
       REDIS_URL: redis://redis:6379/0
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
-    command: sh -c "python manage.py migrate && python manage.py seed_demo && python manage.py generate_sensor_demo_data && python manage.py send_telegram_mock && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2"
+      NOTIFICATIONS_TELEGRAM_ENABLED: ${NOTIFICATIONS_TELEGRAM_ENABLED:-0}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      NOTIFICATIONS_EMAIL_ENABLED: ${NOTIFICATIONS_EMAIL_ENABLED:-0}
+      EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.console.EmailBackend}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-AYS Connect <no-reply@localhost>}
+      AYS_CONNECT_PUBLIC_URL: ${AYS_CONNECT_PUBLIC_URL:-http://localhost:3000}
+    command: sh -c "python manage.py migrate && python manage.py seed_demo && python manage.py generate_sensor_demo_data && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2"
     volumes: [./backend:/app]
     ports: ["${BACKEND_PORT:-8000}:8000"]
     depends_on:
       db: {condition: service_healthy}
       redis: {condition: service_healthy}
+  notification_worker:
+    build: ./backend
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-unsafe-compose-demo-key-change-before-production}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ays}:${POSTGRES_PASSWORD:-ays_dev_password}@db:5432/${POSTGRES_DB:-ays_connect}
+      NOTIFICATIONS_TELEGRAM_ENABLED: ${NOTIFICATIONS_TELEGRAM_ENABLED:-0}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      NOTIFICATIONS_EMAIL_ENABLED: ${NOTIFICATIONS_EMAIL_ENABLED:-0}
+      EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.console.EmailBackend}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-AYS Connect <no-reply@localhost>}
+      AYS_CONNECT_PUBLIC_URL: ${AYS_CONNECT_PUBLIC_URL:-http://localhost:3000}
+    command: sh -c "while true; do python manage.py process_notifications --batch-size 100 --reconcile; sleep 5; done"
+    depends_on:
+      db: {condition: service_healthy}
   frontend:
     build: ./frontend
     environment:

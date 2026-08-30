@@ -1,3 +1,3 @@
 from django.contrib import admin
-from .models import Notification
-admin.site.register(Notification)
+from .models import Notification,NotificationChannelTemplate,NotificationDelivery,NotificationDeliveryAttempt,NotificationIntent,NotificationPreference,NotificationQuietHours,NotificationTemplate,TelegramAccount,TelegramLinkToken,TelegramWebhookEvent
+admin.site.register([Notification,NotificationChannelTemplate,NotificationDelivery,NotificationDeliveryAttempt,NotificationIntent,NotificationPreference,NotificationQuietHours,NotificationTemplate,TelegramAccount,TelegramLinkToken,TelegramWebhookEvent])

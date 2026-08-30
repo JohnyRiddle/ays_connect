@@ -1,5 +1,7 @@
 # Текущее состояние AYS Connect
 
+> 30.08.2026: Phase 1.4A + 1.4B замыкают Notification Domain: IN_APP, Telegram и Email, secure linking/webhook, centralized routing, quiet hours, retry/UNKNOWN safety и self-service settings. PostgreSQL 17.11 gate: clean/upgrade preservation PASS, notification 23/23, full backend 176/176, frontend build PASS. Исходный commit `98d68f2`.
+
 **Обновлено:** 28.08.2026
 
 **Ветка:** `main`
