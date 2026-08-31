@@ -152,6 +152,9 @@
   gap: 10px;
   margin: 24px 0 14px;
 }
+.performance-summary { grid-template-columns: repeat(3, 1fr); }
+.performance-summary article.muted { filter: grayscale(.8); opacity: .75; }
+.performance-summary small { margin-top: 3px; }
 .management-summary article {
   display: flex;
   align-items: center;

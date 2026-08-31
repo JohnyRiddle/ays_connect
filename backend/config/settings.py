@@ -12,7 +12,7 @@ CSRF_TRUSTED_ORIGINS = [value for value in os.getenv("CSRF_TRUSTED_ORIGINS", "")
 INSTALLED_APPS = [
     "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",
     "django.contrib.sessions", "django.contrib.messages", "django.contrib.staticfiles",
-    "corsheaders", "rest_framework", "drf_spectacular", "accounts", "organizations", "employees", "access_control", "audit", "events", "work_tasks", "service_requests", "sla", "tasks", "checklists", "sensors", "incidents", "analytics", "notifications", "knowledge_base", "learning",
+    "corsheaders", "rest_framework", "drf_spectacular", "accounts", "organizations", "employees", "access_control", "audit", "events", "work_tasks", "service_requests", "sla", "performance", "tasks", "checklists", "sensors", "incidents", "analytics", "notifications", "knowledge_base", "learning",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware", "corsheaders.middleware.CorsMiddleware",

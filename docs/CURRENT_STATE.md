@@ -1,6 +1,6 @@
 # Текущее состояние AYS Connect
 
-> 31.08.2026: Work Pilot Deployment локально развёрнут: PostgreSQL 17, persistent storage, Caddy HTTPS, production SPA build/fallback, Gunicorn, recurrence/schedule/SLA/escalation/notification workers, daily DB+media backup и isolated restore smoke. Backend 182/182 PASS. Статус: LOCAL PILOT INFRASTRUCTURE READY; внешний WORK PILOT — READY ожидает серверный hostname, trusted HTTPS, реальных пользователей и Telegram smoke.
+> 31.08.2026: Phase 1.5 завершена от deployment checkpoint `4f9463f` (baseline PostgreSQL 182/182): отдельный производный Performance domain, aggregation runtime/API, security scopes, SPA и worker. PostgreSQL 17.11, backend 231/231, synthetic 100/10k/10k, backup/restore и deployment smoke — PASS.
 
 **Обновлено:** 31.08.2026
 
@@ -9,7 +9,7 @@
 
 ## Текущая задача
 
-Work Pilot Deployment — local production-like environment.
+Phase 1.5 — Performance / Efficiency / Management Analytics COMPLETE. Phase 1.6 не начата.
 
 ## Сделано
 
@@ -33,6 +33,10 @@ Work Pilot Deployment — local production-like environment.
 - notification intents, watcher/priority/reassignment actions и `process_escalations`;
 - проект опубликован в `origin/main` коммитом `bfe8313` до текущего обновления документации;
 - добавлены проектные документы передачи контекста и универсальные инструкции Codex.
+- добавлен `backend/performance`: registry 30 метрик, исторические факты, версионируемые агрегаты, scoring policies и очередь пересчёта;
+- добавлены full/incremental management commands, PostgreSQL `SKIP LOCKED` worker, internal API и SQL-level employee visibility;
+- раздел SPA «Эффективность» переведён с legacy analytics на production Performance API;
+- добавлен performance worker в pilot/server compose.
 
 ## Осталось
 
@@ -44,7 +48,7 @@ Work Pilot Deployment — local production-like environment.
 
 - локальный Docker PostgreSQL volume создан ранним прототипом и не должен обновляться без резервной копии/плана данных;
 - production и legacy Tasks временно сосуществуют;
-- performance scoring пока не реализован;
+- production Performance API не заменяет legacy `/api/v1/analytics/`; новый SPA использует только `/api/internal/v1/performance/`, а legacy оставлен для совместимости;
 - PostgreSQL 17.11 quality gate Phase 1.1D пройден: clean/upgrade migrations, Tasks 45/45, full backend 181/181 и 4 PostgreSQL concurrency tests;
 - исправлена PostgreSQL-specific гонка при одновременном добавлении одного Task watcher;
 - PostgreSQL 17.11 quality gate Phase 1.2C пройден: clean migrations, upgrade-клон Phase 1.2B → `0004`, 121 тест и 7 PostgreSQL concurrency/atomicity проверок;
@@ -56,7 +60,7 @@ Work Pilot Deployment — local production-like environment.
 
 ## Рекомендуемый следующий шаг
 
-Получить параметры сервера, заменить local internal CA на trusted HTTPS и выполнить server/real-user acceptance gate без начала Phase 1.6.
+Сделать отдельный git checkpoint Phase 1.5. Затем получить параметры сервера, заменить local internal CA на trusted HTTPS и выполнить server/real-user acceptance gate до планирования Phase 1.6.
 
 ## Команды проверки
 

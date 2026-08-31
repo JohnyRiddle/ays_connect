@@ -109,6 +109,18 @@ services:
       db: {condition: service_healthy}
     networks: [internal]
 
+  performance_worker:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DJANGO_DEBUG: "0"
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    command: sh -c "while true; do python manage.py enqueue_performance --batch-size 500; python manage.py process_performance --batch-size 10; sleep 30; done"
+    depends_on:
+      db: {condition: service_healthy}
+    networks: [internal]
+
 networks:
   internal:
     driver: bridge

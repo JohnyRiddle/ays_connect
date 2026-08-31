@@ -288,6 +288,8 @@ type AssignmentData = { id:number; course:number; course_title:string; status:st
 type AssessmentData = { id:number; course:number; title:string; description:string; time_limit_minutes:number; passing_score:number; max_attempts:number; questions_count:number };
 type AttemptData = { id:number; assessment:number; assessment_title:string; status:string; score_percent:string; passed:boolean; attempt_number:number; questions:{id:number;text:string;question_type:string;is_required:boolean;options:{id:number;text:string}[]}[]; responses:{id:number;question:number;is_correct:boolean|null;points_awarded:string}[] };
 type CertificateData = { id:number; course_title:string; certificate_number:string; issued_at:string; expires_at:string|null; status:string; verification_code:string };
+type ProductionMetric = { value:number|null; sample_size:number; status:string; explanation:{population?:string;source_facts?:number} };
+type ProductionPerformance = { employee:{id:string;name:string;position:string}; period:{from:string;to:string;timezone:string;semantics:string}; calculation_version:string; metrics:Record<string,ProductionMetric>; previous_period:Record<string,ProductionMetric> };
 async function api(path: string, options: RequestInit = {}) {
   const token = sessionStorage.getItem("access");
   const r = await fetch(`${API}${path}`, {
@@ -660,7 +662,7 @@ function App() {
         ) : view === "knowledge" ? (
           <KnowledgeView />
         ) : view === "analytics" ? (
-          <AnalyticsView profile={profile} />
+          <ProductionPerformanceView />
         ) : view === "incidents" ? (
           <IncidentsView />
         ) : view === "sensors" ? (
@@ -1432,6 +1434,33 @@ function IncidentsView() {
       )}
     </main>
   );
+}
+
+function ProductionPerformanceView() {
+  const [data, setData] = useState<ProductionPerformance | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    const token = sessionStorage.getItem("access");
+    fetch(`${INTERNAL_API}/performance/me/`, {headers:{Authorization:`Bearer ${token}`}})
+      .then(async response => { if (!response.ok) throw new Error("Не удалось загрузить показатели"); return response.json(); })
+      .then(setData).catch(error => setError(error.message));
+  }, []);
+  if (error) return <main className="tasks-page"><div className="method-card"><ShieldCheck/><div><h3>Показатели пока недоступны</h3><p>{error}</p></div></div></main>;
+  if (!data) return <main className="tasks-page"><div className="loader">AYS</div></main>;
+  const metric = (code:string) => data.metrics[code] || {value:null,sample_size:0,status:"no_data",explanation:{}};
+  const format = (code:string, suffix="") => metric(code).value == null ? "—" : `${Math.round(metric(code).value!)}${suffix}`;
+  const cards = [
+    ["tasks_completed","Завершено задач",""], ["task_deadline_compliance","В срок","%"],
+    ["requests_resolved","Решено заявок",""], ["sla_resolution_compliance","SLA решения","%"],
+    ["active_tasks","Активная нагрузка",""], ["overdue_tasks","Просрочено сейчас",""]
+  ];
+  return <main className="tasks-page management-page">
+    <div className="tasks-title"><div><p className="eyebrow blue">Эффективность · production analytics</p><h1>{data.employee.name}</h1><p>{data.employee.position} · период {new Date(data.period.from).toLocaleDateString("ru-RU")} — {new Date(data.period.to).toLocaleDateString("ru-RU")}</p></div></div>
+    <section className="management-summary performance-summary">{cards.map(([code,title,suffix]) => <article key={code} className={metric(code).status === "no_data" ? "muted" : ""}><Gauge/><span><b>{format(code,suffix)}</b>{title}<small>{metric(code).sample_size ? `выборка: ${metric(code).sample_size}` : "нет достаточных данных"}</small></span></article>)}</section>
+    <div className="management-columns"><section className="management-card"><div className="card-heading"><h2>Поток и сроки</h2><p>Метрики событий в полуинтервале {data.period.semantics}</p></div>
+      <div className="metric-grid"><article><div><b>Backlog заявок</b><strong>{format("backlog_requests")}</strong></div><p>Текущий снимок незакрытого потока</p></article><article><div><b>Переносы сроков</b><strong>{format("deadline_changes")}</strong></div><p>Не трактуется как личная вина без контекста</p></article></div>
+    </section><section className="management-card"><div className="card-heading"><h2>Как читать показатели</h2><p>Прозрачная методика без скрытого рейтинга</p></div><div className="method-card"><ShieldCheck/><div><h3>Ожидание и переназначение учитываются отдельно</h3><p>Время ожидания заявителя или внешней стороны не приписывается сотруднику как рабочая задержка. После переназначения ответственность считается по историческому интервалу.</p></div></div><div className="method-card"><Clock3/><div><h3>Недостаточно данных — не ноль</h3><p>Пустая выборка показывается нейтральным статусом. Версия расчёта: {data.calculation_version}, часовой пояс: {data.period.timezone}.</p></div></div></section></div>
+  </main>;
 }
 
 function AnalyticsView({ profile }: { profile: Profile }) {

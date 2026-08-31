@@ -163,6 +163,10 @@ services:
     <<: *worker
     command: sh -ec "while true; do python manage.py process_notifications --batch-size 100 --reconcile; sleep 5; done"
 
+  performance_worker:
+    <<: *worker
+    command: sh -ec "while true; do python manage.py enqueue_performance --batch-size 500; python manage.py process_performance --batch-size 10; sleep 30; done"
+
   backup:
     image: postgres:17-alpine
     restart: unless-stopped

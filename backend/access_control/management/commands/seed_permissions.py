@@ -90,6 +90,8 @@ PERMISSIONS = {
     "sla.escalation_binding.manage": "Управление связями SLA и эскалаций",
     "sla.escalation_instance.view": "Просмотр runtime эскалаций",
     "sla.escalation_instance.manage": "Администрирование runtime эскалаций",
+    "performance.view": "Просмотр собственных показателей эффективности",
+    "performance.view_management": "Просмотр управленческой аналитики эффективности",
 }
 
 
