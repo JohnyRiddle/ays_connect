@@ -21,4 +21,4 @@ class ProfileSerializer(serializers.ModelSerializer):
     def get_employee(self, obj):
         if not hasattr(obj, "employee"): return None
         e = obj.employee
-        return {"id": e.id, "position": e.position, "department": e.department.name if e.department else None, "company": e.company.name, "employee_number": e.employee_number}
+        return {"id": e.id, "position": e.position, "department": e.department.name if e.department else None, "company": e.company.name if e.company else None, "employee_number": e.employee_number}

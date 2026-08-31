@@ -26,5 +26,6 @@ dist/
 *.log
 *.tmp
 *.temp
+.pilot-*
 .DS_Store
 Thumbs.db

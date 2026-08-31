@@ -1,15 +1,15 @@
 # Текущее состояние AYS Connect
 
-> 30.08.2026: ретроспективный PostgreSQL quality gate Phase 1.1D пройден на PostgreSQL 17.11: clean/upgrade migrations PASS, Tasks 45/45, full backend 181/181. Исправлена гонка concurrent watcher creation. Phase 1.4A + 1.4B ранее завершили Notification Domain; checkpoint `95d1e88`.
+> 31.08.2026: Work Pilot Deployment локально развёрнут: PostgreSQL 17, persistent storage, Caddy HTTPS, production SPA build/fallback, Gunicorn, recurrence/schedule/SLA/escalation/notification workers, daily DB+media backup и isolated restore smoke. Backend 182/182 PASS. Статус: LOCAL PILOT INFRASTRUCTURE READY; внешний WORK PILOT — READY ожидает серверный hostname, trusted HTTPS, реальных пользователей и Telegram smoke.
 
-**Обновлено:** 28.08.2026
+**Обновлено:** 31.08.2026
 
 **Ветка:** `main`
 **Remote:** `origin` → `https://github.com/JohnyRiddle/ays_connect.git`
 
 ## Текущая задача
 
-Phase 1.1D: accumulated PostgreSQL quality gate Tasks Completion.
+Work Pilot Deployment — local production-like environment.
 
 ## Сделано
 
@@ -36,7 +36,8 @@ Phase 1.1D: accumulated PostgreSQL quality gate Tasks Completion.
 
 ## Осталось
 
-- определить следующую product-фазу после завершённых Notification Core и delivery;
+- перенести pilot-контур на сервер после получения hostname/network/secrets;
+- выполнить реальные authentication/RBAC, Task/Request/SLA/Escalation/IN_APP/Telegram E2E с ограниченной группой пользователей;
 - перед развёртыванием поверх старой базы подготовить план миграции существующих bigint ID к актуальным UUID-моделям либо использовать чистую базу.
 
 ## Известные проблемы и риски
@@ -55,7 +56,7 @@ Phase 1.1D: accumulated PostgreSQL quality gate Tasks Completion.
 
 ## Рекомендуемый следующий шаг
 
-Зафиксировать ретроспективный Tasks PostgreSQL gate отдельным checkpoint и определить следующую product-фазу.
+Получить параметры сервера, заменить local internal CA на trusted HTTPS и выполнить server/real-user acceptance gate без начала Phase 1.6.
 
 ## Команды проверки
 

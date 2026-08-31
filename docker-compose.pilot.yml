@@ -1,0 +1,197 @@
+name: ays-connect-pilot
+
+x-backend-env: &backend-env
+  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+  DJANGO_DEBUG: "0"
+  DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,backend}
+  CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-https://localhost}
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://localhost}
+  DJANGO_SECURE_SSL_REDIRECT: "1"
+  DJANGO_SECURE_COOKIES: "1"
+  DJANGO_SECURE_HSTS_SECONDS: ${DJANGO_SECURE_HSTS_SECONDS:-0}
+  DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+  REDIS_URL: redis://redis:6379/0
+  AYS_CONNECT_PUBLIC_URL: ${AYS_CONNECT_PUBLIC_URL:-https://localhost}
+  AYS_CONNECT_VERSION: ${AYS_CONNECT_VERSION:-local-pilot}
+  NOTIFICATIONS_TELEGRAM_ENABLED: ${NOTIFICATIONS_TELEGRAM_ENABLED:-0}
+  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+  TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+  TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+  TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
+  NOTIFICATIONS_EMAIL_ENABLED: ${NOTIFICATIONS_EMAIL_ENABLED:-0}
+  EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.smtp.EmailBackend}
+  EMAIL_HOST: ${EMAIL_HOST:-}
+  EMAIL_PORT: ${EMAIL_PORT:-587}
+  EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+  EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+  EMAIL_USE_TLS: ${EMAIL_USE_TLS:-1}
+  DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-AYS Connect <no-reply@localhost>}
+
+x-logging: &logging
+  driver: json-file
+  options: {max-size: "10m", max-file: "5"}
+
+x-worker: &worker
+  build: ./backend
+  restart: unless-stopped
+  environment: *backend-env
+  depends_on:
+    init: {condition: service_completed_successfully}
+  networks: [internal]
+  healthcheck:
+    test: ["CMD-SHELL", "kill -0 1"]
+    interval: 30s
+    timeout: 3s
+    retries: 3
+  logging: *logging
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging: *logging
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes: [redis_data:/data]
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging: *logging
+
+  init:
+    build: ./backend
+    restart: "no"
+    user: "0:0"
+    environment: *backend-env
+    command: sh -ec "python manage.py migrate --noinput && python manage.py seed_permissions && python manage.py collectstatic --noinput && chown -R app:app /app/media /app/staticfiles"
+    volumes:
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+    depends_on:
+      db: {condition: service_healthy}
+    networks: [internal]
+    logging: *logging
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment: *backend-env
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 60 --access-logfile - --error-logfile -
+    volumes:
+      - media_data:/app/media
+      - static_data:/app/staticfiles:ro
+    depends_on:
+      init: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; r=urllib.request.Request('http://127.0.0.1:8000/api/v1/health/ready/', headers={'Host':'localhost','X-Forwarded-Proto':'https'}); urllib.request.urlopen(r, timeout=3)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    logging: *logging
+
+  frontend_assets:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args: {VITE_API_URL: /api/v1}
+    restart: "no"
+    command: sh -ec "rm -rf /output/* && cp -R /bundle/. /output/"
+    volumes:
+      - frontend_data:/output
+    networks: [internal]
+    logging: *logging
+
+  proxy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    environment:
+      PILOT_HOST: ${PILOT_HOST:-localhost}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./deployment/Caddyfile:/etc/caddy/Caddyfile:ro
+      - static_data:/srv/static:ro
+      - frontend_data:/srv/frontend:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      backend: {condition: service_healthy}
+      frontend_assets: {condition: service_completed_successfully}
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-check-certificate -qO- https://localhost/api/v1/health/live/ >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    logging: *logging
+
+  recurrence_worker:
+    <<: *worker
+    command: sh -ec "while true; do python manage.py generate_recurring_tasks; sleep 60; done"
+
+  schedule_worker:
+    <<: *worker
+    command: sh -ec "while true; do python manage.py run_schedules; sleep 60; done"
+
+  sla_worker:
+    <<: *worker
+    command: sh -ec "while true; do python manage.py process_sla --batch-size 100; sleep 30; done"
+
+  escalation_worker:
+    <<: *worker
+    command: sh -ec "while true; do python manage.py process_escalations --batch-size 100; sleep 30; done"
+
+  notification_worker:
+    <<: *worker
+    command: sh -ec "while true; do python manage.py process_notifications --batch-size 100 --reconcile; sleep 5; done"
+
+  backup:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGDATABASE: ${POSTGRES_DB}
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+    command: sh -ec "while true; do /opt/ays/backup.sh; sleep 86400; done"
+    volumes:
+      - ./deployment/backup.sh:/opt/ays/backup.sh:ro
+      - media_data:/source/media:ro
+      - backup_data:/backups
+    depends_on:
+      db: {condition: service_healthy}
+    networks: [internal]
+    logging: *logging
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  media_data:
+  static_data:
+  frontend_data:
+  backup_data:
+  caddy_data:
+  caddy_config:

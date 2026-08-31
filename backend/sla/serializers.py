@@ -23,15 +23,15 @@ class CalendarExceptionSerializer(serializers.ModelSerializer):
     intervals=ExceptionIntervalSerializer(many=True,required=False)
     class Meta:model=BusinessCalendarException;fields=("id","calendar","date","exception_type","name","created_at","created_by","intervals");read_only_fields=("id","calendar","created_at","created_by")
 class CalendarVersionSerializer(serializers.ModelSerializer):
-    class Meta:model=BusinessCalendarVersion;fields="__all__";read_only_fields=fields
+    class Meta:model=BusinessCalendarVersion;fields="__all__";read_only_fields=tuple(field.name for field in BusinessCalendarVersion._meta.fields)
 class BusinessCalendarSerializer(serializers.ModelSerializer):
     current_version_number=serializers.IntegerField(source="current_version.version",read_only=True)
     class Meta:model=BusinessCalendar;fields="__all__";read_only_fields=("id","created_by","current_version","created_at","updated_at")
 class WarningThresholdSerializer(serializers.ModelSerializer):
-    class Meta:model=SLAWarningThreshold;fields="__all__";read_only_fields=fields
+    class Meta:model=SLAWarningThreshold;fields="__all__";read_only_fields=tuple(field.name for field in SLAWarningThreshold._meta.fields)
 class PolicyVersionSerializer(serializers.ModelSerializer):
     warning_thresholds=WarningThresholdSerializer(many=True,read_only=True)
-    class Meta:model=SLAPolicyVersion;fields="__all__";read_only_fields=fields
+    class Meta:model=SLAPolicyVersion;fields="__all__";read_only_fields=tuple(field.name for field in SLAPolicyVersion._meta.fields)
 class SLAPolicySerializer(serializers.ModelSerializer):
     current_version_number=serializers.IntegerField(source="current_version.version",read_only=True)
     class Meta:model=SLAPolicy;fields="__all__";read_only_fields=("id","created_by","current_version","created_at","updated_at")
@@ -78,7 +78,7 @@ class EscalationPolicySerializer(serializers.ModelSerializer):
     rules=EscalationRuleSerializer(source="draft_rules",many=True,read_only=True);current_version_number=serializers.IntegerField(source="current_version.version",read_only=True)
     class Meta:model=EscalationPolicy;fields="__all__";read_only_fields=("id","created_by","current_version","created_at","updated_at")
 class EscalationPolicyVersionSerializer(serializers.ModelSerializer):
-    class Meta:model=EscalationPolicyVersion;fields="__all__";read_only_fields=fields
+    class Meta:model=EscalationPolicyVersion;fields="__all__";read_only_fields=tuple(field.name for field in EscalationPolicyVersion._meta.fields)
 class EscalationBindingSerializer(serializers.ModelSerializer):
     class Meta:model=SLAEscalationBinding;fields="__all__";read_only_fields=("id","created_by","created_at","updated_at")
     def validate(self,data):

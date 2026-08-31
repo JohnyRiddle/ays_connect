@@ -27,6 +27,23 @@ class CoreApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["employee"]["position"], "Специалист")
 
+    def test_login_supports_bootstrap_employee_without_legacy_company(self):
+        user = User.objects.create_superuser(
+            username="pilot-admin",
+            email="pilot-admin@example.test",
+            password="StrongPilotPass123!",
+        )
+        Employee.objects.create(user=user, first_name="Pilot", last_name="Admin")
+
+        response = self.client.post(
+            "/api/v1/auth/login/",
+            {"email": user.email, "password": "StrongPilotPass123!"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.data["user"]["employee"]["company"])
+
     def test_employee_cannot_list_all_employees(self):
         role = Role.objects.create(code=Role.Code.EMPLOYEE, name="Сотрудник")
         UserRole.objects.create(user=self.user, role=role, company=self.company)
