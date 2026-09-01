@@ -92,6 +92,7 @@ PERMISSIONS = {
     "sla.escalation_instance.manage": "Администрирование runtime эскалаций",
     "performance.view": "Просмотр собственных показателей эффективности",
     "performance.view_management": "Просмотр управленческой аналитики эффективности",
+    "system.status.view": "Просмотр состояния системы и очередей",
 }
 
 

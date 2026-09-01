@@ -15,5 +15,9 @@ psql -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE ${restore_database}" >/d
 pg_restore --exit-on-error --no-owner --dbname="${restore_database}" "${latest}/database.dump"
 migrations="$(psql -d "${restore_database}" -tAc "SELECT count(*) FROM django_migrations WHERE app = 'performance'")"
 aggregates="$(psql -d "${restore_database}" -tAc "SELECT count(*) FROM performance_performanceaggregate")"
+users="$(psql -d "${restore_database}" -tAc "SELECT count(*) FROM accounts_user")"
+employees="$(psql -d "${restore_database}" -tAc "SELECT count(*) FROM employees_employee")"
+operations_table="$(psql -d "${restore_database}" -tAc "SELECT count(*) FROM information_schema.tables WHERE table_name = 'operations_workerheartbeat'")"
 test "${migrations}" -ge 2
-echo "restore_smoke=PASS performance_migrations=${migrations} performance_aggregates=${aggregates}"
+test "${operations_table}" -eq 1
+echo "restore_smoke=PASS performance_migrations=${migrations} users=${users} employees=${employees} performance_aggregates=${aggregates}"

@@ -15,7 +15,12 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         zone = ZoneInfo("Asia/Novosibirsk"); created = 0
-        events = OutboxEvent.objects.filter(entity_type__in=("task", "service_request", "sla_instance")).exclude(event_id__in=PerformanceEventReceipt.objects.values("event_id")).order_by("created_at")[:options["batch_size"]]
+        events = OutboxEvent.objects.filter(
+            entity_type__in=(
+                "Task", "ServiceRequest", "SLAInstance",
+                "task", "service_request", "sla_instance",
+            )
+        ).exclude(event_id__in=PerformanceEventReceipt.objects.values("event_id")).order_by("created_at")[:options["batch_size"]]
         for event in events:
             local = event.occurred_at.astimezone(zone); start = local.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             next_month = (start.replace(day=28) + timedelta(days=4)).replace(day=1)

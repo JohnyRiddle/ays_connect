@@ -12,7 +12,8 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def health(request):
-    return Response({"status": "ok", "service": "ays-connect", "version": os.getenv("AYS_CONNECT_VERSION", "development")})
+    from django.conf import settings
+    return Response({"status": "ok", "service": "ays-connect", "version": settings.AYS_CONNECT_VERSION})
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
@@ -39,6 +40,7 @@ urlpatterns = [
     path("api/v1/notifications/", include("notifications.urls")),
     path("api/internal/v1/notification-channels/", include("notifications.channel_urls")),
     path("api/internal/v1/performance/", include("performance.urls")),
+    path("api/internal/v1/system/", include("operations.urls")),
     path("api/integrations/telegram/", include("notifications.integration_urls")),
     path("api/v1/knowledge/", include("knowledge_base.urls")),
     path("api/v1/learning/", include("learning.urls")),

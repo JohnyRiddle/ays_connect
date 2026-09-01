@@ -6,7 +6,11 @@ from .policies import TaskAccessPolicy
 
 
 class TaskSelector:
-    RELATED = ("author", "responsible_target", "responsible_employee", "executor_target", "executor_employee", "org_unit", "legal_entity", "location", "parent")
+    RELATED = (
+        "author", "responsible_employee", "executor_employee", "org_unit", "legal_entity", "location", "parent",
+        "responsible_target__employee", "responsible_target__position", "responsible_target__org_unit", "responsible_target__functional_group",
+        "executor_target__employee", "executor_target__position", "executor_target__org_unit", "executor_target__functional_group",
+    )
 
     @classmethod
     def visible_to(cls, employee):

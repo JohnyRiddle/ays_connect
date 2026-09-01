@@ -160,7 +160,7 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
         try:return self.request.user.employee
         except Exception:raise ValidationError("Authenticated user has no employee profile.")
     def get_queryset(self):
-        qs=ServiceRequest.objects.select_related("request_type","schema_version","service","category","requester","assigned_employee","responsible_employee","sla_instance__policy_version__policy","sla_instance__escalation_instance__policy_version__policy").prefetch_related("field_values","task_links__task","comments","attachments","watcher_records__employee","sla_instance__metrics__resolution_cycle","sla_instance__escalation_instance__executions")
+        qs=ServiceRequest.objects.select_related("request_type","schema_version","service","category","requester","assigned_employee","responsible_employee","responsible_target__employee","responsible_target__position","responsible_target__org_unit","responsible_target__functional_group","assigned_target__employee","assigned_target__position","assigned_target__org_unit","assigned_target__functional_group","sla_instance__policy_version__policy","sla_instance__escalation_instance__policy_version__policy").prefetch_related("field_values","task_links__task","comments","attachments","watcher_records__employee","sla_instance__metrics__resolution_cycle","sla_instance__escalation_instance__executions")
         if not self.request.user.is_superuser:qs=qs.filter(ServiceRequestAccessPolicy.visibility_query(employee=self.actor())).distinct()
         params=self.request.query_params
         for key in ("status","priority","request_type","service","requester","assigned_employee","responsible_employee","org_unit","legal_entity","location"):

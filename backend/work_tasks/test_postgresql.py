@@ -61,7 +61,8 @@ class PostgreSQLTaskConcurrencyTests(TransactionTestCase):
             return [future.result(timeout=15) for future in futures]
 
     def test_concurrent_task_numbers_are_unique_and_sequential(self):
-        barrier = Barrier(2)
+        count = 20
+        barrier = Barrier(count)
 
         def create(title):
             connections.close_all()
@@ -77,10 +78,10 @@ class PostgreSQLTaskConcurrencyTests(TransactionTestCase):
             connections.close_all()
             return task.number
 
-        numbers = self._parallel([lambda: create("First"), lambda: create("Second")])
+        numbers = self._parallel([lambda index=index: create(f"Concurrent {index}") for index in range(count)])
 
-        self.assertEqual(len(set(numbers)), 2)
-        self.assertEqual(sorted(numbers), ["TASK-000001", "TASK-000002"])
+        self.assertEqual(len(set(numbers)), count)
+        self.assertEqual(sorted(numbers), [f"TASK-{value:06d}" for value in range(1,count+1)])
 
     def test_optimistic_locking_rejects_one_concurrent_writer(self):
         task = TaskService.create(

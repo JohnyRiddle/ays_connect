@@ -1,5 +1,5 @@
 from rest_framework.routers import DefaultRouter
-from employees.internal_api import EmployeeViewSet, FunctionalGroupViewSet, PositionViewSet
+from employees.internal_api import AssignmentTargetViewSet, EmployeeViewSet, FunctionalGroupViewSet, PositionViewSet
 from organizations.internal_api import LegalEntityViewSet, LocationViewSet, OrgUnitViewSet
 from .views import PermissionViewSet, RolePermissionViewSet, RoleViewSet
 from work_tasks.views import ChecklistTemplateViewSet, ProductionTaskViewSet
@@ -15,6 +15,7 @@ router.register("legal-entities", LegalEntityViewSet, basename="internal-legal-e
 router.register("org-units", OrgUnitViewSet, basename="internal-org-units")
 router.register("locations", LocationViewSet, basename="internal-locations")
 router.register("functional-groups", FunctionalGroupViewSet, basename="internal-functional-groups")
+router.register("assignment-targets", AssignmentTargetViewSet, basename="internal-assignment-targets")
 router.register("roles", RoleViewSet, basename="internal-roles")
 router.register("permissions", PermissionViewSet, basename="internal-permissions")
 router.register("role-permissions", RolePermissionViewSet, basename="internal-role-permissions")

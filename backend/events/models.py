@@ -24,6 +24,9 @@ class OutboxEvent(models.Model):
     processed_at = models.DateTimeField(null=True, blank=True)
     attempts = models.PositiveIntegerField(default=0)
     last_error = models.TextField(blank=True)
+    last_error_code = models.CharField(max_length=120, blank=True)
+    next_attempt_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    failed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        indexes = [models.Index(fields=["status", "created_at"])]
+        indexes = [models.Index(fields=["status", "created_at"]), models.Index(fields=["status", "next_attempt_at"], name="outbox_retry_due")]

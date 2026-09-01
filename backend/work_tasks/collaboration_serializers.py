@@ -7,10 +7,11 @@ from .models import ChecklistTemplate, ChecklistTemplateItem, TaskAttachment, Ta
 class CommentSerializer(serializers.ModelSerializer):
     mentions = serializers.SerializerMethodField()
     body = serializers.SerializerMethodField()
+    author_display = serializers.CharField(source="author.display_name", read_only=True, allow_null=True)
 
     class Meta:
         model = TaskComment
-        fields = ("id", "author", "body", "is_internal", "mentions", "created_at", "updated_at", "edited_at", "deleted_at", "deleted_by")
+        fields = ("id", "author", "author_display", "body", "is_internal", "mentions", "created_at", "updated_at", "edited_at", "deleted_at", "deleted_by")
         read_only_fields = fields
 
     def get_body(self, obj):
@@ -34,9 +35,10 @@ class AttachmentSerializer(serializers.ModelSerializer):
 
 
 class WatcherSerializer(serializers.ModelSerializer):
+    employee_display = serializers.CharField(source="employee.display_name", read_only=True)
     class Meta:
         model = TaskWatcher
-        fields = ("id", "employee", "added_by", "created_at", "removed_at", "removed_by")
+        fields = ("id", "employee", "employee_display", "added_by", "created_at", "removed_at", "removed_by")
         read_only_fields = fields
 
 

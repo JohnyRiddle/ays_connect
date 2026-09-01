@@ -50,6 +50,10 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
     collaboration=serializers.SerializerMethodField();tasks_summary=serializers.SerializerMethodField();sla=serializers.SerializerMethodField();escalation=serializers.SerializerMethodField()
     request_type_name=serializers.CharField(source="request_type.name",read_only=True)
     schema_version_number=serializers.IntegerField(source="schema_version.version",read_only=True)
+    requester_display=serializers.CharField(source="requester.display_name",read_only=True,allow_null=True)
+    responsible_employee_display=serializers.CharField(source="responsible_employee.display_name",read_only=True,allow_null=True)
+    assigned_employee_display=serializers.CharField(source="assigned_employee.display_name",read_only=True,allow_null=True)
+    responsible_target_display=serializers.SerializerMethodField();assigned_target_display=serializers.SerializerMethodField()
     class Meta:
         model=ServiceRequest;fields="__all__"
         read_only_fields=("id","number","status","requester","created_by","service","category","schema_version","responsible_target","responsible_employee","assigned_target","assigned_employee","submitted_at","assigned_at","started_at","resolved_at","closed_at","cancelled_at","reopened_at","resolution_code","resolution_comment","cancellation_reason","version","created_at","updated_at","updated_by","routing_unresolved")
@@ -69,6 +73,13 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
         if obj.status not in {RequestStatus.CLOSED,RequestStatus.CANCELLED}:state|={"attachment_add","attachment_internal"}
         if any(link.employee_id==getattr(employee,"pk",None) and not link.removed_at for link in obj.watcher_records.all()):state.discard("watch");state.add("unwatch")
         return sorted(action for action in state if action=="unwatch" or superuser or ServiceRequestAccessPolicy.allows(employee=employee,permission=candidates[action],request=obj))
+    @staticmethod
+    def _target_display(target):
+        if not target:return None
+        value=target.employee or target.position or target.org_unit or target.functional_group
+        return getattr(value,"display_name",None) or getattr(value,"name",None) or str(value)
+    def get_responsible_target_display(self,obj):return self._target_display(obj.responsible_target)
+    def get_assigned_target_display(self,obj):return self._target_display(obj.assigned_target)
     def get_collaboration(self,obj):
         from .policies import ServiceRequestAccessPolicy
         req=self.context.get("request");employee=getattr(getattr(req,"user",None),"employee",None);superuser=bool(req and req.user.is_superuser);comment_internal=superuser or ServiceRequestAccessPolicy.can_view_internal(employee=employee,request=obj,kind="comment");attachment_internal=superuser or ServiceRequestAccessPolicy.can_view_internal(employee=employee,request=obj,kind="attachment")
@@ -94,8 +105,8 @@ class RequestCreateSerializer(serializers.Serializer):
     subject=serializers.CharField(max_length=240);description=serializers.CharField(required=False,allow_blank=True);priority=serializers.ChoiceField(choices=RequestType.Priority.choices,required=False);payload=serializers.JSONField()
 
 class RequestCommentSerializer(serializers.ModelSerializer):
-    body=serializers.SerializerMethodField();mentions=serializers.SerializerMethodField()
-    class Meta:model=ServiceRequestComment;fields=("id","author","body","visibility","mentions","created_at","updated_at","edited_at","deleted_at","deleted_by");read_only_fields=fields
+    body=serializers.SerializerMethodField();mentions=serializers.SerializerMethodField();author_display=serializers.CharField(source="author.display_name",read_only=True,allow_null=True)
+    class Meta:model=ServiceRequestComment;fields=("id","author","author_display","body","visibility","mentions","created_at","updated_at","edited_at","deleted_at","deleted_by");read_only_fields=fields
     def get_body(self,obj):return "Комментарий удалён" if obj.deleted_at else obj.body
     def get_mentions(self,obj):return [str(pk) for pk in obj.mention_records.values_list("employee_id",flat=True)]
 class RequestCommentWriteSerializer(serializers.Serializer):
@@ -103,5 +114,6 @@ class RequestCommentWriteSerializer(serializers.Serializer):
 class RequestAttachmentSerializer(serializers.ModelSerializer):
     class Meta:model=ServiceRequestAttachment;fields=("id","original_filename","content_type","size","checksum","uploaded_by","visibility","created_at","deleted_at","deleted_by");read_only_fields=fields
 class RequestWatcherSerializer(serializers.ModelSerializer):
-    class Meta:model=ServiceRequestWatcher;fields=("id","employee","added_by","created_at","removed_at","removed_by");read_only_fields=fields
+    employee_display=serializers.CharField(source="employee.display_name",read_only=True)
+    class Meta:model=ServiceRequestWatcher;fields=("id","employee","employee_display","added_by","created_at","removed_at","removed_by");read_only_fields=fields
 class RequestWatcherWriteSerializer(serializers.Serializer):employee=serializers.PrimaryKeyRelatedField(queryset=Employee.objects.all())

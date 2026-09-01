@@ -1,3 +1,4 @@
+from django.db.models import Q
 from rest_framework import serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -6,7 +7,7 @@ from access_control.permissions import InternalAPIPermission
 from access_control.models import Role
 from access_control.serializers import EmployeeRoleSerializer
 from access_control.services import RoleService
-from .models import Employee, FunctionalGroup, FunctionalGroupMembership, Position
+from .models import AssignmentTarget, Employee, FunctionalGroup, FunctionalGroupMembership, Position
 from .services import EmployeeService, FunctionalGroupService
 
 
@@ -30,6 +31,20 @@ class FunctionalGroupSerializer(serializers.ModelSerializer):
         model = FunctionalGroup
         fields = "__all__"
         read_only_fields = ("id", "created_at", "updated_at")
+
+
+class AssignmentTargetSerializer(serializers.ModelSerializer):
+    display_name = serializers.SerializerMethodField()
+    target_type_label = serializers.CharField(source="get_target_type_display", read_only=True)
+
+    class Meta:
+        model = AssignmentTarget
+        fields = ("id", "target_type", "target_type_label", "display_name", "employee", "position", "org_unit", "functional_group")
+        read_only_fields = fields
+
+    def get_display_name(self, obj):
+        target = obj.employee or obj.position or obj.org_unit or obj.functional_group
+        return getattr(target, "display_name", None) or getattr(target, "name", None) or str(target)
 
 
 class MembershipSerializer(serializers.ModelSerializer):
@@ -79,3 +94,23 @@ class FunctionalGroupViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         membership = FunctionalGroupService.add_member(group=self.get_object(), employee=serializer.validated_data["employee"], actor_user=request.user, role=serializer.validated_data.get("role", ""), active_from=serializer.validated_data.get("active_from"), active_until=serializer.validated_data.get("active_until"))
         return Response(MembershipSerializer(membership).data, status=201)
+
+
+class AssignmentTargetViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = AssignmentTargetSerializer
+    permission_classes = (InternalAPIPermission,)
+    permission_domain = "employee"
+
+    def get_queryset(self):
+        queryset = AssignmentTarget.objects.select_related("employee", "position", "org_unit", "functional_group")
+        target_type = self.request.query_params.get("target_type")
+        if target_type:
+            queryset = queryset.filter(target_type=target_type)
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                Q(employee__first_name__icontains=search) | Q(employee__last_name__icontains=search)
+                | Q(position__name__icontains=search) | Q(org_unit__name__icontains=search)
+                | Q(functional_group__name__icontains=search)
+            )
+        return queryset.order_by("target_type", "id")

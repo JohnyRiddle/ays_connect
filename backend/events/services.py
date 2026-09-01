@@ -4,6 +4,11 @@ from django.core.serializers.json import DjangoJSONEncoder
 import json
 
 from .models import OutboxEvent
+from django.db.models import Q
+from datetime import timedelta
+
+
+MAX_OUTBOX_ATTEMPTS = 5
 
 
 class DomainEventService:
@@ -25,7 +30,10 @@ class OutboxProcessor:
     @staticmethod
     @transaction.atomic
     def process_batch(handler, limit=100):
-        events = list(OutboxEvent.objects.select_for_update(skip_locked=True).filter(status=OutboxEvent.Status.PENDING).order_by("created_at")[:limit])
+        now = timezone.now()
+        events = list(OutboxEvent.objects.select_for_update(skip_locked=True).filter(
+            Q(status=OutboxEvent.Status.PENDING) | Q(status=OutboxEvent.Status.FAILED, attempts__lt=MAX_OUTBOX_ATTEMPTS, next_attempt_at__lte=now)
+        ).order_by("created_at")[:limit])
         for event in events:
             event.attempts += 1
             try:
@@ -33,8 +41,12 @@ class OutboxProcessor:
                 event.status = OutboxEvent.Status.PROCESSED
                 event.processed_at = timezone.now()
                 event.last_error = ""
+                event.last_error_code = ""; event.next_attempt_at = None; event.failed_at = None
             except Exception as exc:
                 event.status = OutboxEvent.Status.FAILED
-                event.last_error = str(exc)[:2000]
-            event.save(update_fields=["attempts", "status", "processed_at", "last_error"])
+                event.last_error_code = exc.__class__.__name__[:120]
+                event.last_error = "Handler failed; inspect sanitized worker logs."
+                event.failed_at = now
+                event.next_attempt_at = None if event.attempts >= MAX_OUTBOX_ATTEMPTS else now + timedelta(seconds=min(3600, 60 * (2 ** event.attempts)))
+            event.save(update_fields=["attempts", "status", "processed_at", "last_error", "last_error_code", "next_attempt_at", "failed_at"])
         return len(events)

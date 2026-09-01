@@ -7,6 +7,7 @@ from django.utils import timezone
 from sla.escalation import (EscalationReconciliationService,
                             EscalationRuntimeService)
 from sla.models import EscalationInstance,EscalationInstanceStatus,SLAInstance
+from operations.heartbeat import record_worker_cycle
 
 logger=logging.getLogger(__name__)
 class Command(BaseCommand):
@@ -29,4 +30,5 @@ class Command(BaseCommand):
                     scanned+=1
                 except Exception as exc:errors+=1;logger.exception("Escalation processing failed instance=%s error=%s",item_id,exc)
             if len(item_ids)<batch:break
+        record_worker_cycle("escalations",processed=scanned,error_code="ESCALATION_CYCLE_ERRORS" if errors else "",metadata={"actions":actions,"errors":errors})
         self.stdout.write(f"instances_scanned: {scanned} actions: {actions} errors: {errors}")

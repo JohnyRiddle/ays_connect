@@ -36,7 +36,8 @@ class PersonalDashboardView(APIView):
         user = request.user
         active = Task.objects.filter(Q(assignee=user) | Q(collaborators=user)).distinct().exclude(status__in=[Task.Status.CLOSED, Task.Status.COMPLETED, Task.Status.CANCELLED])
         now = timezone.now()
-        day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        local_now = timezone.localtime(now)
+        day_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
         day_end = day_start + timedelta(days=1)
         today = active.filter(deadline__lt=day_end).select_related("assignee", "creator", "facility")[:8]
         review = Task.objects.filter(creator=user, status=Task.Status.REVIEW)

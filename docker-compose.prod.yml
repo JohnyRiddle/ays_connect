@@ -1,125 +1,174 @@
+name: ays-connect-production
+
+x-backend-env: &backend-env
+  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+  DJANGO_DEBUG: "0"
+  DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS}
+  CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS}
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+  DJANGO_SECURE_SSL_REDIRECT: "1"
+  DJANGO_SECURE_COOKIES: "1"
+  DJANGO_SECURE_HSTS_SECONDS: ${DJANGO_SECURE_HSTS_SECONDS:-31536000}
+  DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+  REDIS_URL: redis://redis:6379/0
+  AYS_CONNECT_PUBLIC_URL: ${AYS_CONNECT_PUBLIC_URL}
+  AYS_CONNECT_VERSION: ${AYS_CONNECT_VERSION:-1.0.0-rc1}
+  NOTIFICATIONS_TELEGRAM_ENABLED: ${NOTIFICATIONS_TELEGRAM_ENABLED:-0}
+  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+  TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+  TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+  TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
+  NOTIFICATIONS_EMAIL_ENABLED: ${NOTIFICATIONS_EMAIL_ENABLED:-0}
+  EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.smtp.EmailBackend}
+  EMAIL_HOST: ${EMAIL_HOST:-}
+  EMAIL_PORT: ${EMAIL_PORT:-587}
+  EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+  EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+  EMAIL_USE_TLS: ${EMAIL_USE_TLS:-1}
+  DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-AYS Connect <no-reply@localhost>}
+
+x-logging: &logging
+  driver: json-file
+  options: {max-size: "10m", max-file: "5"}
+
+x-worker: &worker
+  build: ./backend
+  restart: unless-stopped
+  environment: *backend-env
+  depends_on:
+    init: {condition: service_completed_successfully}
+  networks: [internal]
+  healthcheck:
+    test: ["CMD-SHELL", "kill -0 1"]
+    interval: 30s
+    timeout: 3s
+    retries: 3
+  logging: *logging
+
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    networks: [internal]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
-      retries: 12
-    networks: [internal]
+      retries: 20
+    logging: *logging
 
   redis:
     image: redis:7-alpine
     restart: unless-stopped
     command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
+    volumes: [redis_data:/data]
+    networks: [internal]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
-      retries: 12
+      retries: 20
+    logging: *logging
+
+  init:
+    build: ./backend
+    restart: "no"
+    user: "0:0"
+    environment: *backend-env
+    command: sh -ec "python manage.py migrate --noinput && python manage.py seed_permissions && python manage.py collectstatic --noinput && chown -R app:app /app/media /app/staticfiles"
+    volumes: [media_data:/app/media, static_data:/app/staticfiles]
+    depends_on:
+      db: {condition: service_healthy}
     networks: [internal]
+    logging: *logging
 
   backend:
     build: ./backend
     restart: unless-stopped
-    environment:
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
-      DJANGO_DEBUG: "0"
-      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-109.237.109.58,localhost,backend}
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      REDIS_URL: redis://redis:6379/0
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://109.237.109.58:3001}
-      NOTIFICATIONS_TELEGRAM_ENABLED: ${NOTIFICATIONS_TELEGRAM_ENABLED:-0}
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
-      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
-      NOTIFICATIONS_EMAIL_ENABLED: ${NOTIFICATIONS_EMAIL_ENABLED:-0}
-      EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.smtp.EmailBackend}
-      EMAIL_HOST: ${EMAIL_HOST:-}
-      EMAIL_PORT: ${EMAIL_PORT:-587}
-      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
-      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
-      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-1}
-      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-AYS Connect <no-reply@localhost>}
-      AYS_CONNECT_PUBLIC_URL: ${AYS_CONNECT_PUBLIC_URL:-}
-    command: sh -c "python manage.py migrate && python manage.py seed_demo && python manage.py generate_sensor_demo_data && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 60"
+    environment: *backend-env
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 60 --graceful-timeout 30 --max-requests 1000 --max-requests-jitter 100 --access-logfile - --error-logfile -
+    volumes: [media_data:/app/media, static_data:/app/staticfiles:ro]
     depends_on:
-      db: {condition: service_healthy}
+      init: {condition: service_completed_successfully}
       redis: {condition: service_healthy}
-    volumes:
-      - media_data:/app/media
     networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; r=urllib.request.Request('http://127.0.0.1:8000/api/v1/health/ready/', headers={'Host':'localhost','X-Forwarded-Proto':'https'}); urllib.request.urlopen(r, timeout=3)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    logging: *logging
 
-  frontend:
+  frontend_assets:
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
       args:
         VITE_API_URL: /api/v1
-    restart: unless-stopped
-    ports:
-      - "3001:80"
-    depends_on: [backend]
+        VITE_APP_VERSION: ${AYS_CONNECT_VERSION:-1.0.0-rc1}
+    restart: "no"
+    command: sh -ec "rm -rf /output/* && cp -R /bundle/. /output/"
+    volumes: [frontend_data:/output]
     networks: [internal]
+    logging: *logging
 
-  scheduler:
-    build: ./backend
+  proxy:
+    image: caddy:2.8-alpine
     restart: unless-stopped
     environment:
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
-      DJANGO_DEBUG: "0"
-      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-109.237.109.58,localhost,backend}
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      REDIS_URL: redis://redis:6379/0
-    command: sh -c "sleep 20; while true; do python manage.py run_schedules; sleep 60; done"
+      PRODUCTION_HOST: ${PRODUCTION_HOST}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./deployment/Caddyfile.production:/etc/caddy/Caddyfile:ro
+      - static_data:/srv/static:ro
+      - frontend_data:/srv/frontend:ro
+      - caddy_data:/data
+      - caddy_config:/config
     depends_on:
-      db: {condition: service_healthy}
-      redis: {condition: service_healthy}
+      backend: {condition: service_healthy}
+      frontend_assets: {condition: service_completed_successfully}
     networks: [internal]
+    logging: *logging
 
+  recurrence_worker:
+    <<: *worker
+    command: sh -ec "while true; do python manage.py generate_recurring_tasks; sleep 60; done"
+  schedule_worker:
+    <<: *worker
+    command: sh -ec "while true; do python manage.py run_schedules; sleep 60; done"
+  sla_worker:
+    <<: *worker
+    command: sh -ec "while true; do python manage.py process_sla --batch-size 100; sleep 30; done"
+  escalation_worker:
+    <<: *worker
+    command: sh -ec "while true; do python manage.py process_escalations --batch-size 100; sleep 30; done"
   notification_worker:
-    build: ./backend
-    restart: unless-stopped
-    environment:
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
-      DJANGO_DEBUG: "0"
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      NOTIFICATIONS_TELEGRAM_ENABLED: ${NOTIFICATIONS_TELEGRAM_ENABLED:-0}
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-      NOTIFICATIONS_EMAIL_ENABLED: ${NOTIFICATIONS_EMAIL_ENABLED:-0}
-      EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.smtp.EmailBackend}
-      EMAIL_HOST: ${EMAIL_HOST:-}
-      EMAIL_PORT: ${EMAIL_PORT:-587}
-      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
-      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
-      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-1}
-      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-AYS Connect <no-reply@localhost>}
-      AYS_CONNECT_PUBLIC_URL: ${AYS_CONNECT_PUBLIC_URL:-}
-    command: sh -c "while true; do python manage.py process_notifications --batch-size 100 --reconcile; sleep 5; done"
-    depends_on:
-      db: {condition: service_healthy}
-    networks: [internal]
-
+    <<: *worker
+    command: sh -ec "while true; do python manage.py process_notifications --batch-size 100 --reconcile; sleep 5; done"
   performance_worker:
-    build: ./backend
+    <<: *worker
+    command: sh -ec "while true; do python manage.py enqueue_performance --batch-size 500; python manage.py process_performance --batch-size 10; sleep 30; done"
+
+  backup:
+    image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
-      DJANGO_DEBUG: "0"
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-    command: sh -c "while true; do python manage.py enqueue_performance --batch-size 500; python manage.py process_performance --batch-size 10; sleep 30; done"
+      PGHOST: db
+      PGDATABASE: ${POSTGRES_DB}
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+    command: sh -ec "while true; do /opt/ays/backup.sh; sleep 86400; done"
+    volumes: [./deployment/backup.sh:/opt/ays/backup.sh:ro, media_data:/source/media:ro, backup_data:/backups]
     depends_on:
       db: {condition: service_healthy}
     networks: [internal]
+    logging: *logging
 
 networks:
   internal:
@@ -129,3 +178,8 @@ volumes:
   postgres_data:
   redis_data:
   media_data:
+  static_data:
+  frontend_data:
+  backup_data:
+  caddy_data:
+  caddy_config:

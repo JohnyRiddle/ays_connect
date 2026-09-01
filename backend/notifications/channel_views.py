@@ -27,6 +27,7 @@ class TelegramStatusView(APIView):
     def get(self,request):
         account=TelegramAccount.objects.filter(employee=current_employee(request),is_active=True).first();return Response({"linked":bool(account),"username":account.username if account else "","linked_at":account.linked_at if account else None})
 class TelegramLinkView(APIView):
+    throttle_scope="binding"
     def post(self,request):
         raw,obj=TelegramLinkService.issue(current_employee(request),request.user);username=settings.TELEGRAM_BOT_USERNAME;return Response({"bot_username":username,"start_parameter":raw,"deep_link":f"https://t.me/{username}?start={raw}" if username else "","expires_at":obj.expires_at})
 class TelegramUnlinkView(APIView):

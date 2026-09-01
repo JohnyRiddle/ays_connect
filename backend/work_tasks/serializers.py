@@ -36,6 +36,24 @@ class TaskReviewHistorySerializer(serializers.ModelSerializer):
 class TaskSerializer(serializers.ModelSerializer):
     is_overdue = serializers.BooleanField(read_only=True)
     completed_late = serializers.BooleanField(read_only=True)
+    responsible_target_display = serializers.SerializerMethodField()
+    executor_target_display = serializers.SerializerMethodField()
+    responsible_employee_display = serializers.CharField(source="responsible_employee.display_name", read_only=True, allow_null=True)
+    executor_employee_display = serializers.CharField(source="executor_employee.display_name", read_only=True, allow_null=True)
+    author_display = serializers.CharField(source="author.display_name", read_only=True, allow_null=True)
+
+    @staticmethod
+    def _target_display(target):
+        if not target:
+            return None
+        value = target.employee or target.position or target.org_unit or target.functional_group
+        return getattr(value, "display_name", None) or getattr(value, "name", None) or str(value)
+
+    def get_responsible_target_display(self, obj):
+        return self._target_display(obj.responsible_target)
+
+    def get_executor_target_display(self, obj):
+        return self._target_display(obj.executor_target)
 
     class Meta:
         model = Task

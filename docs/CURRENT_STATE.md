@@ -1,15 +1,15 @@
 # Текущее состояние AYS Connect
 
-> 31.08.2026: Phase 1.5 завершена от deployment checkpoint `4f9463f` (baseline PostgreSQL 182/182): отдельный производный Performance domain, aggregation runtime/API, security scopes, SPA и worker. PostgreSQL 17.11, backend 231/231, synthetic 100/10k/10k, backup/restore и deployment smoke — PASS.
+> 01.09.2026: Phase 1.6A COMPLETE. Production Work frontend, PostgreSQL suite 254/254, Playwright 7/7 и business-object DB/media isolated restore с Task/Request attachment SHA-256 MATCH проходят. Phase 1.6 LOCAL GATES PASS; server-dependent production gates остаются PENDING.
 
-**Обновлено:** 31.08.2026
+**Обновлено:** 01.09.2026
 
 **Ветка:** `main`
 **Remote:** `origin` → `https://github.com/JohnyRiddle/ays_connect.git`
 
 ## Текущая задача
 
-Phase 1.5 — Performance / Efficiency / Management Analytics COMPLETE. Phase 1.6 не начата.
+Phase 1.6 — Local Hardening Gate + Production Release Gate. LOCAL GATES PASS; production/server gates PENDING.
 
 ## Сделано
 
@@ -37,14 +37,24 @@ Phase 1.5 — Performance / Efficiency / Management Analytics COMPLETE. Phase 1.
 - добавлены full/incremental management commands, PostgreSQL `SKIP LOCKED` worker, internal API и SQL-level employee visibility;
 - раздел SPA «Эффективность» переведён с legacy analytics на production Performance API;
 - добавлен performance worker в pilot/server compose.
+- production Work SPA: списки, фильтры, создание, detail и lifecycle actions для Tasks и Service Requests;
+- динамическая форма заявки по published schema, PUBLIC/INTERNAL collaboration, SLA/history, watchers и защищённые attachments;
+- создание execution Task из заявки, optimistic-lock conflict UX и единая нормализация API-ошибок;
+- добавлен read-only lookup AssignmentTarget и человекочитаемые display-поля без изменения доменной логики;
+- local pilot обновлён на существующей PostgreSQL БД; direct-route SPA fallback и Playwright smoke 7/7 проходят.
+- controlled `RELEASE-GATE-1.6A` scenario восстановлен в отдельных PostgreSQL container/media volume: Employee, Task, Request, execution Task, SLA, Notification и Performance PASS;
+- source/restored physical и DB SHA-256 обоих attachment совпадают; protected downloads после restore дают 401 без JWT и 200 с JWT;
+- исправлен production Performance enqueue entity-type mismatch и добавлен regression test; baseline 254/254.
 
 ## Осталось
 
 - перенести pilot-контур на сервер после получения hostname/network/secrets;
-- выполнить реальные authentication/RBAC, Task/Request/SLA/Escalation/IN_APP/Telegram E2E с ограниченной группой пользователей;
+- выполнить расширенные RBAC, полный lifecycle Task/Request/SLA/Escalation/IN_APP/Telegram E2E с ограниченной группой пользователей;
 - перед развёртыванием поверх старой базы подготовить план миграции существующих bigint ID к актуальным UUID-моделям либо использовать чистую базу.
 
 ## Известные проблемы и риски
+
+- локальный Caddy CA не доверен встроенным браузером; trusted public HTTPS проверяется только на production hostname;
 
 - локальный Docker PostgreSQL volume создан ранним прототипом и не должен обновляться без резервной копии/плана данных;
 - production и legacy Tasks временно сосуществуют;
@@ -60,7 +70,7 @@ Phase 1.5 — Performance / Efficiency / Management Analytics COMPLETE. Phase 1.
 
 ## Рекомендуемый следующий шаг
 
-Сделать отдельный git checkpoint Phase 1.5. Затем получить параметры сервера, заменить local internal CA на trusted HTTPS и выполнить server/real-user acceptance gate до планирования Phase 1.6.
+Получить параметры production server и выполнить server-dependent gates. Не объявлять Work Core v1.0 до trusted HTTPS, reboot, Telegram и real-user UAT.
 
 ## Команды проверки
 

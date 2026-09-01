@@ -28,6 +28,9 @@ def validate_attachment(uploaded_file, *, max_size=None, allowed_types=None):
     original = Path(uploaded_file.name).name.strip().replace("\x00", "")
     if not original or len(original) > 255:
         raise AttachmentSecurityError("Некорректное имя файла.", "attachment_filename_invalid")
+    forbidden_suffixes = {".exe", ".com", ".bat", ".cmd", ".ps1", ".sh", ".js", ".html", ".htm", ".php", ".svg"}
+    if any(suffix.lower() in forbidden_suffixes for suffix in Path(original).suffixes):
+        raise AttachmentSecurityError("Расширение файла запрещено политикой безопасности.", "attachment_type_forbidden")
     header = uploaded_file.read(8)
     uploaded_file.seek(0)
     if header.startswith((b"MZ", b"\x7fELF", b"#!")):

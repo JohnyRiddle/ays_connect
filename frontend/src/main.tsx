@@ -41,8 +41,10 @@ import "./analytics.css";
 import "./notifications.css";
 import "./knowledge.css";
 import "./learning.css";
+import { ProductionWorkRouter, WorkHome } from "./work";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
+const APP_VERSION = import.meta.env.VITE_APP_VERSION || "1.0.0-rc1";
 const INTERNAL_API = API.replace(/\/api\/v1\/?$/, "/api/internal/v1");
 type Profile = {
   id: number;
@@ -237,7 +239,16 @@ type NotificationData = {
   telegram_status: string;
   created_at: string;
 };
-type ChannelStatus = {telegram:{available:boolean;linked:boolean;username:string;linked_at:string|null};email:{available:boolean;address_masked:string};in_app:{available:boolean}};
+type ChannelStatus = {
+  telegram: {
+    available: boolean;
+    linked: boolean;
+    username: string;
+    linked_at: string | null;
+  };
+  email: { available: boolean; address_masked: string };
+  in_app: { available: boolean };
+};
 type MaterialVersionData = {
   id: number;
   version: number;
@@ -272,7 +283,11 @@ type KnowledgeMaterialData = {
   versions?: MaterialVersionData[];
   tags: { id: number; name: string; slug: string }[];
 };
-type KnowledgeCategoryData = { id: number; name: string; parent: number | null };
+type KnowledgeCategoryData = {
+  id: number;
+  name: string;
+  parent: number | null;
+};
 type AcknowledgmentData = {
   id: number;
   material_id: number;
@@ -281,15 +296,113 @@ type AcknowledgmentData = {
   status: string;
   due_at: string | null;
 };
-type LessonData = { id:number; title:string; lesson_type:string; lesson_type_label:string; content:string; video_url:string; estimated_duration_minutes:number; sort_order:number; is_required:boolean; requires_confirmation:boolean };
-type CourseModuleData = { id:number; title:string; description:string; sort_order:number; lessons:LessonData[] };
-type CourseData = { id:number; title:string; short_description:string; description?:string; category_name:string; is_mandatory:boolean; estimated_duration_minutes:number; passing_score:number; max_attempts:number; certificate_enabled:boolean; status:string; modules_count:number; lessons_count:number; modules?:CourseModuleData[] };
-type AssignmentData = { id:number; course:number; course_title:string; status:string; status_label:string; progress_percent:number; current_lesson:number|null; is_mandatory:boolean; due_at:string|null; started_at:string|null; completed_at:string|null; lesson_progress:{lesson:number;completed_at:string|null;confirmed:boolean}[] };
-type AssessmentData = { id:number; course:number; title:string; description:string; time_limit_minutes:number; passing_score:number; max_attempts:number; questions_count:number };
-type AttemptData = { id:number; assessment:number; assessment_title:string; status:string; score_percent:string; passed:boolean; attempt_number:number; questions:{id:number;text:string;question_type:string;is_required:boolean;options:{id:number;text:string}[]}[]; responses:{id:number;question:number;is_correct:boolean|null;points_awarded:string}[] };
-type CertificateData = { id:number; course_title:string; certificate_number:string; issued_at:string; expires_at:string|null; status:string; verification_code:string };
-type ProductionMetric = { value:number|null; sample_size:number; status:string; explanation:{population?:string;source_facts?:number} };
-type ProductionPerformance = { employee:{id:string;name:string;position:string}; period:{from:string;to:string;timezone:string;semantics:string}; calculation_version:string; metrics:Record<string,ProductionMetric>; previous_period:Record<string,ProductionMetric> };
+type LessonData = {
+  id: number;
+  title: string;
+  lesson_type: string;
+  lesson_type_label: string;
+  content: string;
+  video_url: string;
+  estimated_duration_minutes: number;
+  sort_order: number;
+  is_required: boolean;
+  requires_confirmation: boolean;
+};
+type CourseModuleData = {
+  id: number;
+  title: string;
+  description: string;
+  sort_order: number;
+  lessons: LessonData[];
+};
+type CourseData = {
+  id: number;
+  title: string;
+  short_description: string;
+  description?: string;
+  category_name: string;
+  is_mandatory: boolean;
+  estimated_duration_minutes: number;
+  passing_score: number;
+  max_attempts: number;
+  certificate_enabled: boolean;
+  status: string;
+  modules_count: number;
+  lessons_count: number;
+  modules?: CourseModuleData[];
+};
+type AssignmentData = {
+  id: number;
+  course: number;
+  course_title: string;
+  status: string;
+  status_label: string;
+  progress_percent: number;
+  current_lesson: number | null;
+  is_mandatory: boolean;
+  due_at: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  lesson_progress: {
+    lesson: number;
+    completed_at: string | null;
+    confirmed: boolean;
+  }[];
+};
+type AssessmentData = {
+  id: number;
+  course: number;
+  title: string;
+  description: string;
+  time_limit_minutes: number;
+  passing_score: number;
+  max_attempts: number;
+  questions_count: number;
+};
+type AttemptData = {
+  id: number;
+  assessment: number;
+  assessment_title: string;
+  status: string;
+  score_percent: string;
+  passed: boolean;
+  attempt_number: number;
+  questions: {
+    id: number;
+    text: string;
+    question_type: string;
+    is_required: boolean;
+    options: { id: number; text: string }[];
+  }[];
+  responses: {
+    id: number;
+    question: number;
+    is_correct: boolean | null;
+    points_awarded: string;
+  }[];
+};
+type CertificateData = {
+  id: number;
+  course_title: string;
+  certificate_number: string;
+  issued_at: string;
+  expires_at: string | null;
+  status: string;
+  verification_code: string;
+};
+type ProductionMetric = {
+  value: number | null;
+  sample_size: number;
+  status: string;
+  explanation: { population?: string; source_facts?: number };
+};
+type ProductionPerformance = {
+  employee: { id: string; name: string; position: string };
+  period: { from: string; to: string; timezone: string; semantics: string };
+  calculation_version: string;
+  metrics: Record<string, ProductionMetric>;
+  previous_period: Record<string, ProductionMetric>;
+};
 async function api(path: string, options: RequestInit = {}) {
   const token = sessionStorage.getItem("access");
   const r = await fetch(`${API}${path}`, {
@@ -337,8 +450,8 @@ async function downloadAttachment(
 }
 
 function Login({ onLogin }: { onLogin: (p: Profile) => void }) {
-  const [email, setEmail] = useState("ivan@demo.ays-connect.local");
-  const [password, setPassword] = useState("Demo12345!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   async function submit(e: React.FormEvent) {
@@ -408,10 +521,6 @@ function Login({ onLogin }: { onLogin: (p: Profile) => void }) {
             {busy ? "Входим…" : "Войти"}
             <ChevronRight size={18} />
           </button>
-          <div className="demo">
-            <b>Демонстрационный доступ</b>
-            <span>Данные уже заполнены — просто нажмите «Войти»</span>
-          </div>
         </form>
       </section>
     </main>
@@ -437,9 +546,18 @@ function App() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [mobile, setMobile] = useState(false);
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(
-    null,
-  );
+  const [path, setPath] = useState(window.location.pathname);
+  const navigate = (next: string) => {
+    window.history.pushState({}, "", next);
+    setPath(next);
+    setMobile(false);
+    window.scrollTo(0, 0);
+  };
+  useEffect(() => {
+    const syncPath = () => setPath(window.location.pathname);
+    window.addEventListener("popstate", syncPath);
+    return () => window.removeEventListener("popstate", syncPath);
+  }, []);
   const [view, setView] = useState<
     | "dashboard"
     | "tasks"
@@ -466,11 +584,11 @@ function App() {
                 ? "knowledge"
                 : window.location.hash.startsWith("#learning")
                   ? "learning"
-              : window.location.hash === "#notification-settings"
-                ? "notification-settings"
-              : window.location.hash === "#notifications"
-                ? "notifications"
-                : "dashboard",
+                  : window.location.hash === "#notification-settings"
+                    ? "notification-settings"
+                    : window.location.hash === "#notifications"
+                      ? "notifications"
+                      : "dashboard",
   );
   useEffect(() => {
     const syncRoute = () =>
@@ -489,21 +607,15 @@ function App() {
                     ? "knowledge"
                     : window.location.hash.startsWith("#learning")
                       ? "learning"
-                  : window.location.hash === "#notification-settings"
-                    ? "notification-settings"
-                  : window.location.hash === "#notifications"
-                    ? "notifications"
-                    : "dashboard",
+                      : window.location.hash === "#notification-settings"
+                        ? "notification-settings"
+                        : window.location.hash === "#notifications"
+                          ? "notifications"
+                          : "dashboard",
       );
     window.addEventListener("hashchange", syncRoute);
     return () => window.removeEventListener("hashchange", syncRoute);
   }, []);
-  useEffect(() => {
-    if (profile)
-      api("/employees/dashboard/")
-        .then(setDashboardData)
-        .catch(() => setDashboardData(null));
-  }, [profile]);
   useEffect(() => {
     const token = sessionStorage.getItem("access");
     if (!token) {
@@ -520,6 +632,13 @@ function App() {
   if (!profile) return <Login onLogin={setProfile} />;
   const emp = profile.employee;
   const logout = () => {
+    const refresh = sessionStorage.getItem("refresh");
+    if (refresh)
+      fetch(`${API}/auth/logout/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh }),
+      }).catch(() => undefined);
     sessionStorage.clear();
     setProfile(null);
   };
@@ -536,25 +655,43 @@ function App() {
           <div className="company-mark">AH</div>
           <div>
             <b>AYS Hospitality</b>
-            <span>Демо-пространство</span>
+            <span>Рабочее пространство</span>
           </div>
         </div>
         <nav>
           <a
             href="#dashboard"
-            className={view === "dashboard" ? "active" : ""}
-            onClick={() => setMobile(false)}
+            className={path === "/" && view === "dashboard" ? "active" : ""}
+            onClick={(event) => {
+              event.preventDefault();
+              navigate("/");
+              setView("dashboard");
+            }}
           >
             <LayoutDashboard size={19} />
             Главная
           </a>
           <a
-            href="#tasks"
-            className={view === "tasks" ? "active" : ""}
-            onClick={() => setMobile(false)}
+            href="/tasks"
+            className={path.startsWith("/tasks") ? "active" : ""}
+            onClick={(event) => {
+              event.preventDefault();
+              navigate("/tasks");
+            }}
           >
             <CheckCircle2 size={19} />
             Задачи
+          </a>
+          <a
+            href="/requests"
+            className={path.startsWith("/requests") ? "active" : ""}
+            onClick={(event) => {
+              event.preventDefault();
+              navigate("/requests");
+            }}
+          >
+            <Wrench size={19} />
+            Заявки
           </a>
           <a
             href="#checklists"
@@ -620,7 +757,10 @@ function App() {
           </a>
         </nav>
         <div className="sidebar-bottom">
-          <button onClick={() => window.location.hash="#notification-settings"}>
+          <small className="build-version">Work Core {APP_VERSION}</small>
+          <button
+            onClick={() => (window.location.hash = "#notification-settings")}
+          >
             <Settings size={19} />
             Настройки
           </button>
@@ -653,7 +793,9 @@ function App() {
             <div className="avatar small">{initials(profile.full_name)}</div>
           </div>
         </header>
-        {view === "notifications" ? (
+        {path.startsWith("/tasks") || path.startsWith("/requests") ? (
+          <ProductionWorkRouter path={path} navigate={navigate} />
+        ) : view === "notifications" ? (
           <NotificationsView />
         ) : view === "notification-settings" ? (
           <NotificationSettingsView />
@@ -669,16 +811,8 @@ function App() {
           <SensorsView />
         ) : view === "checklists" ? (
           <ChecklistsView />
-        ) : view === "dashboard" && dashboardData ? (
-          <LiveDashboard
-            profile={profile}
-            data={dashboardData}
-            onTasks={() => {
-              window.location.hash = "#tasks";
-            }}
-          />
-        ) : view === "tasks" ? (
-          <TasksView profile={profile} />
+        ) : view === "dashboard" ? (
+          <WorkHome navigate={navigate} />
         ) : (
           <main className="dashboard">
             <div className="welcome">
@@ -1441,26 +1575,139 @@ function ProductionPerformanceView() {
   const [error, setError] = useState("");
   useEffect(() => {
     const token = sessionStorage.getItem("access");
-    fetch(`${INTERNAL_API}/performance/me/`, {headers:{Authorization:`Bearer ${token}`}})
-      .then(async response => { if (!response.ok) throw new Error("Не удалось загрузить показатели"); return response.json(); })
-      .then(setData).catch(error => setError(error.message));
+    fetch(`${INTERNAL_API}/performance/me/`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Не удалось загрузить показатели");
+        return response.json();
+      })
+      .then(setData)
+      .catch((error) => setError(error.message));
   }, []);
-  if (error) return <main className="tasks-page"><div className="method-card"><ShieldCheck/><div><h3>Показатели пока недоступны</h3><p>{error}</p></div></div></main>;
-  if (!data) return <main className="tasks-page"><div className="loader">AYS</div></main>;
-  const metric = (code:string) => data.metrics[code] || {value:null,sample_size:0,status:"no_data",explanation:{}};
-  const format = (code:string, suffix="") => metric(code).value == null ? "—" : `${Math.round(metric(code).value!)}${suffix}`;
+  if (error)
+    return (
+      <main className="tasks-page">
+        <div className="method-card">
+          <ShieldCheck />
+          <div>
+            <h3>Показатели пока недоступны</h3>
+            <p>{error}</p>
+          </div>
+        </div>
+      </main>
+    );
+  if (!data)
+    return (
+      <main className="tasks-page">
+        <div className="loader">AYS</div>
+      </main>
+    );
+  const metric = (code: string) =>
+    data.metrics[code] || {
+      value: null,
+      sample_size: 0,
+      status: "no_data",
+      explanation: {},
+    };
+  const format = (code: string, suffix = "") =>
+    metric(code).value == null
+      ? "—"
+      : `${Math.round(metric(code).value!)}${suffix}`;
   const cards = [
-    ["tasks_completed","Завершено задач",""], ["task_deadline_compliance","В срок","%"],
-    ["requests_resolved","Решено заявок",""], ["sla_resolution_compliance","SLA решения","%"],
-    ["active_tasks","Активная нагрузка",""], ["overdue_tasks","Просрочено сейчас",""]
+    ["tasks_completed", "Завершено задач", ""],
+    ["task_deadline_compliance", "В срок", "%"],
+    ["requests_resolved", "Решено заявок", ""],
+    ["sla_resolution_compliance", "SLA решения", "%"],
+    ["active_tasks", "Активная нагрузка", ""],
+    ["overdue_tasks", "Просрочено сейчас", ""],
   ];
-  return <main className="tasks-page management-page">
-    <div className="tasks-title"><div><p className="eyebrow blue">Эффективность · production analytics</p><h1>{data.employee.name}</h1><p>{data.employee.position} · период {new Date(data.period.from).toLocaleDateString("ru-RU")} — {new Date(data.period.to).toLocaleDateString("ru-RU")}</p></div></div>
-    <section className="management-summary performance-summary">{cards.map(([code,title,suffix]) => <article key={code} className={metric(code).status === "no_data" ? "muted" : ""}><Gauge/><span><b>{format(code,suffix)}</b>{title}<small>{metric(code).sample_size ? `выборка: ${metric(code).sample_size}` : "нет достаточных данных"}</small></span></article>)}</section>
-    <div className="management-columns"><section className="management-card"><div className="card-heading"><h2>Поток и сроки</h2><p>Метрики событий в полуинтервале {data.period.semantics}</p></div>
-      <div className="metric-grid"><article><div><b>Backlog заявок</b><strong>{format("backlog_requests")}</strong></div><p>Текущий снимок незакрытого потока</p></article><article><div><b>Переносы сроков</b><strong>{format("deadline_changes")}</strong></div><p>Не трактуется как личная вина без контекста</p></article></div>
-    </section><section className="management-card"><div className="card-heading"><h2>Как читать показатели</h2><p>Прозрачная методика без скрытого рейтинга</p></div><div className="method-card"><ShieldCheck/><div><h3>Ожидание и переназначение учитываются отдельно</h3><p>Время ожидания заявителя или внешней стороны не приписывается сотруднику как рабочая задержка. После переназначения ответственность считается по историческому интервалу.</p></div></div><div className="method-card"><Clock3/><div><h3>Недостаточно данных — не ноль</h3><p>Пустая выборка показывается нейтральным статусом. Версия расчёта: {data.calculation_version}, часовой пояс: {data.period.timezone}.</p></div></div></section></div>
-  </main>;
+  return (
+    <main className="tasks-page management-page">
+      <div className="tasks-title">
+        <div>
+          <p className="eyebrow blue">Эффективность · production analytics</p>
+          <h1>{data.employee.name}</h1>
+          <p>
+            {data.employee.position} · период{" "}
+            {new Date(data.period.from).toLocaleDateString("ru-RU")} —{" "}
+            {new Date(data.period.to).toLocaleDateString("ru-RU")}
+          </p>
+        </div>
+      </div>
+      <section className="management-summary performance-summary">
+        {cards.map(([code, title, suffix]) => (
+          <article
+            key={code}
+            className={metric(code).status === "no_data" ? "muted" : ""}
+          >
+            <Gauge />
+            <span>
+              <b>{format(code, suffix)}</b>
+              {title}
+              <small>
+                {metric(code).sample_size
+                  ? `выборка: ${metric(code).sample_size}`
+                  : "нет достаточных данных"}
+              </small>
+            </span>
+          </article>
+        ))}
+      </section>
+      <div className="management-columns">
+        <section className="management-card">
+          <div className="card-heading">
+            <h2>Поток и сроки</h2>
+            <p>Метрики событий в полуинтервале {data.period.semantics}</p>
+          </div>
+          <div className="metric-grid">
+            <article>
+              <div>
+                <b>Backlog заявок</b>
+                <strong>{format("backlog_requests")}</strong>
+              </div>
+              <p>Текущий снимок незакрытого потока</p>
+            </article>
+            <article>
+              <div>
+                <b>Переносы сроков</b>
+                <strong>{format("deadline_changes")}</strong>
+              </div>
+              <p>Не трактуется как личная вина без контекста</p>
+            </article>
+          </div>
+        </section>
+        <section className="management-card">
+          <div className="card-heading">
+            <h2>Как читать показатели</h2>
+            <p>Прозрачная методика без скрытого рейтинга</p>
+          </div>
+          <div className="method-card">
+            <ShieldCheck />
+            <div>
+              <h3>Ожидание и переназначение учитываются отдельно</h3>
+              <p>
+                Время ожидания заявителя или внешней стороны не приписывается
+                сотруднику как рабочая задержка. После переназначения
+                ответственность считается по историческому интервалу.
+              </p>
+            </div>
+          </div>
+          <div className="method-card">
+            <Clock3 />
+            <div>
+              <h3>Недостаточно данных — не ноль</h3>
+              <p>
+                Пустая выборка показывается нейтральным статусом. Версия
+                расчёта: {data.calculation_version}, часовой пояс:{" "}
+                {data.period.timezone}.
+              </p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
 }
 
 function AnalyticsView({ profile }: { profile: Profile }) {
@@ -1742,7 +1989,6 @@ function NotificationsView() {
         <span>
           Непрочитанные <b>{items.filter((x) => !x.is_read).length}</b>
         </span>
-        <span className="telegram-mock">Telegram · mock</span>
       </div>
       <section className="notification-list">
         {items.map((x) => (
@@ -1769,7 +2015,7 @@ function NotificationsView() {
               </small>
             </span>
             {!x.is_read && <i />}
-            <em>{x.telegram_status === "mock_sent" ? "Telegram mock" : ""}</em>
+            <em />
           </button>
         ))}
       </section>
@@ -1778,30 +2024,194 @@ function NotificationsView() {
 }
 
 function NotificationBell() {
-  const [open,setOpen]=useState(false);const [items,setItems]=useState<NotificationData[]>([]);
-  const load=()=>api("/notifications/?unread=true").then(d=>setItems(d.results||[])).catch(()=>undefined);
-  useEffect(()=>{load();const timer=window.setInterval(load,45000);return()=>window.clearInterval(timer)},[]);
-  async function select(item:NotificationData){await api(`/notifications/${item.id}/read/`,{method:"POST"});setOpen(false);await load();if(item.action_url)window.location.href=item.action_url}
-  return <div className="notification-bell"><button aria-label="Уведомления" onClick={()=>setOpen(!open)}><Bell/>{items.length>0&&<b>{items.length>99?"99+":items.length}</b>}</button>{open&&<div className="notification-popover"><strong>Непрочитанные</strong>{items.slice(0,5).map(item=><button key={item.id} onClick={()=>select(item)}><span>{item.title}</span><small>{item.message}</small></button>)}{!items.length&&<p>Новых уведомлений нет</p>}<a href="#notifications" onClick={()=>setOpen(false)}>Все уведомления</a></div>}</div>;
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState<NotificationData[]>([]);
+  const load = () =>
+    api("/notifications/?unread=true")
+      .then((d) => setItems(d.results || []))
+      .catch(() => undefined);
+  useEffect(() => {
+    load();
+    const timer = window.setInterval(load, 45000);
+    return () => window.clearInterval(timer);
+  }, []);
+  async function select(item: NotificationData) {
+    await api(`/notifications/${item.id}/read/`, { method: "POST" });
+    setOpen(false);
+    await load();
+    if (item.action_url) window.location.href = item.action_url;
+  }
+  return (
+    <div className="notification-bell">
+      <button aria-label="Уведомления" onClick={() => setOpen(!open)}>
+        <Bell />
+        {items.length > 0 && <b>{items.length > 99 ? "99+" : items.length}</b>}
+      </button>
+      {open && (
+        <div className="notification-popover">
+          <strong>Непрочитанные</strong>
+          {items.slice(0, 5).map((item) => (
+            <button key={item.id} onClick={() => select(item)}>
+              <span>{item.title}</span>
+              <small>{item.message}</small>
+            </button>
+          ))}
+          {!items.length && <p>Новых уведомлений нет</p>}
+          <a href="#notifications" onClick={() => setOpen(false)}>
+            Все уведомления
+          </a>
+        </div>
+      )}
+    </div>
+  );
 }
 
-async function internalApi(path:string,options:RequestInit={}) {
-  const token=sessionStorage.getItem("access");const response=await fetch(`${INTERNAL_API}${path}`,{...options,headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`,...options.headers}});
-  if(!response.ok)throw new Error("API error");return response.status===204?null:response.json();
+async function internalApi(path: string, options: RequestInit = {}) {
+  const token = sessionStorage.getItem("access");
+  const response = await fetch(`${INTERNAL_API}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      ...options.headers,
+    },
+  });
+  if (!response.ok) throw new Error("API error");
+  return response.status === 204 ? null : response.json();
 }
-function NotificationSettingsView(){
-  const [status,setStatus]=useState<ChannelStatus|null>(null);const [quiet,setQuiet]=useState({enabled:false,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,starts_at:"22:00",ends_at:"08:00"});const [link,setLink]=useState("");
-  const load=()=>Promise.all([internalApi("/notification-channels/"),internalApi("/notification-channels/quiet-hours/")]).then(([s,q])=>{setStatus(s);setQuiet(q)});
-  useEffect(()=>{load().catch(()=>undefined)},[]);
-  async function connect(){const result=await internalApi("/notification-channels/telegram/link/",{method:"POST"});setLink(result.deep_link)}
-  async function unlink(){await internalApi("/notification-channels/telegram/unlink/",{method:"POST"});await load()}
-  async function saveQuiet(){await internalApi("/notification-channels/quiet-hours/",{method:"PUT",body:JSON.stringify(quiet)});await load()}
-  async function preference(channel:string,enabled:boolean){await internalApi("/notification-channels/preferences/",{method:"PUT",body:JSON.stringify({reason:"*",channel,enabled})})}
-  return <main className="tasks-page notification-settings-page"><div className="tasks-title"><div><p className="eyebrow blue">Каналы связи</p><h1>Настройки уведомлений</h1><p>Telegram, email и время, когда внешние сообщения следует отложить.</p></div></div>
-    <section className="notification-settings-card"><h2>Telegram</h2><p>{status?.telegram.linked?`Подключён${status.telegram.username?` · @${status.telegram.username}`:""}`:"Не подключён"}</p>{status?.telegram.linked?<button onClick={unlink}>Отключить</button>:<button className="new-task" onClick={connect}>Подключить Telegram</button>}{link&&<a href={link} target="_blank" rel="noreferrer">Открыть Telegram</a>}</section>
-    <section className="notification-settings-card"><h2>Каналы</h2><label><input type="checkbox" defaultChecked disabled/> In-App — обязательный для критических событий</label><label><input type="checkbox" defaultChecked onChange={e=>preference("telegram",e.target.checked)}/> Telegram</label><label><input type="checkbox" defaultChecked onChange={e=>preference("email",e.target.checked)}/> Email {status?.email.address_masked&&`· ${status.email.address_masked}`}</label></section>
-    <section className="notification-settings-card"><h2>Не беспокоить</h2><label><input type="checkbox" checked={quiet.enabled} onChange={e=>setQuiet({...quiet,enabled:e.target.checked})}/> Включено</label><div><input type="time" value={quiet.starts_at} onChange={e=>setQuiet({...quiet,starts_at:e.target.value})}/><span>—</span><input type="time" value={quiet.ends_at} onChange={e=>setQuiet({...quiet,ends_at:e.target.value})}/></div><input value={quiet.timezone} onChange={e=>setQuiet({...quiet,timezone:e.target.value})}/><button className="new-task" onClick={saveQuiet}>Сохранить</button></section>
-  </main>
+function NotificationSettingsView() {
+  const [status, setStatus] = useState<ChannelStatus | null>(null);
+  const [quiet, setQuiet] = useState({
+    enabled: false,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    starts_at: "22:00",
+    ends_at: "08:00",
+  });
+  const [link, setLink] = useState("");
+  const load = () =>
+    Promise.all([
+      internalApi("/notification-channels/"),
+      internalApi("/notification-channels/quiet-hours/"),
+    ]).then(([s, q]) => {
+      setStatus(s);
+      setQuiet(q);
+    });
+  useEffect(() => {
+    load().catch(() => undefined);
+  }, []);
+  async function connect() {
+    const result = await internalApi("/notification-channels/telegram/link/", {
+      method: "POST",
+    });
+    setLink(result.deep_link);
+  }
+  async function unlink() {
+    await internalApi("/notification-channels/telegram/unlink/", {
+      method: "POST",
+    });
+    await load();
+  }
+  async function saveQuiet() {
+    await internalApi("/notification-channels/quiet-hours/", {
+      method: "PUT",
+      body: JSON.stringify(quiet),
+    });
+    await load();
+  }
+  async function preference(channel: string, enabled: boolean) {
+    await internalApi("/notification-channels/preferences/", {
+      method: "PUT",
+      body: JSON.stringify({ reason: "*", channel, enabled }),
+    });
+  }
+  return (
+    <main className="tasks-page notification-settings-page">
+      <div className="tasks-title">
+        <div>
+          <p className="eyebrow blue">Каналы связи</p>
+          <h1>Настройки уведомлений</h1>
+          <p>
+            Telegram, email и время, когда внешние сообщения следует отложить.
+          </p>
+        </div>
+      </div>
+      <section className="notification-settings-card">
+        <h2>Telegram</h2>
+        <p>
+          {status?.telegram.linked
+            ? `Подключён${status.telegram.username ? ` · @${status.telegram.username}` : ""}`
+            : "Не подключён"}
+        </p>
+        {status?.telegram.linked ? (
+          <button onClick={unlink}>Отключить</button>
+        ) : (
+          <button className="new-task" onClick={connect}>
+            Подключить Telegram
+          </button>
+        )}
+        {link && (
+          <a href={link} target="_blank" rel="noreferrer">
+            Открыть Telegram
+          </a>
+        )}
+      </section>
+      <section className="notification-settings-card">
+        <h2>Каналы</h2>
+        <label>
+          <input type="checkbox" defaultChecked disabled /> In-App —
+          обязательный для критических событий
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            defaultChecked
+            onChange={(e) => preference("telegram", e.target.checked)}
+          />{" "}
+          Telegram
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            defaultChecked
+            onChange={(e) => preference("email", e.target.checked)}
+          />{" "}
+          Email{" "}
+          {status?.email.address_masked && `· ${status.email.address_masked}`}
+        </label>
+      </section>
+      <section className="notification-settings-card">
+        <h2>Не беспокоить</h2>
+        <label>
+          <input
+            type="checkbox"
+            checked={quiet.enabled}
+            onChange={(e) => setQuiet({ ...quiet, enabled: e.target.checked })}
+          />{" "}
+          Включено
+        </label>
+        <div>
+          <input
+            type="time"
+            value={quiet.starts_at}
+            onChange={(e) => setQuiet({ ...quiet, starts_at: e.target.value })}
+          />
+          <span>—</span>
+          <input
+            type="time"
+            value={quiet.ends_at}
+            onChange={(e) => setQuiet({ ...quiet, ends_at: e.target.value })}
+          />
+        </div>
+        <input
+          value={quiet.timezone}
+          onChange={(e) => setQuiet({ ...quiet, timezone: e.target.value })}
+        />
+        <button className="new-task" onClick={saveQuiet}>
+          Сохранить
+        </button>
+      </section>
+    </main>
+  );
 }
 
 function LiveDashboard({
@@ -2540,22 +2950,565 @@ function TasksView({ profile }: { profile: Profile }) {
   );
 }
 function LearningView() {
-  const [tabMode,setTabMode]=useState<"my"|"catalog"|"results"|"certificates">("my");
-  const [courses,setCourses]=useState<CourseData[]>([]); const [assignments,setAssignments]=useState<AssignmentData[]>([]); const [attempts,setAttempts]=useState<AttemptData[]>([]); const [certificates,setCertificates]=useState<CertificateData[]>([]);
-  const [selectedCourse,setSelectedCourse]=useState<CourseData|null>(null); const [selectedAssignment,setSelectedAssignment]=useState<AssignmentData|null>(null); const [lesson,setLesson]=useState<LessonData|null>(null); const [assessment,setAssessment]=useState<AssessmentData|null>(null); const [attempt,setAttempt]=useState<AttemptData|null>(null);
-  const [answers,setAnswers]=useState<Record<number,{selected_options?:number[];text_answer?:string;number_answer?:number}>>({}); const [loading,setLoading]=useState(true); const [error,setError]=useState("");
-  async function loadLearning(){setLoading(true);setError("");try{const [c,a,r,cert]=await Promise.all([api("/learning/courses/"),api("/learning/assignments/my/"),api("/learning/attempts/my/"),api("/learning/certificates/my/")]);setCourses(c.results||c);setAssignments(a);setAttempts(r);setCertificates(cert)}catch{setError("Не удалось загрузить обучение")}finally{setLoading(false)}}
-  useEffect(()=>{void loadLearning()},[]);
-  async function openAssignment(item:AssignmentData){try{const [course,assessments]=await Promise.all([api(`/learning/courses/${item.course}/`),api(`/learning/assessments/?course=${item.course}`)]);setSelectedAssignment(item);setSelectedCourse(course);const list=assessments.results||assessments;setAssessment(list[0]||null)}catch{setError("Курс недоступен")}}
-  async function startCourse(){if(!selectedAssignment)return;try{const updated=await api(`/learning/assignments/${selectedAssignment.id}/start/`,{method:"POST"});setSelectedAssignment(updated);setAssignments(x=>x.map(a=>a.id===updated.id?updated:a));const all=selectedCourse?.modules?.flatMap(m=>m.lessons)||[];setLesson(all.find(x=>x.id===updated.current_lesson)||all[0]||null)}catch{setError("Не удалось начать курс")}}
-  async function finishLesson(){if(!lesson||!selectedAssignment)return;try{const result=await api(`/learning/lessons/${lesson.id}/complete/`,{method:"POST",body:JSON.stringify({assignment:selectedAssignment.id,confirmed:lesson.requires_confirmation,time_spent_seconds:60})});const updated=result.assignment;setSelectedAssignment(updated);setAssignments(x=>x.map(a=>a.id===updated.id?updated:a));const all=selectedCourse?.modules?.flatMap(m=>m.lessons)||[];setLesson(all.find(x=>x.id===updated.current_lesson)||null)}catch{setError("Не удалось завершить урок")}}
-  async function beginTest(){if(!assessment||!selectedAssignment)return;try{const data=await api(`/learning/assessments/${assessment.id}/start/`,{method:"POST",body:JSON.stringify({assignment:selectedAssignment.id})});setAttempt(data);setAnswers({})}catch{setError("Тест пока недоступен или попытки исчерпаны")}}
-  async function submitTest(){if(!attempt)return;try{const payload=attempt.questions.map(q=>({question:q.id,...answers[q.id]}));const result=await api(`/learning/attempts/${attempt.id}/submit/`,{method:"POST",body:JSON.stringify({answers:payload})});setAttempt(result);setAttempts(x=>[result,...x.filter(a=>a.id!==result.id)]);await loadLearning()}catch{setError("Ответьте на все обязательные вопросы")}}
-  const completedLessons=new Set(selectedAssignment?.lesson_progress.filter(x=>x.completed_at).map(x=>x.lesson)||[]);
-  if(attempt&&attempt.status==="IN_PROGRESS")return <main className="learning-page"><button className="knowledge-back" onClick={()=>setAttempt(null)}><ArrowLeft size={18}/> Вернуться к курсу</button><section className="test-shell"><div className="test-head"><div><p className="eyebrow blue">Попытка {attempt.attempt_number}</p><h1>{attempt.assessment_title}</h1></div><span><Clock3 size={17}/>{assessment?.time_limit_minutes||0} мин</span></div>{attempt.questions.map((q,index)=><article className="question-card" key={q.id}><b>Вопрос {index+1} из {attempt.questions.length}</b><h2>{q.text}</h2>{q.question_type==="TEXT"||q.question_type==="CASE_STUDY"?<textarea value={answers[q.id]?.text_answer||""} onChange={e=>setAnswers({...answers,[q.id]:{text_answer:e.target.value}})} placeholder="Введите ответ"/>:q.question_type==="NUMBER"?<input type="number" value={answers[q.id]?.number_answer??""} onChange={e=>setAnswers({...answers,[q.id]:{number_answer:Number(e.target.value)}})}/>:<div className="answer-list">{q.options.map(o=><label key={o.id}><input type={q.question_type==="MULTIPLE_CHOICE"?"checkbox":"radio"} name={`q-${q.id}`} checked={(answers[q.id]?.selected_options||[]).includes(o.id)} onChange={e=>{const previous=answers[q.id]?.selected_options||[];const selected=q.question_type==="MULTIPLE_CHOICE"?(e.target.checked?[...previous,o.id]:previous.filter(x=>x!==o.id)):[o.id];setAnswers({...answers,[q.id]:{selected_options:selected}})}}/><span>{o.text}</span></label>)}</div>}</article>)}{error&&<div className="knowledge-error">{error}</div>}<button className="learning-primary" onClick={submitTest}>Завершить тест</button></section></main>;
-  if(attempt&&attempt.status!=="IN_PROGRESS")return <main className="learning-page"><section className={`result-screen ${attempt.passed?"passed":"failed"}`}><div>{attempt.passed?<CircleCheckBig size={56}/>:<X size={56}/>}</div><p className="eyebrow">Результат тестирования</p><h1>{attempt.passed?"Тест успешно пройден":"Тест не пройден"}</h1><strong>{attempt.score_percent}%</strong><p>{attempt.passed?"Курс завершён. Сертификат доступен в соответствующем разделе.":"Повторите материал и попробуйте ещё раз."}</p><button onClick={()=>{setAttempt(null);setSelectedCourse(null);setSelectedAssignment(null);setTabMode("results")}}>К результатам</button></section></main>;
-  if(selectedCourse&&selectedAssignment)return <main className="learning-page"><button className="knowledge-back" onClick={()=>{setSelectedCourse(null);setSelectedAssignment(null);setLesson(null)}}><ArrowLeft size={18}/> Моё обучение</button><section className="course-detail"><div className="course-banner"><GraduationCap size={42}/><span>{selectedCourse.category_name}</span></div><div className="course-body"><div className="course-title"><div><p className="eyebrow blue">{selectedCourse.is_mandatory?"Обязательный курс":"Рекомендованный курс"}</p><h1>{selectedCourse.title}</h1></div><span className={`learning-status status-${selectedAssignment.status.toLowerCase()}`}>{selectedAssignment.status_label}</span></div><p>{selectedCourse.description||selectedCourse.short_description}</p><div className="course-facts"><span><Clock3 size={17}/>{selectedCourse.estimated_duration_minutes} мин</span><span><FileText size={17}/>{selectedCourse.lessons_count} урока</span><span><Award size={17}/>Проходной балл {selectedCourse.passing_score}%</span></div><div className="learning-progress"><i style={{width:`${selectedAssignment.progress_percent}%`}}/><span>{selectedAssignment.progress_percent}%</span></div><div className="course-layout"><section><h2>Программа курса</h2>{selectedCourse.modules?.map(m=><div className="course-module" key={m.id}><h3>{m.title}</h3>{m.lessons.map(l=><button key={l.id} className={lesson?.id===l.id?"active":""} onClick={()=>setLesson(l)}><span>{completedLessons.has(l.id)?<CircleCheckBig size={19}/>:<PlayCircle size={19}/>}</span><div><b>{l.title}</b><small>{l.lesson_type_label} · {l.estimated_duration_minutes} мин</small></div></button>)}</div>)}</section><aside>{lesson?<div className="lesson-view"><p className="eyebrow blue">Урок</p><h2>{lesson.title}</h2><article>{lesson.content||"Материал урока связан с корпоративной базой знаний."}</article><button className="learning-primary" onClick={finishLesson}>{lesson.requires_confirmation?"Подтвердить и завершить":"Завершить урок"}</button></div>:selectedAssignment.status==="WAITING_ASSESSMENT"&&assessment?<div className="assessment-callout"><Award size={34}/><h2>{assessment.title}</h2><p>{assessment.questions_count} вопросов · {assessment.time_limit_minutes} минут · проходной балл {assessment.passing_score}%</p><button className="learning-primary" onClick={beginTest}>Начать тест</button></div>:selectedAssignment.status==="COMPLETED"?<div className="assessment-callout"><CircleCheckBig size={40}/><h2>Курс завершён</h2><p>Результат сохранён в вашем профиле.</p></div>:<div className="assessment-callout"><PlayCircle size={40}/><h2>Готовы начать?</h2><p>Проходите уроки последовательно — прогресс сохранится автоматически.</p><button className="learning-primary" onClick={startCourse}>{selectedAssignment.status==="IN_PROGRESS"?"Продолжить":"Начать курс"}</button></div>}</aside></div></div></section></main>;
-  return <main className="learning-page"><div className="learning-heading"><div><p className="eyebrow blue">Развитие и допуски</p><h1>Обучение</h1><p>Курсы, тестирование и сертификаты сотрудника.</p></div><div className="learning-kpis"><span><b>{assignments.filter(x=>!["COMPLETED","CANCELLED"].includes(x.status)).length}</b>активных</span><span><b>{assignments.filter(x=>x.status==="OVERDUE").length}</b>просрочено</span><span><b>{certificates.length}</b>сертификатов</span></div></div><div className="knowledge-tabs">{([['my','Моё обучение'],['catalog','Каталог'],['results','Результаты'],['certificates','Сертификаты']] as const).map(([key,label])=><button className={tabMode===key?"active":""} onClick={()=>setTabMode(key)} key={key}>{label}</button>)}</div>{error&&<div className="knowledge-error">{error}</div>}{loading?<div className="learning-grid">{[1,2,3].map(x=><div className="learning-card skeleton" key={x}/>)}</div>:tabMode==="my"?<div className="learning-grid">{assignments.map(a=>{const c=courses.find(x=>x.id===a.course);return <article className="learning-card" key={a.id} onClick={()=>openAssignment(a)}><div className="course-card-cover"><GraduationCap size={29}/>{a.is_mandatory&&<i>Обязательно</i>}</div><div><span className={`learning-status status-${a.status.toLowerCase()}`}>{a.status_label}</span><h2>{a.course_title}</h2><p>{c?.short_description}</p><div className="mini-progress"><i style={{width:`${a.progress_percent}%`}}/></div><footer><b>{a.progress_percent}%</b><span>{a.due_at?`до ${new Date(a.due_at).toLocaleDateString("ru-RU")}`:"без срока"}</span></footer></div></article>})}</div>:tabMode==="catalog"?<div className="learning-grid">{courses.map(c=><article className="learning-card" key={c.id}><div className="course-card-cover catalog"><BookOpen size={29}/></div><div><span>{c.category_name}</span><h2>{c.title}</h2><p>{c.short_description}</p><footer><b>{c.lessons_count} урока</b><span>{c.estimated_duration_minutes} мин</span></footer></div></article>)}</div>:tabMode==="results"?<section className="learning-table"><h2>История тестирования</h2>{attempts.length?attempts.map(a=><div key={a.id}><span className={a.passed?"result-dot passed":"result-dot failed"}/><div><b>{a.assessment_title}</b><small>Попытка {a.attempt_number}</small></div><strong>{a.score_percent}%</strong><em>{a.status}</em></div>):<p>Завершённых попыток пока нет.</p>}</section>:<div className="certificate-grid">{certificates.length?certificates.map(c=><article className="certificate-card" key={c.id}><Award size={42}/><p>AYS Connect</p><h2>{c.course_title}</h2><span>Сертификат № {c.certificate_number}</span><footer><small>Действует до</small><b>{c.expires_at?new Date(c.expires_at).toLocaleDateString("ru-RU"):"Бессрочно"}</b></footer></article>):<section className="knowledge-empty"><Award size={40}/><h2>Сертификатов пока нет</h2><p>Они появятся после успешного завершения курсов.</p></section>}</div>}</main>;
+  const [tabMode, setTabMode] = useState<
+    "my" | "catalog" | "results" | "certificates"
+  >("my");
+  const [courses, setCourses] = useState<CourseData[]>([]);
+  const [assignments, setAssignments] = useState<AssignmentData[]>([]);
+  const [attempts, setAttempts] = useState<AttemptData[]>([]);
+  const [certificates, setCertificates] = useState<CertificateData[]>([]);
+  const [selectedCourse, setSelectedCourse] = useState<CourseData | null>(null);
+  const [selectedAssignment, setSelectedAssignment] =
+    useState<AssignmentData | null>(null);
+  const [lesson, setLesson] = useState<LessonData | null>(null);
+  const [assessment, setAssessment] = useState<AssessmentData | null>(null);
+  const [attempt, setAttempt] = useState<AttemptData | null>(null);
+  const [answers, setAnswers] = useState<
+    Record<
+      number,
+      {
+        selected_options?: number[];
+        text_answer?: string;
+        number_answer?: number;
+      }
+    >
+  >({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  async function loadLearning() {
+    setLoading(true);
+    setError("");
+    try {
+      const [c, a, r, cert] = await Promise.all([
+        api("/learning/courses/"),
+        api("/learning/assignments/my/"),
+        api("/learning/attempts/my/"),
+        api("/learning/certificates/my/"),
+      ]);
+      setCourses(c.results || c);
+      setAssignments(a);
+      setAttempts(r);
+      setCertificates(cert);
+    } catch {
+      setError("Не удалось загрузить обучение");
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => {
+    void loadLearning();
+  }, []);
+  async function openAssignment(item: AssignmentData) {
+    try {
+      const [course, assessments] = await Promise.all([
+        api(`/learning/courses/${item.course}/`),
+        api(`/learning/assessments/?course=${item.course}`),
+      ]);
+      setSelectedAssignment(item);
+      setSelectedCourse(course);
+      const list = assessments.results || assessments;
+      setAssessment(list[0] || null);
+    } catch {
+      setError("Курс недоступен");
+    }
+  }
+  async function startCourse() {
+    if (!selectedAssignment) return;
+    try {
+      const updated = await api(
+        `/learning/assignments/${selectedAssignment.id}/start/`,
+        { method: "POST" },
+      );
+      setSelectedAssignment(updated);
+      setAssignments((x) => x.map((a) => (a.id === updated.id ? updated : a)));
+      const all = selectedCourse?.modules?.flatMap((m) => m.lessons) || [];
+      setLesson(
+        all.find((x) => x.id === updated.current_lesson) || all[0] || null,
+      );
+    } catch {
+      setError("Не удалось начать курс");
+    }
+  }
+  async function finishLesson() {
+    if (!lesson || !selectedAssignment) return;
+    try {
+      const result = await api(`/learning/lessons/${lesson.id}/complete/`, {
+        method: "POST",
+        body: JSON.stringify({
+          assignment: selectedAssignment.id,
+          confirmed: lesson.requires_confirmation,
+          time_spent_seconds: 60,
+        }),
+      });
+      const updated = result.assignment;
+      setSelectedAssignment(updated);
+      setAssignments((x) => x.map((a) => (a.id === updated.id ? updated : a)));
+      const all = selectedCourse?.modules?.flatMap((m) => m.lessons) || [];
+      setLesson(all.find((x) => x.id === updated.current_lesson) || null);
+    } catch {
+      setError("Не удалось завершить урок");
+    }
+  }
+  async function beginTest() {
+    if (!assessment || !selectedAssignment) return;
+    try {
+      const data = await api(`/learning/assessments/${assessment.id}/start/`, {
+        method: "POST",
+        body: JSON.stringify({ assignment: selectedAssignment.id }),
+      });
+      setAttempt(data);
+      setAnswers({});
+    } catch {
+      setError("Тест пока недоступен или попытки исчерпаны");
+    }
+  }
+  async function submitTest() {
+    if (!attempt) return;
+    try {
+      const payload = attempt.questions.map((q) => ({
+        question: q.id,
+        ...answers[q.id],
+      }));
+      const result = await api(`/learning/attempts/${attempt.id}/submit/`, {
+        method: "POST",
+        body: JSON.stringify({ answers: payload }),
+      });
+      setAttempt(result);
+      setAttempts((x) => [result, ...x.filter((a) => a.id !== result.id)]);
+      await loadLearning();
+    } catch {
+      setError("Ответьте на все обязательные вопросы");
+    }
+  }
+  const completedLessons = new Set(
+    selectedAssignment?.lesson_progress
+      .filter((x) => x.completed_at)
+      .map((x) => x.lesson) || [],
+  );
+  if (attempt && attempt.status === "IN_PROGRESS")
+    return (
+      <main className="learning-page">
+        <button className="knowledge-back" onClick={() => setAttempt(null)}>
+          <ArrowLeft size={18} /> Вернуться к курсу
+        </button>
+        <section className="test-shell">
+          <div className="test-head">
+            <div>
+              <p className="eyebrow blue">Попытка {attempt.attempt_number}</p>
+              <h1>{attempt.assessment_title}</h1>
+            </div>
+            <span>
+              <Clock3 size={17} />
+              {assessment?.time_limit_minutes || 0} мин
+            </span>
+          </div>
+          {attempt.questions.map((q, index) => (
+            <article className="question-card" key={q.id}>
+              <b>
+                Вопрос {index + 1} из {attempt.questions.length}
+              </b>
+              <h2>{q.text}</h2>
+              {q.question_type === "TEXT" ||
+              q.question_type === "CASE_STUDY" ? (
+                <textarea
+                  value={answers[q.id]?.text_answer || ""}
+                  onChange={(e) =>
+                    setAnswers({
+                      ...answers,
+                      [q.id]: { text_answer: e.target.value },
+                    })
+                  }
+                  placeholder="Введите ответ"
+                />
+              ) : q.question_type === "NUMBER" ? (
+                <input
+                  type="number"
+                  value={answers[q.id]?.number_answer ?? ""}
+                  onChange={(e) =>
+                    setAnswers({
+                      ...answers,
+                      [q.id]: { number_answer: Number(e.target.value) },
+                    })
+                  }
+                />
+              ) : (
+                <div className="answer-list">
+                  {q.options.map((o) => (
+                    <label key={o.id}>
+                      <input
+                        type={
+                          q.question_type === "MULTIPLE_CHOICE"
+                            ? "checkbox"
+                            : "radio"
+                        }
+                        name={`q-${q.id}`}
+                        checked={(
+                          answers[q.id]?.selected_options || []
+                        ).includes(o.id)}
+                        onChange={(e) => {
+                          const previous =
+                            answers[q.id]?.selected_options || [];
+                          const selected =
+                            q.question_type === "MULTIPLE_CHOICE"
+                              ? e.target.checked
+                                ? [...previous, o.id]
+                                : previous.filter((x) => x !== o.id)
+                              : [o.id];
+                          setAnswers({
+                            ...answers,
+                            [q.id]: { selected_options: selected },
+                          });
+                        }}
+                      />
+                      <span>{o.text}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </article>
+          ))}
+          {error && <div className="knowledge-error">{error}</div>}
+          <button className="learning-primary" onClick={submitTest}>
+            Завершить тест
+          </button>
+        </section>
+      </main>
+    );
+  if (attempt && attempt.status !== "IN_PROGRESS")
+    return (
+      <main className="learning-page">
+        <section
+          className={`result-screen ${attempt.passed ? "passed" : "failed"}`}
+        >
+          <div>
+            {attempt.passed ? <CircleCheckBig size={56} /> : <X size={56} />}
+          </div>
+          <p className="eyebrow">Результат тестирования</p>
+          <h1>{attempt.passed ? "Тест успешно пройден" : "Тест не пройден"}</h1>
+          <strong>{attempt.score_percent}%</strong>
+          <p>
+            {attempt.passed
+              ? "Курс завершён. Сертификат доступен в соответствующем разделе."
+              : "Повторите материал и попробуйте ещё раз."}
+          </p>
+          <button
+            onClick={() => {
+              setAttempt(null);
+              setSelectedCourse(null);
+              setSelectedAssignment(null);
+              setTabMode("results");
+            }}
+          >
+            К результатам
+          </button>
+        </section>
+      </main>
+    );
+  if (selectedCourse && selectedAssignment)
+    return (
+      <main className="learning-page">
+        <button
+          className="knowledge-back"
+          onClick={() => {
+            setSelectedCourse(null);
+            setSelectedAssignment(null);
+            setLesson(null);
+          }}
+        >
+          <ArrowLeft size={18} /> Моё обучение
+        </button>
+        <section className="course-detail">
+          <div className="course-banner">
+            <GraduationCap size={42} />
+            <span>{selectedCourse.category_name}</span>
+          </div>
+          <div className="course-body">
+            <div className="course-title">
+              <div>
+                <p className="eyebrow blue">
+                  {selectedCourse.is_mandatory
+                    ? "Обязательный курс"
+                    : "Рекомендованный курс"}
+                </p>
+                <h1>{selectedCourse.title}</h1>
+              </div>
+              <span
+                className={`learning-status status-${selectedAssignment.status.toLowerCase()}`}
+              >
+                {selectedAssignment.status_label}
+              </span>
+            </div>
+            <p>
+              {selectedCourse.description || selectedCourse.short_description}
+            </p>
+            <div className="course-facts">
+              <span>
+                <Clock3 size={17} />
+                {selectedCourse.estimated_duration_minutes} мин
+              </span>
+              <span>
+                <FileText size={17} />
+                {selectedCourse.lessons_count} урока
+              </span>
+              <span>
+                <Award size={17} />
+                Проходной балл {selectedCourse.passing_score}%
+              </span>
+            </div>
+            <div className="learning-progress">
+              <i style={{ width: `${selectedAssignment.progress_percent}%` }} />
+              <span>{selectedAssignment.progress_percent}%</span>
+            </div>
+            <div className="course-layout">
+              <section>
+                <h2>Программа курса</h2>
+                {selectedCourse.modules?.map((m) => (
+                  <div className="course-module" key={m.id}>
+                    <h3>{m.title}</h3>
+                    {m.lessons.map((l) => (
+                      <button
+                        key={l.id}
+                        className={lesson?.id === l.id ? "active" : ""}
+                        onClick={() => setLesson(l)}
+                      >
+                        <span>
+                          {completedLessons.has(l.id) ? (
+                            <CircleCheckBig size={19} />
+                          ) : (
+                            <PlayCircle size={19} />
+                          )}
+                        </span>
+                        <div>
+                          <b>{l.title}</b>
+                          <small>
+                            {l.lesson_type_label} ·{" "}
+                            {l.estimated_duration_minutes} мин
+                          </small>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </section>
+              <aside>
+                {lesson ? (
+                  <div className="lesson-view">
+                    <p className="eyebrow blue">Урок</p>
+                    <h2>{lesson.title}</h2>
+                    <article>
+                      {lesson.content ||
+                        "Материал урока связан с корпоративной базой знаний."}
+                    </article>
+                    <button className="learning-primary" onClick={finishLesson}>
+                      {lesson.requires_confirmation
+                        ? "Подтвердить и завершить"
+                        : "Завершить урок"}
+                    </button>
+                  </div>
+                ) : selectedAssignment.status === "WAITING_ASSESSMENT" &&
+                  assessment ? (
+                  <div className="assessment-callout">
+                    <Award size={34} />
+                    <h2>{assessment.title}</h2>
+                    <p>
+                      {assessment.questions_count} вопросов ·{" "}
+                      {assessment.time_limit_minutes} минут · проходной балл{" "}
+                      {assessment.passing_score}%
+                    </p>
+                    <button className="learning-primary" onClick={beginTest}>
+                      Начать тест
+                    </button>
+                  </div>
+                ) : selectedAssignment.status === "COMPLETED" ? (
+                  <div className="assessment-callout">
+                    <CircleCheckBig size={40} />
+                    <h2>Курс завершён</h2>
+                    <p>Результат сохранён в вашем профиле.</p>
+                  </div>
+                ) : (
+                  <div className="assessment-callout">
+                    <PlayCircle size={40} />
+                    <h2>Готовы начать?</h2>
+                    <p>
+                      Проходите уроки последовательно — прогресс сохранится
+                      автоматически.
+                    </p>
+                    <button className="learning-primary" onClick={startCourse}>
+                      {selectedAssignment.status === "IN_PROGRESS"
+                        ? "Продолжить"
+                        : "Начать курс"}
+                    </button>
+                  </div>
+                )}
+              </aside>
+            </div>
+          </div>
+        </section>
+      </main>
+    );
+  return (
+    <main className="learning-page">
+      <div className="learning-heading">
+        <div>
+          <p className="eyebrow blue">Развитие и допуски</p>
+          <h1>Обучение</h1>
+          <p>Курсы, тестирование и сертификаты сотрудника.</p>
+        </div>
+        <div className="learning-kpis">
+          <span>
+            <b>
+              {
+                assignments.filter(
+                  (x) => !["COMPLETED", "CANCELLED"].includes(x.status),
+                ).length
+              }
+            </b>
+            активных
+          </span>
+          <span>
+            <b>{assignments.filter((x) => x.status === "OVERDUE").length}</b>
+            просрочено
+          </span>
+          <span>
+            <b>{certificates.length}</b>сертификатов
+          </span>
+        </div>
+      </div>
+      <div className="knowledge-tabs">
+        {(
+          [
+            ["my", "Моё обучение"],
+            ["catalog", "Каталог"],
+            ["results", "Результаты"],
+            ["certificates", "Сертификаты"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            className={tabMode === key ? "active" : ""}
+            onClick={() => setTabMode(key)}
+            key={key}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {error && <div className="knowledge-error">{error}</div>}
+      {loading ? (
+        <div className="learning-grid">
+          {[1, 2, 3].map((x) => (
+            <div className="learning-card skeleton" key={x} />
+          ))}
+        </div>
+      ) : tabMode === "my" ? (
+        <div className="learning-grid">
+          {assignments.map((a) => {
+            const c = courses.find((x) => x.id === a.course);
+            return (
+              <article
+                className="learning-card"
+                key={a.id}
+                onClick={() => openAssignment(a)}
+              >
+                <div className="course-card-cover">
+                  <GraduationCap size={29} />
+                  {a.is_mandatory && <i>Обязательно</i>}
+                </div>
+                <div>
+                  <span
+                    className={`learning-status status-${a.status.toLowerCase()}`}
+                  >
+                    {a.status_label}
+                  </span>
+                  <h2>{a.course_title}</h2>
+                  <p>{c?.short_description}</p>
+                  <div className="mini-progress">
+                    <i style={{ width: `${a.progress_percent}%` }} />
+                  </div>
+                  <footer>
+                    <b>{a.progress_percent}%</b>
+                    <span>
+                      {a.due_at
+                        ? `до ${new Date(a.due_at).toLocaleDateString("ru-RU")}`
+                        : "без срока"}
+                    </span>
+                  </footer>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : tabMode === "catalog" ? (
+        <div className="learning-grid">
+          {courses.map((c) => (
+            <article className="learning-card" key={c.id}>
+              <div className="course-card-cover catalog">
+                <BookOpen size={29} />
+              </div>
+              <div>
+                <span>{c.category_name}</span>
+                <h2>{c.title}</h2>
+                <p>{c.short_description}</p>
+                <footer>
+                  <b>{c.lessons_count} урока</b>
+                  <span>{c.estimated_duration_minutes} мин</span>
+                </footer>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : tabMode === "results" ? (
+        <section className="learning-table">
+          <h2>История тестирования</h2>
+          {attempts.length ? (
+            attempts.map((a) => (
+              <div key={a.id}>
+                <span
+                  className={
+                    a.passed ? "result-dot passed" : "result-dot failed"
+                  }
+                />
+                <div>
+                  <b>{a.assessment_title}</b>
+                  <small>Попытка {a.attempt_number}</small>
+                </div>
+                <strong>{a.score_percent}%</strong>
+                <em>{a.status}</em>
+              </div>
+            ))
+          ) : (
+            <p>Завершённых попыток пока нет.</p>
+          )}
+        </section>
+      ) : (
+        <div className="certificate-grid">
+          {certificates.length ? (
+            certificates.map((c) => (
+              <article className="certificate-card" key={c.id}>
+                <Award size={42} />
+                <p>AYS Connect</p>
+                <h2>{c.course_title}</h2>
+                <span>Сертификат № {c.certificate_number}</span>
+                <footer>
+                  <small>Действует до</small>
+                  <b>
+                    {c.expires_at
+                      ? new Date(c.expires_at).toLocaleDateString("ru-RU")
+                      : "Бессрочно"}
+                  </b>
+                </footer>
+              </article>
+            ))
+          ) : (
+            <section className="knowledge-empty">
+              <Award size={40} />
+              <h2>Сертификатов пока нет</h2>
+              <p>Они появятся после успешного завершения курсов.</p>
+            </section>
+          )}
+        </div>
+      )}
+    </main>
+  );
 }
 
 function KnowledgeView() {
@@ -2563,7 +3516,9 @@ function KnowledgeView() {
   const [categories, setCategories] = useState<KnowledgeCategoryData[]>([]);
   const [required, setRequired] = useState<AcknowledgmentData[]>([]);
   const [selected, setSelected] = useState<KnowledgeMaterialData | null>(null);
-  const [mode, setMode] = useState<"catalog" | "required" | "favorites" | "recent" | "ttk">("catalog");
+  const [mode, setMode] = useState<
+    "catalog" | "required" | "favorites" | "recent" | "ttk"
+  >("catalog");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
   const [materialType, setMaterialType] = useState("");
@@ -2583,10 +3538,16 @@ function KnowledgeView() {
       if (mode === "recent") endpoint = "/knowledge/materials/recent/";
       if (mode === "ttk") endpoint = "/knowledge/materials/ttk/";
       const [materialData, categoryData, requiredData] = await Promise.all([
-        api(endpoint), api("/knowledge/categories/"), api("/knowledge/materials/required/"),
+        api(endpoint),
+        api("/knowledge/categories/"),
+        api("/knowledge/materials/required/"),
       ]);
-      setMaterials(Array.isArray(materialData) ? materialData : materialData.results || []);
-      setCategories(Array.isArray(categoryData) ? categoryData : categoryData.results || []);
+      setMaterials(
+        Array.isArray(materialData) ? materialData : materialData.results || [],
+      );
+      setCategories(
+        Array.isArray(categoryData) ? categoryData : categoryData.results || [],
+      );
       setRequired(requiredData);
     } catch {
       setError("Не удалось загрузить рабочие материалы");
@@ -2594,7 +3555,9 @@ function KnowledgeView() {
       setLoading(false);
     }
   }
-  useEffect(() => { void load(); }, [mode, category, materialType]);
+  useEffect(() => {
+    void load();
+  }, [mode, category, materialType]);
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 300);
     return () => window.clearTimeout(timer);
@@ -2604,71 +3567,303 @@ function KnowledgeView() {
     try {
       const data = await api(`/knowledge/materials/${id}/`);
       setSelected(data);
-    } catch { setError("Материал недоступен"); }
+    } catch {
+      setError("Материал недоступен");
+    }
   }
   async function toggleFavorite(material: KnowledgeMaterialData) {
-    const result = await api(`/knowledge/materials/${material.id}/favorite/`, { method: "POST" });
-    setMaterials((items) => items.map((x) => x.id === material.id ? { ...x, is_favorite: result.is_favorite } : x));
-    setSelected((x) => x?.id === material.id ? { ...x, is_favorite: result.is_favorite } : x);
+    const result = await api(`/knowledge/materials/${material.id}/favorite/`, {
+      method: "POST",
+    });
+    setMaterials((items) =>
+      items.map((x) =>
+        x.id === material.id ? { ...x, is_favorite: result.is_favorite } : x,
+      ),
+    );
+    setSelected((x) =>
+      x?.id === material.id ? { ...x, is_favorite: result.is_favorite } : x,
+    );
   }
   async function acknowledge(material: KnowledgeMaterialData) {
     try {
-      await api(`/knowledge/materials/${material.id}/acknowledge/`, { method: "POST" });
-      setRequired((items) => items.filter((x) => x.material_id !== material.id));
+      await api(`/knowledge/materials/${material.id}/acknowledge/`, {
+        method: "POST",
+      });
+      setRequired((items) =>
+        items.filter((x) => x.material_id !== material.id),
+      );
       setError("");
-    } catch { setError("Ознакомление не назначено или уже недоступно"); }
+    } catch {
+      setError("Ознакомление не назначено или уже недоступно");
+    }
   }
-  async function downloadVersion(material: KnowledgeMaterialData, version: MaterialVersionData) {
+  async function downloadVersion(
+    material: KnowledgeMaterialData,
+    version: MaterialVersionData,
+  ) {
     const token = sessionStorage.getItem("access");
-    const response = await fetch(`${API}/knowledge/materials/${material.id}/versions/${version.id}/download/`, { headers: { Authorization: `Bearer ${token}` } });
-    if (!response.ok) { setError("Скачивание недоступно"); return; }
+    const response = await fetch(
+      `${API}/knowledge/materials/${material.id}/versions/${version.id}/download/`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!response.ok) {
+      setError("Скачивание недоступно");
+      return;
+    }
     const url = URL.createObjectURL(await response.blob());
-    const link = document.createElement("a"); link.href = url; link.download = version.original_name || material.title; link.click(); URL.revokeObjectURL(url);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = version.original_name || material.title;
+    link.click();
+    URL.revokeObjectURL(url);
   }
   const requiredIds = new Set(required.map((x) => x.material_id));
-  const visible = mode === "required" ? materials.filter((x) => requiredIds.has(x.id)) : materials;
+  const visible =
+    mode === "required"
+      ? materials.filter((x) => requiredIds.has(x.id))
+      : materials;
 
-  if (selected) return (
-    <main className="knowledge-page">
-      <button className="knowledge-back" onClick={() => setSelected(null)}><ArrowLeft size={18} /> К каталогу</button>
-      <section className="material-detail">
-        <div className={`material-hero type-${selected.material_type.toLowerCase()}`}><FileText size={38} /><span>{selected.material_type_label}</span></div>
-        <div className="material-main">
-          <div className="material-title-row">
-            <div><p className="eyebrow blue">{selected.category_name}</p><h1>{selected.title}</h1></div>
-            <button className={selected.is_favorite ? "favorite active" : "favorite"} onClick={() => toggleFavorite(selected)}><Star size={20} fill={selected.is_favorite ? "currentColor" : "none"} /></button>
+  if (selected)
+    return (
+      <main className="knowledge-page">
+        <button className="knowledge-back" onClick={() => setSelected(null)}>
+          <ArrowLeft size={18} /> К каталогу
+        </button>
+        <section className="material-detail">
+          <div
+            className={`material-hero type-${selected.material_type.toLowerCase()}`}
+          >
+            <FileText size={38} />
+            <span>{selected.material_type_label}</span>
           </div>
-          <p className="material-description">{selected.description || "Описание материала будет дополнено владельцем."}</p>
-          <div className="material-meta">
-            <span><FileText size={16} /> Версия {selected.current_version?.version || "—"}</span>
-            <span><Clock3 size={16} /> Обновлён {new Date(selected.updated_at).toLocaleDateString("ru-RU")}</span>
-            <span><Eye size={16} /> Актуальный документ</span>
+          <div className="material-main">
+            <div className="material-title-row">
+              <div>
+                <p className="eyebrow blue">{selected.category_name}</p>
+                <h1>{selected.title}</h1>
+              </div>
+              <button
+                className={
+                  selected.is_favorite ? "favorite active" : "favorite"
+                }
+                onClick={() => toggleFavorite(selected)}
+              >
+                <Star
+                  size={20}
+                  fill={selected.is_favorite ? "currentColor" : "none"}
+                />
+              </button>
+            </div>
+            <p className="material-description">
+              {selected.description ||
+                "Описание материала будет дополнено владельцем."}
+            </p>
+            <div className="material-meta">
+              <span>
+                <FileText size={16} /> Версия{" "}
+                {selected.current_version?.version || "—"}
+              </span>
+              <span>
+                <Clock3 size={16} /> Обновлён{" "}
+                {new Date(selected.updated_at).toLocaleDateString("ru-RU")}
+              </span>
+              <span>
+                <Eye size={16} /> Актуальный документ
+              </span>
+            </div>
+            {selected.current_version?.content && (
+              <article className="material-content">
+                {selected.current_version.content}
+              </article>
+            )}
+            {selected.current_version?.external_url && (
+              <a
+                className="knowledge-primary"
+                href={selected.current_version.external_url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Открыть внешний материал
+              </a>
+            )}
+            <div className="material-actions">
+              {selected.current_version?.download_url && (
+                <button
+                  className="knowledge-primary"
+                  onClick={() =>
+                    downloadVersion(selected, selected.current_version!)
+                  }
+                >
+                  <Download size={17} /> Скачать
+                </button>
+              )}
+              {requiredIds.has(selected.id) && (
+                <button
+                  className="ack-button"
+                  onClick={() => acknowledge(selected)}
+                >
+                  <CheckCircle2 size={17} /> Подтвердить ознакомление
+                </button>
+              )}
+            </div>
+            <section className="version-history">
+              <h2>История версий</h2>
+              {selected.versions?.map((version) => (
+                <div key={version.id}>
+                  <b>Версия {version.version}</b>
+                  <span>{version.change_summary || "Первая публикация"}</span>
+                  <time>
+                    {new Date(version.created_at).toLocaleDateString("ru-RU")}
+                  </time>
+                </div>
+              ))}
+            </section>
           </div>
-          {selected.current_version?.content && <article className="material-content">{selected.current_version.content}</article>}
-          {selected.current_version?.external_url && <a className="knowledge-primary" href={selected.current_version.external_url} target="_blank" rel="noreferrer">Открыть внешний материал</a>}
-          <div className="material-actions">
-            {selected.current_version?.download_url && <button className="knowledge-primary" onClick={() => downloadVersion(selected, selected.current_version!)}><Download size={17} /> Скачать</button>}
-            {requiredIds.has(selected.id) && <button className="ack-button" onClick={() => acknowledge(selected)}><CheckCircle2 size={17} /> Подтвердить ознакомление</button>}
-          </div>
-          <section className="version-history"><h2>История версий</h2>{selected.versions?.map((version) => <div key={version.id}><b>Версия {version.version}</b><span>{version.change_summary || "Первая публикация"}</span><time>{new Date(version.created_at).toLocaleDateString("ru-RU")}</time></div>)}</section>
-        </div>
-      </section>
-      {error && <div className="knowledge-error">{error}</div>}
-    </main>
-  );
+        </section>
+        {error && <div className="knowledge-error">{error}</div>}
+      </main>
+    );
   return (
     <main className="knowledge-page">
-      <div className="knowledge-heading"><div><p className="eyebrow blue">Корпоративная библиотека</p><h1>Рабочие материалы</h1><p>Регламенты, инструкции, ТТК и техническая документация в одном месте.</p></div><div className="knowledge-summary"><b>{required.length}</b><span>требуют ознакомления</span></div></div>
+      <div className="knowledge-heading">
+        <div>
+          <p className="eyebrow blue">Корпоративная библиотека</p>
+          <h1>Рабочие материалы</h1>
+          <p>
+            Регламенты, инструкции, ТТК и техническая документация в одном
+            месте.
+          </p>
+        </div>
+        <div className="knowledge-summary">
+          <b>{required.length}</b>
+          <span>требуют ознакомления</span>
+        </div>
+      </div>
       <div className="knowledge-tabs">
-        {([['catalog','Все материалы'],['required','Обязательные'],['favorites','Избранное'],['recent','Недавние'],['ttk','ТТК']] as const).map(([key,label]) => <button key={key} className={mode === key ? "active" : ""} onClick={() => setMode(key)}>{label}{key === 'required' && required.length > 0 && <i>{required.length}</i>}</button>)}
+        {(
+          [
+            ["catalog", "Все материалы"],
+            ["required", "Обязательные"],
+            ["favorites", "Избранное"],
+            ["recent", "Недавние"],
+            ["ttk", "ТТК"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            className={mode === key ? "active" : ""}
+            onClick={() => setMode(key)}
+          >
+            {label}
+            {key === "required" && required.length > 0 && (
+              <i>{required.length}</i>
+            )}
+          </button>
+        ))}
       </div>
       <section className="knowledge-tools">
-        <label className="knowledge-search"><Search size={18} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Найти регламент, инструкцию или ТТК" /></label>
-        <select value={category} onChange={(e) => setCategory(e.target.value)}><option value="">Все категории</option>{categories.map((x) => <option value={x.id} key={x.id}>{x.name}</option>)}</select>
-        <select value={materialType} onChange={(e) => setMaterialType(e.target.value)}><option value="">Все типы</option><option value="INSTRUCTION">Инструкции</option><option value="REGULATION">Регламенты</option><option value="PDF">PDF</option><option value="PRESENTATION">Презентации</option><option value="TECHNICAL_DOCUMENTATION">Техническая документация</option><option value="HACCP">ХАССП</option><option value="TTK">ТТК</option></select>
+        <label className="knowledge-search">
+          <Search size={18} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Найти регламент, инструкцию или ТТК"
+          />
+        </label>
+        <select value={category} onChange={(e) => setCategory(e.target.value)}>
+          <option value="">Все категории</option>
+          {categories.map((x) => (
+            <option value={x.id} key={x.id}>
+              {x.name}
+            </option>
+          ))}
+        </select>
+        <select
+          value={materialType}
+          onChange={(e) => setMaterialType(e.target.value)}
+        >
+          <option value="">Все типы</option>
+          <option value="INSTRUCTION">Инструкции</option>
+          <option value="REGULATION">Регламенты</option>
+          <option value="PDF">PDF</option>
+          <option value="PRESENTATION">Презентации</option>
+          <option value="TECHNICAL_DOCUMENTATION">
+            Техническая документация
+          </option>
+          <option value="HACCP">ХАССП</option>
+          <option value="TTK">ТТК</option>
+        </select>
       </section>
       {error && <div className="knowledge-error">{error}</div>}
-      {loading ? <div className="knowledge-grid">{[1,2,3,4,5,6].map((x) => <div className="material-card skeleton" key={x} />)}</div> : visible.length ? <div className="knowledge-grid">{visible.map((material) => <article className="material-card" key={material.id} onClick={() => openMaterial(material.id)}><div className={`material-cover type-${material.material_type.toLowerCase()}`}><FileText size={28} /><span>{material.material_type_label}</span>{material.is_required && <i>Обязательно</i>}</div><div className="material-card-body"><div className="material-card-top"><span>{material.category_name}</span><button aria-label="Избранное" className={material.is_favorite ? "active" : ""} onClick={(e) => { e.stopPropagation(); void toggleFavorite(material); }}><Star size={17} fill={material.is_favorite ? "currentColor" : "none"} /></button></div><h2>{material.title}</h2><p>{material.description || "Корпоративный рабочий материал"}</p><footer><span>Версия {material.current_version?.version || "—"}</span><time>{new Date(material.updated_at).toLocaleDateString("ru-RU")}</time></footer></div></article>)}</div> : <section className="knowledge-empty"><BookOpen size={40} /><h2>Материалы не найдены</h2><p>Измените фильтры или поисковый запрос.</p><button onClick={() => { setQuery(""); setCategory(""); setMaterialType(""); setMode("catalog"); }}>Сбросить фильтры</button></section>}
+      {loading ? (
+        <div className="knowledge-grid">
+          {[1, 2, 3, 4, 5, 6].map((x) => (
+            <div className="material-card skeleton" key={x} />
+          ))}
+        </div>
+      ) : visible.length ? (
+        <div className="knowledge-grid">
+          {visible.map((material) => (
+            <article
+              className="material-card"
+              key={material.id}
+              onClick={() => openMaterial(material.id)}
+            >
+              <div
+                className={`material-cover type-${material.material_type.toLowerCase()}`}
+              >
+                <FileText size={28} />
+                <span>{material.material_type_label}</span>
+                {material.is_required && <i>Обязательно</i>}
+              </div>
+              <div className="material-card-body">
+                <div className="material-card-top">
+                  <span>{material.category_name}</span>
+                  <button
+                    aria-label="Избранное"
+                    className={material.is_favorite ? "active" : ""}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void toggleFavorite(material);
+                    }}
+                  >
+                    <Star
+                      size={17}
+                      fill={material.is_favorite ? "currentColor" : "none"}
+                    />
+                  </button>
+                </div>
+                <h2>{material.title}</h2>
+                <p>
+                  {material.description || "Корпоративный рабочий материал"}
+                </p>
+                <footer>
+                  <span>Версия {material.current_version?.version || "—"}</span>
+                  <time>
+                    {new Date(material.updated_at).toLocaleDateString("ru-RU")}
+                  </time>
+                </footer>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <section className="knowledge-empty">
+          <BookOpen size={40} />
+          <h2>Материалы не найдены</h2>
+          <p>Измените фильтры или поисковый запрос.</p>
+          <button
+            onClick={() => {
+              setQuery("");
+              setCategory("");
+              setMaterialType("");
+              setMode("catalog");
+            }}
+          >
+            Сбросить фильтры
+          </button>
+        </section>
+      )}
     </main>
   );
 }

@@ -16,6 +16,8 @@ Get-PSDrive -PSProvider FileSystem
 Readiness checks PostgreSQL without exposing its address or credentials. Liveness
 returns only service and safe build version information.
 
+Administrators use `GET /api/internal/v1/system/status/` for safe version, worker heartbeat and queue counts. `live` never depends on DB/providers; `ready` checks DB. Worker status is deliberately separate to avoid restart storms.
+
 ## Logs
 
 ```powershell
@@ -37,6 +39,7 @@ docker compose --env-file .env.pilot -f docker-compose.pilot.yml up -d
 ```
 
 Services use `restart: unless-stopped` and resume after Docker/host restart.
+After restart, confirm that `last_seen_at` advances in system status. Polling cadence is 5–60 seconds; the default stale threshold is 180 seconds (`WORKER_STALE_SECONDS`).
 
 ## Migrations and permissions
 
@@ -58,6 +61,25 @@ docker compose --env-file .env.pilot -f docker-compose.pilot.yml exec backend py
 
 The notification worker consumes `notification.requested` Outbox events; other domain events remain an
 auditable integration stream until a registered consumer exists.
+
+```powershell
+docker compose --env-file .env.pilot -f docker-compose.pilot.yml exec backend python manage.py reconcile_outbox --dry-run
+docker compose --env-file .env.pilot -f docker-compose.pilot.yml exec backend python manage.py reconcile_outbox
+```
+
+Outbox uses at most five automatic attempts with bounded backoff. Terminal poison events remain stored and require diagnosis plus explicit operator action. Notification `UNKNOWN/DELIVERY_OUTCOME_UNKNOWN` is never automatically resent.
+
+After repairing the idempotent consumer, requeue exactly one terminal event explicitly:
+
+```powershell
+docker compose --env-file .env.pilot -f docker-compose.pilot.yml exec backend python manage.py retry_outbox_event <UUID> --confirm
+```
+
+The command fails closed without `--confirm`, for a non-terminal event, or for an unknown UUID.
+
+Heartbeat rows are instance history. The status API reports the most recently seen instance per worker and emits `WORKER_UNKNOWN` when an expected worker has never reported. Runtime categories are recurrence, schedule (including learning deadlines), SLA, escalations, notifications and performance. Outbox is transactional infrastructure; it has no standalone production worker in the current architecture.
+
+Login throttling uses Django's bounded process-local cache and does not depend on Redis. Redis loss therefore cannot take login down. A process/container restart clears counters (documented fail-open restart behavior); the mechanism does not create a permanent account lock.
 
 ## SLA and escalations
 
@@ -105,3 +127,13 @@ not be run merely to test configuration against a fake/local callback URL.
 4. Inspect Outbox/notification backlogs without dumping payloads.
 5. Take an immediate backup before invasive recovery.
 6. Restart only the affected service; do not delete volumes.
+
+## Incident procedures
+
+- Backend unavailable: check proxy/backend health and DB readiness, then restart only backend.
+- PostgreSQL unavailable: stop writes, inspect disk/container logs, restore only through the DR procedure.
+- Worker stale: inspect last error/backlog, restart that worker and verify heartbeat recovery.
+- Notifications stuck: reconcile stale deliveries; never automatically resend `UNKNOWN`.
+- SLA backlog: run one bounded `process_sla` cycle and inspect errors before restarting the loop.
+- Disk low: prune only documented build cache/expired backups; never delete runtime volumes.
+- Backup failed: record RPO risk, correct capacity/permissions, then run and verify an immediate backup.

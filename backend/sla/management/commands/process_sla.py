@@ -7,6 +7,7 @@ from django.utils import timezone
 from service_requests.models import ServiceRequest
 from sla.models import SLAInstance, SLAInstanceStatus
 from sla.runtime import SLAReconciliationService, SLARuntimeEvaluator
+from operations.heartbeat import record_worker_cycle
 
 logger=logging.getLogger(__name__)
 
@@ -35,4 +36,5 @@ class Command(BaseCommand):
                         except Exception as exc:errors+=1;logger.exception("SLA evaluation failed instance=%s request=%s error=%s",instance.pk,instance.request_id,exc)
                     if instances:last_pk=instances[-1].pk
                 if len(instances)<batch:break
+        record_worker_cycle("sla",processed=evaluated,error_code="SLA_CYCLE_ERRORS" if errors else "",metadata={"events":events,"errors":errors})
         self.stdout.write(f"evaluated: {evaluated} events: {events} errors: {errors}")

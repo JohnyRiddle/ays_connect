@@ -20,6 +20,8 @@ db.sqlite3
 media/
 staticfiles/
 node_modules/
+frontend/test-results/
+frontend/playwright-report/
 dist/
 .idea/
 .vscode/

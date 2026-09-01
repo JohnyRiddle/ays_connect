@@ -6,6 +6,8 @@ from django.db import transaction
 from employees.models import Employee
 
 from performance.engine import aggregate_employee, build_facts
+from performance.models import PerformanceAggregate
+import time
 
 
 class Command(BaseCommand):
@@ -23,7 +25,8 @@ class Command(BaseCommand):
             end = datetime.fromisoformat(options["period_to"]).replace(tzinfo=zone) if "T" not in options["period_to"] else datetime.fromisoformat(options["period_to"])
         except (ValueError, KeyError) as exc: raise CommandError(str(exc)) from exc
         if start >= end: raise CommandError("--from must be before --to")
-        count = build_facts(start, end)
+        started=time.monotonic(); count = build_facts(start, end)
         for employee in Employee.objects.iterator(chunk_size=500):
             aggregate_employee(employee, start, end, options["timezone"])
-        self.stdout.write(self.style.SUCCESS(f"facts={count} employees={Employee.objects.count()} period=[{start},{end})"))
+        aggregates=PerformanceAggregate.objects.filter(period_from=start,period_to=end,reporting_timezone=options["timezone"]).count();duration=time.monotonic()-started
+        self.stdout.write(self.style.SUCCESS(f"period=[{start},{end}) facts={count} aggregates={aggregates} employees={Employee.objects.count()} duration_seconds={duration:.3f} errors=0"))

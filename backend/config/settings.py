@@ -11,11 +11,11 @@ CSRF_TRUSTED_ORIGINS = [value for value in os.getenv("CSRF_TRUSTED_ORIGINS", "")
 
 INSTALLED_APPS = [
     "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",
-    "django.contrib.sessions", "django.contrib.messages", "django.contrib.staticfiles",
-    "corsheaders", "rest_framework", "drf_spectacular", "accounts", "organizations", "employees", "access_control", "audit", "events", "work_tasks", "service_requests", "sla", "performance", "tasks", "checklists", "sensors", "incidents", "analytics", "notifications", "knowledge_base", "learning",
+    "django.contrib.sessions", "django.contrib.messages", "django.contrib.staticfiles", "rest_framework_simplejwt.token_blacklist",
+    "corsheaders", "rest_framework", "drf_spectacular", "accounts", "organizations", "employees", "access_control", "audit", "events", "operations", "work_tasks", "service_requests", "sla", "performance", "tasks", "checklists", "sensors", "incidents", "analytics", "notifications", "knowledge_base", "learning",
 ]
 MIDDLEWARE = [
-    "django.middleware.security.SecurityMiddleware", "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.security.SecurityMiddleware", "config.middleware.RequestContextMiddleware", "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware", "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware", "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware", "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -52,14 +52,19 @@ SECURE_HSTS_PRELOAD = os.getenv("DJANGO_SECURE_HSTS_PRELOAD", "0") == "1"
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": ("rest_framework_simplejwt.authentication.JWTAuthentication",),
+    "DEFAULT_AUTHENTICATION_CLASSES": ("accounts.authentication.ActiveEmployeeJWTAuthentication",),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 25,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "config.exceptions.api_exception_handler",
+    "DEFAULT_THROTTLE_CLASSES": ("rest_framework.throttling.ScopedRateThrottle",),
+    "DEFAULT_THROTTLE_RATES": {"login": os.getenv("LOGIN_THROTTLE_RATE", "5/min"), "binding": os.getenv("BINDING_THROTTLE_RATE", "5/hour")},
 }
 SPECTACULAR_SETTINGS = {"TITLE": "AYS Connect API", "VERSION": "1.6.0", "SERVE_INCLUDE_SCHEMA": False}
+# Existing schema-introspection diagnostics are documented release debt; they do not
+# suppress Django security/deployment checks or runtime API errors.
+SILENCED_SYSTEM_CHECKS = ["drf_spectacular.W001", "drf_spectacular.W002"]
 KNOWLEDGE_MAX_FILE_SIZE_MB = int(os.getenv("KNOWLEDGE_MAX_FILE_SIZE_MB", "50"))
 ATTACHMENT_MAX_SIZE = int(os.getenv("ATTACHMENT_MAX_SIZE", os.getenv("TASK_ATTACHMENT_MAX_SIZE", str(25 * 1024 * 1024))))
 ATTACHMENT_ALLOWED_TYPES = tuple(filter(None, os.getenv(
@@ -72,7 +77,14 @@ TASK_ATTACHMENT_ALLOWED_TYPES = ATTACHMENT_ALLOWED_TYPES
 TASK_RECURRENCE_HORIZON_HOURS = int(os.getenv("TASK_RECURRENCE_HORIZON_HOURS", "24"))
 TASK_MAX_OCCURRENCES_PER_RULE_PER_RUN = int(os.getenv("TASK_MAX_OCCURRENCES_PER_RULE_PER_RUN", "100"))
 TASK_MAX_TOTAL_OCCURRENCES_PER_RUN = int(os.getenv("TASK_MAX_TOTAL_OCCURRENCES_PER_RUN", "500"))
-SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(minutes=15), "REFRESH_TOKEN_LIFETIME": timedelta(days=1), "ROTATE_REFRESH_TOKENS": True}
+SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(minutes=15), "REFRESH_TOKEN_LIFETIME": timedelta(days=1), "ROTATE_REFRESH_TOKENS": True, "BLACKLIST_AFTER_ROTATION": True}
+AYS_CONNECT_VERSION = os.getenv("AYS_CONNECT_VERSION", "1.0.0-rc1")
+WORKER_STALE_SECONDS = int(os.getenv("WORKER_STALE_SECONDS", "180"))
+EXPECTED_WORKERS = tuple(filter(None, os.getenv(
+    "EXPECTED_WORKERS",
+    "notifications,sla,escalations,recurrence,schedule,performance",
+).split(",")))
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 TELEGRAM_BOT_TOKEN=os.getenv("TELEGRAM_BOT_TOKEN","")
 TELEGRAM_BOT_USERNAME=os.getenv("TELEGRAM_BOT_USERNAME","").lstrip("@")
 TELEGRAM_WEBHOOK_SECRET=os.getenv("TELEGRAM_WEBHOOK_SECRET","")

@@ -75,9 +75,9 @@ class PostgreSQLServiceRequestGateTests(TransactionTestCase):
         def worker(index):
             with transaction.atomic():
                 return ServiceRequestService._next_number()
-        numbers = self._parallel(8, worker)
+        count=20;numbers = self._parallel(count, worker)
         self.assertEqual(len(numbers), len(set(numbers)))
-        self.assertEqual(sorted(numbers), [f"REQ-{value:06d}" for value in range(1, 9)])
+        self.assertEqual(sorted(numbers), [f"REQ-{value:06d}" for value in range(1,count+1)])
 
     def test_concurrent_routing_creates_unique_requests_with_same_winner(self):
         RequestRoutingRule.objects.create(request_type=self.request_type, target=self.target, order=1)
