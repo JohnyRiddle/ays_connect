@@ -1,6 +1,4 @@
 import React, { useEffect, useState } from "react";
-import "./people.css";
-
 const ROOT = (import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1").replace(/\/api\/v1\/?$/, "");
 async function request(path: string, options: RequestInit = {}) {
   const token = sessionStorage.getItem("access");
@@ -24,6 +22,7 @@ export function ActivationPage({ token }: { token: string }) {
 }
 
 const labels: Record<string,string>={NO_ACCOUNT:"Нет аккаунта",INVITED:"Приглашён",PENDING_APPROVAL:"Ожидает подтверждения",ACTIVE:"Активен",BLOCKED:"Заблокирован",INVITATION_EXPIRED:"Приглашение истекло"};
+const initials = (name = "") => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "—";
 export function PeopleRouter({path,navigate}:{path:string;navigate:(x:string)=>void}) {
   const [data,setData]=useState<any>(); const [error,setError]=useState(""); const [search,setSearch]=useState("");
   const id=path.match(/^\/people\/employees\/([^/]+)$/)?.[1]; const registrations=path==="/people/registrations";
@@ -32,6 +31,44 @@ export function PeopleRouter({path,navigate}:{path:string;navigate:(x:string)=>v
   async function employeeAction(action:string, payload:any={}){setError("");try{const result=await request(`/api/internal/v1/people/employees/${id}/${action}/`,{method:"POST",body:JSON.stringify(payload)});if(result.activation_url) await navigator.clipboard.writeText(result.activation_url);load();}catch(e){setError((e as Error).message)}}
   if(error&&!data)return <main className="work-page"><div className="error">{error}</div></main>;
   if(registrations)return <main className="work-page"><div className="page-heading"><div><p className="eyebrow blue">People</p><h1>Заявки на регистрацию</h1></div></div><div className="people-grid">{data?.results?.map((x:any)=><article className="people-card" key={x.id}><b>{x.full_name}</b><span>{x.email}</span><span className="badge">{x.status}</span>{x.status==="pending"&&<><button onClick={()=>{const employee_id=prompt("UUID сотрудника");if(employee_id)request(`/api/internal/v1/people/registrations/${x.id}/approve/`,{method:"POST",body:JSON.stringify({employee_id})}).then(load).catch(e=>setError(e.message))}}>Одобрить и пригласить</button><button onClick={()=>request(`/api/internal/v1/people/registrations/${x.id}/reject/`,{method:"POST",body:JSON.stringify({reason:"not_confirmed"})}).then(load)}>Отклонить</button></>}</article>)}</div>{error&&<div className="error">{error}</div>}</main>;
-  if(id&&data)return <main className="work-page"><button onClick={()=>navigate("/people/employees")}>← Сотрудники</button><div className="page-heading"><div><p className="eyebrow blue">Карточка сотрудника</p><h1>{data.display_name}</h1><p>{data.position_name} · {data.org_unit_name||"Без подразделения"}</p></div><span className="badge">{labels[data.account_status]}</span></div>{error&&<div className="error">{error}</div>}<div className="people-columns"><section className="people-card"><h2>Профиль</h2><dl><dt>Юридическое лицо</dt><dd>{data.legal_entity_name||"—"}</dd><dt>Локация</dt><dd>{data.location_name||"—"}</dd><dt>Статус</dt><dd>{data.status}</dd></dl></section><section className="people-card"><h2>Учётная запись AYS Connect</h2><p>{data.account?.email||"Учётная запись ещё не создана"}</p><div className="action-row">{!data.account&&<button className="primary" onClick={()=>{const email=prompt("Рабочая электронная почта");if(email)employeeAction("invite",{email})}}>Пригласить</button>}{data.account_status==="INVITED"&&<><button onClick={()=>employeeAction("invite",{email:prompt("Рабочая электронная почта")})}>Отправить повторно</button><button onClick={()=>employeeAction("revoke-invitation")}>Отозвать</button></>}{data.account_status==="ACTIVE"&&<button onClick={()=>employeeAction("account/block")}>Заблокировать</button>}{data.account_status==="BLOCKED"&&<button onClick={()=>employeeAction("account/unblock")}>Разблокировать</button>}</div></section><section className="people-card"><h2>Роли</h2>{data.roles?.map((x:any)=><span className="badge" key={x.code}>{x.name}</span>)||"Нет ролей"}<h2>Функциональные группы</h2>{data.functional_groups?.map((x:any)=><p key={x.id}>{x.name}</p>)}</section></div></main>;
-  return <main className="work-page"><div className="page-heading"><div><p className="eyebrow blue">People</p><h1>Сотрудники</h1></div><button onClick={()=>navigate("/people/registrations")}>Заявки на регистрацию</button></div><form className="people-filters" onSubmit={e=>{e.preventDefault();load()}}><label>Поиск<input value={search} onChange={e=>setSearch(e.target.value)} placeholder="ФИО"/></label><button>Найти</button></form><div className="people-table"><div className="people-row people-head"><b>ФИО</b><b>Должность</b><b>Подразделение</b><b>Локация</b><b>Аккаунт</b></div>{data?.results?.map((x:any)=><button className="people-row" key={x.id} onClick={()=>navigate(`/people/employees/${x.id}`)}><b>{x.display_name}</b><span>{x.position_name||"—"}</span><span>{x.org_unit_name||"—"}</span><span>{x.location_name||"—"}</span><span className="badge">{labels[x.account_status]}</span></button>)}</div><p className="muted">Всего: {data?.count||0}</p></main>;
+  if(id&&data)return <main className="work-page people-detail">
+    <button className="people-back" onClick={()=>navigate("/people/employees")}>← К сотрудникам</button>
+    <section className="people-profile-head">
+      <div className="people-avatar" aria-hidden="true">{initials(data.display_name)}</div>
+      <div className="people-profile-title">
+        <p className="eyebrow blue">Карточка сотрудника</p>
+        <h1>{data.display_name}</h1>
+        <p>{data.position_name||"Должность не указана"}<span>·</span>{data.org_unit_name||"Без подразделения"}</p>
+      </div>
+      <span className={`badge account-${String(data.account_status).toLowerCase()}`}>{labels[data.account_status]||data.account_status}</span>
+    </section>
+    {error&&<div className="error">{error}</div>}
+    <div className="people-columns">
+      <section className="people-card people-info-card">
+        <header><span>01</span><div><h2>Рабочий профиль</h2><p>Организационные данные сотрудника</p></div></header>
+        <dl>
+          <div><dt>Табельный номер</dt><dd>{data.employee_number||"—"}</dd></div>
+          <div><dt>Должность</dt><dd>{data.position_name||"—"}</dd></div>
+          <div><dt>Подразделение</dt><dd>{data.org_unit_name||"—"}</dd></div>
+          <div><dt>Юридическое лицо</dt><dd>{data.legal_entity_name||"—"}</dd></div>
+          <div><dt>Локация</dt><dd>{data.location_name||"—"}</dd></div>
+          <div><dt>Статус сотрудника</dt><dd><span className="people-value-status">{data.status||"—"}</span></dd></div>
+        </dl>
+      </section>
+      <section className="people-card people-account-card">
+        <header><span>02</span><div><h2>Учётная запись</h2><p>Доступ к AYS Connect</p></div></header>
+        <div className="people-account-summary">
+          <span className="people-account-icon">@</span>
+          <div><small>Рабочая электронная почта</small><strong>{data.account?.email||data.work_email||"Не указана"}</strong></div>
+        </div>
+        <div className="action-row">{!data.account&&<button className="primary" onClick={()=>{const email=prompt("Рабочая электронная почта");if(email)employeeAction("invite",{email})}}>Пригласить</button>}{data.account_status==="INVITED"&&<><button onClick={()=>employeeAction("invite",{email:prompt("Рабочая электронная почта")})}>Отправить повторно</button><button className="secondary-danger" onClick={()=>employeeAction("revoke-invitation")}>Отозвать</button></>}{data.account_status==="ACTIVE"&&<button className="secondary-danger" onClick={()=>employeeAction("account/block")}>Заблокировать</button>}{data.account_status==="BLOCKED"&&<button onClick={()=>employeeAction("account/unblock")}>Разблокировать</button>}</div>
+      </section>
+      <section className="people-card people-access-card">
+        <header><span>03</span><div><h2>Доступ и группы</h2><p>Роли и функциональные связи</p></div></header>
+        <div className="people-access-group"><h3>Роли</h3><div className="people-chip-list">{data.roles?.length?data.roles.map((x:any)=><span className="badge" key={x.code}>{x.name}</span>):<span className="people-empty">Роли не назначены</span>}</div></div>
+        <div className="people-access-group"><h3>Функциональные группы</h3><div className="people-chip-list">{data.functional_groups?.length?data.functional_groups.map((x:any)=><span className="badge neutral" key={x.id}>{x.name}</span>):<span className="people-empty">Сотрудник не входит в группы</span>}</div></div>
+      </section>
+    </div>
+  </main>;
+  return <main className="work-page"><div className="page-heading"><div><p className="eyebrow blue">People</p><h1>Сотрудники</h1></div><button onClick={()=>navigate("/people/registrations")}>Заявки на регистрацию</button></div><form className="people-filters" onSubmit={e=>{e.preventDefault();load()}}><label>Поиск<input value={search} onChange={e=>setSearch(e.target.value)} placeholder="ФИО, должность или подразделение"/></label><button>Найти</button></form><div className="people-table"><div className="people-row people-head"><b>Сотрудник</b><b>Должность</b><b>Подразделение</b><b>Локация</b><b>Аккаунт</b></div>{data?.results?.map((x:any)=><button className="people-row" key={x.id} onClick={()=>navigate(`/people/employees/${x.id}`)}><span className="people-person"><span className="people-list-avatar">{initials(x.display_name)}</span><span><b>{x.display_name}</b><small>{x.employee_number||"Номер не назначен"}</small></span></span><span>{x.position_name||"—"}</span><span>{x.org_unit_name||"—"}</span><span>{x.location_name||"—"}</span><span className={`badge account-${String(x.account_status).toLowerCase()}`}>{labels[x.account_status]||x.account_status}</span></button>)}</div><p className="people-total">Всего сотрудников: <b>{data?.count||0}</b></p></main>;
 }

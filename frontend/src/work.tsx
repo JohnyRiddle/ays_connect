@@ -7,8 +7,6 @@ import {
   tasksApi,
   WorkApiError,
 } from "./workApi";
-import "./work.css";
-
 type Navigate = (path: string) => void;
 const labels: Record<string, string> = {
   draft: "Черновик",
@@ -357,7 +355,13 @@ function TaskCreate({ navigate }: { navigate: Navigate }) {
     }
   }
   return (
-    <main className="work-page narrow">
+    <>
+      <button
+        className="work-drawer-scrim"
+        aria-label="Закрыть создание задачи"
+        onClick={() => navigate("/tasks")}
+      />
+      <main className="work-page narrow work-drawer">
       <button className="back" onClick={() => navigate("/tasks")}>
         ← К задачам
       </button>
@@ -421,7 +425,8 @@ function TaskCreate({ navigate }: { navigate: Navigate }) {
           {busy ? "Создаём…" : "Создать задачу"}
         </button>
       </form>
-    </main>
+      </main>
+    </>
   );
 }
 
@@ -1196,7 +1201,13 @@ function RequestCreate({ navigate }: { navigate: Navigate }) {
     }
   }
   return (
-    <main className="work-page narrow">
+    <>
+      <button
+        className="work-drawer-scrim"
+        aria-label="Закрыть создание заявки"
+        onClick={() => navigate("/requests")}
+      />
+      <main className="work-page narrow work-drawer">
       <button className="back" onClick={() => navigate("/requests")}>
         ← К заявкам
       </button>
@@ -1302,7 +1313,8 @@ function RequestCreate({ navigate }: { navigate: Navigate }) {
           </>
         )}
       </form>
-    </main>
+      </main>
+    </>
   );
 }
 

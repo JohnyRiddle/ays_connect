@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 import uuid
 
 
@@ -27,6 +28,9 @@ class Employee(models.Model):
         ON_LEAVE = "on_leave", "В отпуске"
         SUSPENDED = "suspended", "Отстранён"
         DISMISSED = "dismissed", "Уволен"
+        INACTIVE = "inactive", "Неактивен"
+        ONBOARDING = "onboarding", "Оформление"
+        TERMINATED = "terminated", "Уволен"
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="employee")
     first_name = models.CharField(max_length=150, blank=True)
@@ -40,6 +44,9 @@ class Employee(models.Model):
     primary_location = models.ForeignKey("organizations.Location", on_delete=models.SET_NULL, null=True, blank=True, related_name="primary_employees")
     manager = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True, related_name="reports")
     employee_number = models.CharField(max_length=30, unique=True, null=True, blank=True)
+    avatar = models.FileField(upload_to="employees/avatars/%Y/%m/", null=True, blank=True)
+    work_email = models.EmailField(blank=True)
+    work_phone = models.CharField(max_length=40, blank=True)
     position = models.CharField(max_length=150, blank=True)
     hire_date = models.DateField(null=True, blank=True)
     dismissed_at = models.DateField(null=True, blank=True)
@@ -57,9 +64,85 @@ class Employee(models.Model):
         value = " ".join(part for part in parts if part).strip()
         return value or (self.user.get_full_name() if self.user else "")
     def __str__(self): return f"{self.employee_number} — {self.position}"
+    @property
+    def termination_date(self):
+        return self.dismissed_at
+
+    def save(self, *args, **kwargs):
+        adding = self._state.adding
+        if adding and not self.employee_number:
+            from .services import EmployeeNumberService
+            self.employee_number = EmployeeNumberService.allocate()
+        elif not adding:
+            previous = type(self).objects.filter(pk=self.pk).values_list("employee_number", flat=True).first()
+            if previous and self.employee_number != previous:
+                raise ValidationError({"employee_number": "Employee number is immutable."})
+        self.updated_at = timezone.now()
+        return super().save(*args, **kwargs)
     class Meta:
         ordering = ["last_name", "first_name"]
         indexes = [models.Index(fields=["position_ref"]), models.Index(fields=["org_unit"]), models.Index(fields=["legal_entity"]), models.Index(fields=["manager"])]
+
+
+class EmployeeNumberSequence(models.Model):
+    key = models.CharField(max_length=32, unique=True, default="employee")
+    next_value = models.PositiveBigIntegerField(default=1)
+
+
+class EmployeeAssignment(models.Model):
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Активно"
+        ENDED = "ended", "Завершено"
+        CANCELLED = "cancelled", "Отменено"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    employee = models.ForeignKey(Employee, on_delete=models.PROTECT, related_name="organizational_assignments")
+    position = models.ForeignKey(Position, on_delete=models.PROTECT, null=True, blank=True, related_name="employee_assignments")
+    org_unit = models.ForeignKey("organizations.OrgUnit", on_delete=models.PROTECT, null=True, blank=True, related_name="employee_assignments")
+    legal_entity = models.ForeignKey("organizations.LegalEntity", on_delete=models.PROTECT, null=True, blank=True, related_name="employee_assignments")
+    location = models.ForeignKey("organizations.Location", on_delete=models.PROTECT, null=True, blank=True, related_name="employee_assignments")
+    is_primary = models.BooleanField(default=False)
+    valid_from = models.DateTimeField(default=timezone.now)
+    valid_to = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-valid_from", "created_at"]
+        indexes = [
+            models.Index(fields=["employee", "status"]),
+            models.Index(fields=["org_unit", "status"]),
+            models.Index(fields=["legal_entity", "status"]),
+            models.Index(fields=["location", "status"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(fields=["employee"], condition=models.Q(is_primary=True, status="active"), name="one_active_primary_employee_assignment"),
+            models.CheckConstraint(condition=models.Q(valid_to__isnull=True) | models.Q(valid_to__gte=models.F("valid_from")), name="employee_assignment_valid_period"),
+        ]
+
+
+class EmployeeManagerAssignment(models.Model):
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Активно"
+        ENDED = "ended", "Завершено"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    employee = models.ForeignKey(Employee, on_delete=models.PROTECT, related_name="manager_assignments")
+    manager = models.ForeignKey(Employee, on_delete=models.PROTECT, related_name="report_assignments")
+    valid_from = models.DateTimeField(default=timezone.now)
+    valid_to = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-valid_from", "created_at"]
+        indexes = [models.Index(fields=["employee", "status"]), models.Index(fields=["manager", "status"])]
+        constraints = [
+            models.UniqueConstraint(fields=["employee"], condition=models.Q(status="active"), name="one_active_manager_assignment"),
+            models.CheckConstraint(condition=~models.Q(employee=models.F("manager")), name="employee_manager_not_self"),
+            models.CheckConstraint(condition=models.Q(valid_to__isnull=True) | models.Q(valid_to__gte=models.F("valid_from")), name="employee_manager_valid_period"),
+        ]
 
 
 class FunctionalGroup(models.Model):

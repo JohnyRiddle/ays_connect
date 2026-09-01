@@ -9,13 +9,17 @@ async function login(page: Page) {
   await page.getByRole("button", { name: "Войти" }).click();
 }
 
+let cachedAdminAccess: string | undefined;
+
 async function adminAccess(request: APIRequestContext) {
+  if (cachedAdminAccess) return cachedAdminAccess;
   const email = process.env.AYS_E2E_EMAIL;
   const password = process.env.AYS_E2E_PASSWORD;
   test.skip(!email || !password, "Pilot administrator credentials are required");
   const response = await request.post("/api/v1/auth/login/", { data: { email, password } });
   expect(response.status()).toBe(200);
-  return (await response.json()).access as string;
+  cachedAdminAccess = (await response.json()).access as string;
+  return cachedAdminAccess;
 }
 
 function runtimeIdentity(prefix: string) {
@@ -49,13 +53,43 @@ test("authorized user opens production task list", async ({ page }) => {
   await login(page);
   await expect(page.getByRole("heading", { name: "Задачи", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Создать задачу" })).toBeVisible();
+  await page.getByRole("button", { name: "Создать задачу" }).click();
+  await expect(page).toHaveURL(/\/tasks\/new$/);
+  await expect(page.locator(".work-drawer")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Закрыть создание задачи" })).toBeVisible();
 });
 
 test("authorized user opens production request list", async ({ page }) => {
   await page.goto("/requests");
   await login(page);
   await expect(page.getByRole("heading", { name: "Заявки", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Создать заявку" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Создать заявку", exact: true })).toHaveCount(0);
+  await expect(page.locator("main").getByRole("button", { name: "Создать заявку" })).toBeVisible();
+});
+
+test("sidebar navigation returns from Work Core to dashboard and legacy sections", async ({ page }) => {
+  await page.goto("/tasks");
+  await login(page);
+
+  await page.getByRole("link", { name: "Заявки", exact: true }).click();
+  await page.getByRole("button", { name: "Создать заявку", exact: true }).click();
+  await expect(page).toHaveURL(/\/requests\/new$/);
+  await expect(page.getByRole("heading", { name: "Создать заявку", exact: true })).toBeVisible();
+  await expect(page.locator(".work-drawer")).toBeVisible();
+  await page.getByRole("button", { name: "Закрыть создание заявки" }).click({ position: { x: 10, y: 10 } });
+  await expect(page).toHaveURL(/\/requests$/);
+
+  await page.getByRole("link", { name: "Чек-листы", exact: true }).click();
+  await expect(page).toHaveURL(/\/#checklists$/);
+  await expect(page.getByRole("heading", { name: "Чек-листы", exact: true })).toBeVisible();
+
+  await page.getByRole("link", { name: "Объекты", exact: true }).click();
+  await expect(page).toHaveURL(/\/#objects$/);
+  await expect(page.getByRole("heading", { name: "Раздел в разработке" })).toBeVisible();
+
+  await page.getByRole("link", { name: "Главная", exact: true }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("heading", { name: /Добрый день/ })).toBeVisible();
 });
 
 test("invitation activates a scoped employee and blocked account cannot login", async ({ page, request }) => {

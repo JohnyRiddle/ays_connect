@@ -17,7 +17,7 @@ AYS Connect объединяет сотрудников, оргструктур�
 
 ## Текущее состояние
 
-Завершены production-фазы 1.1A–1.4B. Последний полный gate: 181 тест на PostgreSQL 17.11. Текущее состояние передачи работы поддерживается в `docs/CURRENT_STATE.md`.
+Завершены Work Core 1.1–1.6 и Phase 2.1 People Domain Foundation. Последний полный gate: 276 тестов на PostgreSQL 17.11; production frontend и local-pilot E2E проверяются как часть release gate. Текущее состояние передачи работы поддерживается в `docs/CURRENT_STATE.md`.
 
 ## Ограничения
 
@@ -26,4 +26,4 @@ AYS Connect объединяет сотрудников, оргструктур�
 
 ## Ближайшая цель
 
-Определить следующую product-фазу поверх завершённых Requests, SLA и Notification domains без переработки стабильного Tasks Domain.
+Начать Phase 2.2 поверх стабильного People Domain Foundation без дублирования Employee и без переработки завершённых Work Core доменов.

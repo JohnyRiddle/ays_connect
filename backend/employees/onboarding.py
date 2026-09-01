@@ -28,7 +28,7 @@ class InvitationService:
     @transaction.atomic
     def issue(*, employee, actor_user, delivery_address=""):
         employee = Employee.objects.select_for_update().get(pk=employee.pk)
-        if not employee.is_active or employee.status in {"archived", "suspended", "dismissed"}:
+        if not employee.is_active or employee.status in {"archived", "suspended", "dismissed", "terminated"}:
             raise ValidationError("Inactive employee cannot be invited.")
         if employee.user_id and employee.user.is_active:
             raise ValidationError("Employee already has an active account.")
@@ -71,7 +71,7 @@ class InvitationService:
         if not invitation or invitation.used_at or invitation.revoked_at or invitation.expires_at <= now:
             raise ValidationError("Activation link is unavailable.")
         employee = Employee.objects.select_for_update().get(pk=invitation.employee_id)
-        if not employee.is_active or employee.status in {"archived", "suspended", "dismissed"} or employee.user_id:
+        if not employee.is_active or employee.status in {"archived", "suspended", "dismissed", "terminated"} or employee.user_id:
             raise ValidationError("Activation link is unavailable.")
         email = invitation.delivery_address.lower().strip()
         if not email:

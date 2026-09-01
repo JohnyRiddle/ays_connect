@@ -41,7 +41,9 @@ import "./analytics.css";
 import "./notifications.css";
 import "./knowledge.css";
 import "./learning.css";
-import { ProductionWorkRouter, WorkHome } from "./work";
+import "./work-theme.css";
+import "./people-theme.css";
+import { ProductionWorkRouter } from "./work";
 import { ActivationPage, PeopleRouter, RegistrationPage } from "./people";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
@@ -522,7 +524,9 @@ function Login({ onLogin }: { onLogin: (p: Profile) => void }) {
             {busy ? "Входим…" : "Войти"}
             <ChevronRight size={18} />
           </button>
-          <a href="/register">Зарегистрироваться</a>
+          <a className="login-register" href="/register">
+            Зарегистрироваться
+          </a>
         </form>
       </section>
     </main>
@@ -546,6 +550,7 @@ function initials(name: string) {
 }
 function App() {
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [mobile, setMobile] = useState(false);
   const [path, setPath] = useState(window.location.pathname);
@@ -568,6 +573,7 @@ function App() {
     | "checklists"
     | "sensors"
     | "incidents"
+    | "objects"
     | "analytics"
     | "knowledge"
     | "learning"
@@ -582,6 +588,8 @@ function App() {
           ? "sensors"
           : window.location.hash === "#incidents"
             ? "incidents"
+            : window.location.hash === "#objects"
+              ? "objects"
             : window.location.hash === "#analytics"
               ? "analytics"
               : window.location.hash.startsWith("#knowledge")
@@ -603,8 +611,10 @@ function App() {
             ? "checklists"
             : window.location.hash === "#sensors"
               ? "sensors"
-              : window.location.hash === "#incidents"
-                ? "incidents"
+            : window.location.hash === "#incidents"
+              ? "incidents"
+              : window.location.hash === "#objects"
+                ? "objects"
                 : window.location.hash === "#analytics"
                   ? "analytics"
                   : window.location.hash.startsWith("#knowledge")
@@ -632,6 +642,12 @@ function App() {
       .catch(() => sessionStorage.clear())
       .finally(() => setLoading(false));
   }, []);
+  useEffect(() => {
+    if (!profile) return;
+    api("/employees/dashboard/")
+      .then(setDashboardData)
+      .catch(() => setDashboardData(null));
+  }, [profile]);
   if (loading) return <div className="loader">AYS</div>;
   if (!profile) return <Login onLogin={setProfile} />;
   const emp = profile.employee;
@@ -645,6 +661,13 @@ function App() {
       }).catch(() => undefined);
     sessionStorage.clear();
     setProfile(null);
+  };
+  const openLegacyView = (nextView: typeof view, hash: string) => {
+    window.history.pushState({}, "", `/${hash}`);
+    setPath("/");
+    setView(nextView);
+    setMobile(false);
+    window.scrollTo(0, 0);
   };
   return (
     <div className="app-shell">
@@ -688,7 +711,7 @@ function App() {
           </a>
           <a
             href="/requests"
-            className={path.startsWith("/requests") ? "active" : ""}
+            className={path.startsWith("/requests") && path !== "/requests/new" ? "active" : ""}
             onClick={(event) => {
               event.preventDefault();
               navigate("/requests");
@@ -699,63 +722,65 @@ function App() {
           </a>
           <a href="/people/employees" className={path.startsWith("/people") ? "active" : ""} onClick={(event) => { event.preventDefault(); navigate("/people/employees"); }}><Users size={19} />Сотрудники</a>
           <a
-            href="#checklists"
-            className={view === "checklists" ? "active" : ""}
-            onClick={() => setMobile(false)}
+            href="/#checklists"
+            className={path === "/" && view === "checklists" ? "active" : ""}
+            onClick={(event) => { event.preventDefault(); openLegacyView("checklists", "#checklists"); }}
           >
             <ClipboardCheck size={19} />
             Чек-листы
           </a>
           <a
-            href="#sensors"
-            className={view === "sensors" ? "active" : ""}
-            onClick={() => setMobile(false)}
+            href="/#sensors"
+            className={path === "/" && view === "sensors" ? "active" : ""}
+            onClick={(event) => { event.preventDefault(); openLegacyView("sensors", "#sensors"); }}
           >
             <Activity size={19} />
             Датчики
           </a>
           <a
-            href="#incidents"
-            className={view === "incidents" ? "active" : ""}
-            onClick={() => setMobile(false)}
+            href="/#incidents"
+            className={path === "/" && view === "incidents" ? "active" : ""}
+            onClick={(event) => { event.preventDefault(); openLegacyView("incidents", "#incidents"); }}
           >
             <Bell size={19} />
             Инциденты
           </a>
           <a
-            href="#learning"
-            className={view === "learning" ? "active" : ""}
-            onClick={() => setMobile(false)}
+            href="/#learning"
+            className={path === "/" && view === "learning" ? "active" : ""}
+            onClick={(event) => { event.preventDefault(); openLegacyView("learning", "#learning"); }}
           >
             <GraduationCap size={19} />
             Обучение
           </a>
           <a
-            href="#knowledge"
-            className={view === "knowledge" ? "active" : ""}
-            onClick={() => setMobile(false)}
+            href="/#knowledge"
+            className={path === "/" && view === "knowledge" ? "active" : ""}
+            onClick={(event) => { event.preventDefault(); openLegacyView("knowledge", "#knowledge"); }}
           >
             <BookOpen size={19} />
             Рабочие материалы
           </a>
           <a
-            href="#analytics"
-            className={view === "analytics" ? "active" : ""}
-            onClick={() => setMobile(false)}
+            href="/#analytics"
+            className={path === "/" && view === "analytics" ? "active" : ""}
+            onClick={(event) => { event.preventDefault(); openLegacyView("analytics", "#analytics"); }}
           >
             <Gauge size={19} />
             Эффективность
           </a>
-          {nav.slice(3, 4).map(([n, I]) => (
-            <button key={n}>
-              <I size={19} />
-              {n}
-            </button>
-          ))}
           <a
-            href="#notifications"
-            className={view === "notifications" ? "active" : ""}
-            onClick={() => setMobile(false)}
+            href="/#objects"
+            className={path === "/" && view === "objects" ? "active" : ""}
+            onClick={(event) => { event.preventDefault(); openLegacyView("objects", "#objects"); }}
+          >
+            <Building2 size={19} />
+            Объекты
+          </a>
+          <a
+            href="/#notifications"
+            className={path === "/" && view === "notifications" ? "active" : ""}
+            onClick={(event) => { event.preventDefault(); openLegacyView("notifications", "#notifications"); }}
           >
             <Bell size={19} />
             Уведомления<i>3</i>
@@ -764,7 +789,7 @@ function App() {
         <div className="sidebar-bottom">
           <small className="build-version">Work Core {APP_VERSION}</small>
           <button
-            onClick={() => (window.location.hash = "#notification-settings")}
+            onClick={() => openLegacyView("notification-settings", "#notification-settings")}
           >
             <Settings size={19} />
             Настройки
@@ -814,12 +839,18 @@ function App() {
           <ProductionPerformanceView />
         ) : view === "incidents" ? (
           <IncidentsView />
+        ) : view === "objects" ? (
+          <UnderDevelopmentView
+            icon={Building2}
+            title="Объекты"
+            description="Карточки объектов, зоны ответственности и эксплуатационная информация будут доступны здесь."
+          />
         ) : view === "sensors" ? (
           <SensorsView />
         ) : view === "checklists" ? (
           <ChecklistsView />
-        ) : view === "dashboard" ? (
-          <WorkHome navigate={navigate} />
+        ) : view === "dashboard" && dashboardData ? (
+          <LiveDashboard profile={profile} data={dashboardData} onTasks={() => navigate("/tasks")} />
         ) : (
           <main className="dashboard">
             <div className="welcome">
@@ -996,6 +1027,35 @@ function App() {
         )}
       </div>
     </div>
+  );
+}
+
+function UnderDevelopmentView({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: React.ComponentType<{ size?: number }>;
+  title: string;
+  description: string;
+}) {
+  return (
+    <main className="dashboard">
+      <div className="welcome">
+        <div>
+          <p className="eyebrow blue">AYS Connect</p>
+          <h1>{title}</h1>
+          <p>{description}</p>
+        </div>
+      </div>
+      <section className="card under-development">
+        <div className="under-development-icon"><Icon size={32} /></div>
+        <div>
+          <h2>Раздел в разработке</h2>
+          <p>Функция появится в одной из следующих версий AYS Connect.</p>
+        </div>
+      </section>
+    </main>
   );
 }
 function Stat({

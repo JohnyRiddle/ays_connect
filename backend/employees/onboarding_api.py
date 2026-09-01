@@ -11,8 +11,9 @@ from rest_framework.views import APIView
 
 from access_control.models import EmployeeRole, Scope
 from access_control.services import PermissionService
-from .models import Employee, EmployeeInvitation, RegistrationRequest
+from .models import Employee, EmployeeAssignment, EmployeeInvitation, EmployeeManagerAssignment, RegistrationRequest
 from .onboarding import InvitationService, RegistrationService
+from .services import EmployeeAssignmentService, EmployeeManagerService, EmployeeService
 
 
 class PublicScopedThrottle(ScopedRateThrottle):
@@ -43,7 +44,14 @@ class EmployeeDirectorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Employee
-        fields = ("id", "display_name", "position_name", "org_unit_name", "location_name", "legal_entity_name", "status", "is_active", "account_status", "account", "roles", "functional_groups")
+        fields = (
+            "id", "employee_number", "first_name", "last_name", "middle_name", "display_name",
+            "avatar", "work_email", "work_phone", "hire_date", "dismissed_at",
+            "position_ref", "position_name", "org_unit", "org_unit_name", "primary_location",
+            "location_name", "legal_entity", "legal_entity_name", "manager", "status", "is_active",
+            "account_status", "account", "roles", "functional_groups",
+        )
+        read_only_fields = ("id", "employee_number", "display_name", "dismissed_at", "account_status", "account", "roles", "functional_groups")
 
     def get_position_name(self, obj): return obj.position_ref.name if obj.position_ref else obj.position
     def get_account_status(self, obj): return account_status(obj)
@@ -72,28 +80,100 @@ def visible_employees(user, permission):
     return qs.filter(predicate).distinct()
 
 
-class EmployeeDirectoryViewSet(viewsets.ReadOnlyModelViewSet):
+class EmployeeDirectoryViewSet(viewsets.ModelViewSet):
     serializer_class = EmployeeDirectorySerializer
     permission_domain = "people.employee"
 
     def get_queryset(self):
         qs = visible_employees(self.request.user, "people.employee.view")
         p = self.request.query_params
-        if p.get("search"): qs = qs.filter(Q(first_name__icontains=p["search"]) | Q(last_name__icontains=p["search"]) | Q(middle_name__icontains=p["search"]))
+        if p.get("search"):
+            search = p["search"]
+            qs = qs.filter(
+                Q(first_name__icontains=search) | Q(last_name__icontains=search) | Q(middle_name__icontains=search)
+                | Q(work_email__icontains=search) | Q(work_phone__icontains=search) | Q(employee_number__icontains=search)
+                | Q(position_ref__name__icontains=search) | Q(position__icontains=search)
+            )
         for param, field in (("legal_entity", "legal_entity_id"), ("org_unit", "org_unit_id"), ("location", "primary_location_id"), ("position", "position_ref_id"), ("employee_status", "status")):
             if p.get(param): qs = qs.filter(**{field: p[param]})
         if p.get("account_status") == "ACTIVE": qs = qs.filter(user__isnull=False, user__is_active=True)
         elif p.get("account_status") == "BLOCKED": qs = qs.filter(user__isnull=False, user__is_active=False)
         elif p.get("account_status") == "NO_ACCOUNT": qs = qs.filter(user__isnull=True, invitations__isnull=True)
         elif p.get("account_status") == "INVITED": qs = qs.filter(user__isnull=True, invitations__used_at__isnull=True, invitations__revoked_at__isnull=True, invitations__expires_at__gt=timezone.now())
+        if p.get("manager"): qs = qs.filter(manager_id=p["manager"])
         ordering = {"name": ("last_name", "first_name"), "position": ("position_ref__name", "last_name"), "org_unit": ("org_unit__name", "last_name")}.get(p.get("ordering"), ("last_name", "first_name"))
         return qs.order_by(*ordering)
+
+    def _require_global(self, code):
+        actor = getattr(self.request.user, "employee", None)
+        if not self.request.user.is_superuser and not PermissionService.has_permission(employee=actor, permission=code):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied()
+
+    def perform_create(self, serializer):
+        self._require_global("people.employee.manage")
+        serializer.instance = EmployeeService.create(actor_user=self.request.user, **serializer.validated_data)
+
+    def perform_update(self, serializer):
+        employee = self.get_object(); self._require("people.employee.manage", employee)
+        serializer.instance = EmployeeService.update_profile(employee=employee, actor_user=self.request.user, **serializer.validated_data)
+
+    def perform_destroy(self, instance):
+        raise serializers.ValidationError("Employees are never deleted; use terminate.")
 
     def _require(self, code, employee):
         actor = getattr(self.request.user, "employee", None)
         if not self.request.user.is_superuser and not PermissionService.has_permission(employee=actor, permission=code, obj=employee):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied()
+
+    @action(detail=True, methods=["get", "post"])
+    def assignments(self, request, pk=None):
+        employee = self.get_object()
+        if request.method == "GET":
+            self._require("people.assignment.view", employee)
+            values = employee.organizational_assignments.select_related("position", "org_unit", "legal_entity", "location").values()
+            return Response(list(values))
+        self._require("people.assignment.manage", employee)
+        allowed = {key: request.data.get(key) for key in ("position_id", "org_unit_id", "legal_entity_id", "location_id", "is_primary", "valid_from") if request.data.get(key) is not None}
+        assignment = EmployeeAssignmentService.start(employee=employee, actor_user=request.user, **allowed)
+        return Response({"id": assignment.pk, "status": assignment.status}, status=201)
+
+    @action(detail=True, methods=["get"])
+    def manager(self, request, pk=None):
+        employee = self.get_object(); self._require("people.manager.view", employee)
+        relation = employee.manager_assignments.filter(status=EmployeeManagerAssignment.Status.ACTIVE).select_related("manager").first()
+        return Response(None if relation is None else {"id": relation.pk, "manager_id": relation.manager_id, "manager_name": relation.manager.display_name})
+
+    @action(detail=True, methods=["get"])
+    def reports(self, request, pk=None):
+        employee = self.get_object(); self._require("people.manager.view", employee)
+        queryset = visible_employees(request.user, "people.manager.view").filter(pk__in=EmployeeManagerService.direct_reports(employee).values("pk"))
+        return Response(self.get_serializer(queryset.distinct(), many=True).data)
+
+    @action(detail=True, methods=["get"], url_path="management-chain")
+    def management_chain(self, request, pk=None):
+        employee = self.get_object(); self._require("people.manager.view", employee)
+        visible_ids = set(visible_employees(request.user, "people.manager.view").values_list("pk", flat=True))
+        chain = [item for item in EmployeeManagerService.management_chain(employee) if item.pk in visible_ids]
+        return Response(self.get_serializer(chain, many=True).data)
+
+    @action(detail=True, methods=["post"], url_path="change-manager")
+    def change_manager(self, request, pk=None):
+        employee = self.get_object(); self._require("people.manager.manage", employee)
+        manager = None if not request.data.get("manager_id") else visible_employees(request.user, "people.manager.manage").get(pk=request.data["manager_id"])
+        relation = EmployeeManagerService.change(employee=employee, manager=manager, actor_user=request.user)
+        return Response({"id": relation.pk if relation else None, "manager_id": manager.pk if manager else None})
+
+    @action(detail=True, methods=["post"])
+    def terminate(self, request, pk=None):
+        employee = self.get_object(); self._require("people.employee.manage", employee)
+        return Response(self.get_serializer(EmployeeService.terminate(employee=employee, actor_user=request.user, termination_date=request.data.get("termination_date"))).data)
+
+    @action(detail=True, methods=["post"])
+    def reactivate(self, request, pk=None):
+        employee = self.get_object(); self._require("people.employee.manage", employee)
+        return Response(self.get_serializer(EmployeeService.reactivate(employee=employee, actor_user=request.user)).data)
 
     @action(detail=True, methods=["post"])
     def invite(self, request, pk=None):
@@ -122,7 +202,7 @@ class EmployeeDirectoryViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["post"], url_path="account/unblock")
     def unblock(self, request, pk=None):
         employee = self.get_object(); self._require("people.account.manage", employee)
-        if not employee.is_active or employee.status in {"archived", "suspended", "dismissed"}: raise serializers.ValidationError("Inactive employee cannot be unblocked.")
+        if not employee.is_active or employee.status in {"archived", "suspended", "dismissed", "terminated"}: raise serializers.ValidationError("Inactive employee cannot be unblocked.")
         if not employee.user_id: raise serializers.ValidationError("Employee has no account.")
         employee.user.is_active = True; employee.user.save(update_fields=["is_active"])
         from .onboarding import _event

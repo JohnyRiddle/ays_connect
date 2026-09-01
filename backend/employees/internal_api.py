@@ -7,8 +7,8 @@ from access_control.permissions import InternalAPIPermission
 from access_control.models import Role
 from access_control.serializers import EmployeeRoleSerializer
 from access_control.services import RoleService
-from .models import AssignmentTarget, Employee, FunctionalGroup, FunctionalGroupMembership, Position
-from .services import EmployeeService, FunctionalGroupService
+from .models import AssignmentTarget, Employee, EmployeeAssignment, EmployeeManagerAssignment, FunctionalGroup, FunctionalGroupMembership, Position
+from .services import EmployeeAssignmentService, EmployeeManagerService, EmployeeService, FunctionalGroupService
 
 
 class EmployeeInternalSerializer(serializers.ModelSerializer):
@@ -16,7 +16,22 @@ class EmployeeInternalSerializer(serializers.ModelSerializer):
     class Meta:
         model = Employee
         fields = "__all__"
-        read_only_fields = ("id", "created_at", "updated_at", "dismissed_at")
+        read_only_fields = ("id", "employee_number", "created_at", "updated_at", "dismissed_at")
+
+
+class EmployeeAssignmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmployeeAssignment
+        fields = "__all__"
+        read_only_fields = ("id", "employee", "created_at", "updated_at", "status", "valid_to")
+
+
+class EmployeeManagerAssignmentSerializer(serializers.ModelSerializer):
+    manager_name = serializers.CharField(source="manager.display_name", read_only=True)
+    class Meta:
+        model = EmployeeManagerAssignment
+        fields = ("id", "employee", "manager", "manager_name", "valid_from", "valid_to", "status", "created_at")
+        read_only_fields = fields
 
 
 class PositionSerializer(serializers.ModelSerializer):
@@ -66,6 +81,48 @@ class EmployeeViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def deactivate(self, request, pk=None):
         return Response(self.get_serializer(EmployeeService.deactivate(employee=self.get_object(), actor_user=request.user)).data)
+
+    @action(detail=True, methods=["post"])
+    def terminate(self, request, pk=None):
+        employee = EmployeeService.terminate(employee=self.get_object(), actor_user=request.user, termination_date=request.data.get("termination_date"))
+        return Response(self.get_serializer(employee).data)
+
+    @action(detail=True, methods=["post"])
+    def reactivate(self, request, pk=None):
+        return Response(self.get_serializer(EmployeeService.reactivate(employee=self.get_object(), actor_user=request.user)).data)
+
+    @action(detail=True, methods=["get", "post"])
+    def assignments(self, request, pk=None):
+        employee = self.get_object()
+        if request.method == "GET":
+            queryset = employee.organizational_assignments.select_related("position", "org_unit", "legal_entity", "location")
+            return Response(EmployeeAssignmentSerializer(queryset, many=True).data)
+        serializer = EmployeeAssignmentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        assignment = EmployeeAssignmentService.start(employee=employee, actor_user=request.user, **serializer.validated_data)
+        return Response(EmployeeAssignmentSerializer(assignment).data, status=201)
+
+    @action(detail=True, methods=["post"], url_path="change-manager")
+    def change_manager(self, request, pk=None):
+        manager = None
+        if request.data.get("manager"):
+            manager = self.get_queryset().get(pk=request.data["manager"])
+        relation = EmployeeManagerService.change(employee=self.get_object(), manager=manager, actor_user=request.user)
+        return Response(None if relation is None else EmployeeManagerAssignmentSerializer(relation).data)
+
+    @action(detail=True, methods=["get"])
+    def manager(self, request, pk=None):
+        relation = self.get_object().manager_assignments.filter(status=EmployeeManagerAssignment.Status.ACTIVE).select_related("manager").first()
+        return Response(None if relation is None else EmployeeManagerAssignmentSerializer(relation).data)
+
+    @action(detail=True, methods=["get"])
+    def reports(self, request, pk=None):
+        queryset = EmployeeManagerService.direct_reports(self.get_object())
+        return Response(self.get_serializer(queryset, many=True).data)
+
+    @action(detail=True, methods=["get"], url_path="management-chain")
+    def management_chain(self, request, pk=None):
+        return Response(self.get_serializer(EmployeeManagerService.management_chain(self.get_object()), many=True).data)
 
     @action(detail=True, methods=["post"])
     def roles(self, request, pk=None):

@@ -163,7 +163,7 @@ services:
       PGUSER: ${POSTGRES_USER}
       PGPASSWORD: ${POSTGRES_PASSWORD}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
-    command: sh -ec "while true; do /opt/ays/backup.sh; sleep 86400; done"
+    command: sh -ec "while true; do sed 's/\\r$$//' /opt/ays/backup.sh | sh; sleep 86400; done"
     volumes: [./deployment/backup.sh:/opt/ays/backup.sh:ro, media_data:/source/media:ro, backup_data:/backups]
     depends_on:
       db: {condition: service_healthy}

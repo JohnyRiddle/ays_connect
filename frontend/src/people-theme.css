@@ -1,0 +1,393 @@
+/* People pages use the same visual language as the original AYS workspace. */
+.work-page .page-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 26px;
+}
+
+.work-page .page-heading h1 {
+  margin: 4px 0;
+  color: #172033;
+  font-size: 29px;
+  line-height: 1.15;
+}
+
+.work-page .page-heading p:last-child {
+  margin: 4px 0 0;
+  color: #8190a2;
+  font-size: 12px;
+}
+
+.work-page .page-heading > button,
+.people-filters > button,
+.people-card button,
+.action-row button,
+.work-page > button:not(.people-row) {
+  border: 0;
+  border-radius: 9px;
+  background: #236fc7;
+  color: #fff;
+  padding: 11px 16px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.people-filters {
+  align-items: end;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.people-filters label {
+  flex: 1;
+  color: #43566c;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.people-filters input {
+  min-height: 42px;
+  box-sizing: border-box;
+  border-color: #dfe6ee;
+  color: #536175;
+  font-size: 12px;
+}
+
+.people-table {
+  border-color: #e2e8ef;
+  background: #fff;
+}
+
+.people-row {
+  min-height: 58px;
+  padding: 12px 17px;
+  color: #536175;
+  font-size: 11px;
+}
+
+.people-row:not(.people-head):hover {
+  background: #f8fbff;
+}
+
+.people-head {
+  min-height: auto;
+  background: #f8fafc;
+  color: #8995a4;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.people-row b {
+  color: #1d293b;
+  font-size: 12px;
+}
+
+.people-row .badge {
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.people-card {
+  border-color: #e2e8ef;
+  box-shadow: 0 1px 2px #17203308;
+}
+
+.people-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.people-person > span:last-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.people-person small {
+  color: #97a2b0;
+  font-size: 9px;
+}
+
+.people-list-avatar,
+.people-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  background: #e8f2ff;
+  color: #236fc7;
+  font-weight: 800;
+}
+
+.people-list-avatar {
+  width: 34px;
+  height: 34px;
+  font-size: 10px;
+}
+
+.people-total {
+  margin: 14px 2px 0;
+  color: #7d8998;
+  font-size: 11px;
+}
+
+.people-detail {
+  max-width: 1280px;
+}
+
+.people-back {
+  margin-bottom: 18px;
+  padding: 0 !important;
+  background: transparent !important;
+  color: #65758a !important;
+  font-weight: 700 !important;
+}
+
+.people-profile-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 22px;
+  padding: 20px 22px;
+  border: 1px solid #e2e8ef;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 2px #17203308;
+}
+
+.people-avatar {
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  font-size: 15px;
+}
+
+.people-profile-title h1 {
+  margin: 3px 0 5px;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.people-profile-title p {
+  margin: 0;
+  color: #7e8b9b;
+  font-size: 11px;
+}
+
+.people-profile-title p span {
+  margin: 0 7px;
+  color: #bdc5ce;
+}
+
+.people-profile-title .eyebrow {
+  color: #2f80ed;
+  font-size: 9px;
+}
+
+.people-profile-head > .badge {
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.people-columns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 14px;
+}
+
+.people-detail .people-card {
+  gap: 16px;
+  padding: 18px;
+  border-radius: 12px;
+}
+
+.people-detail .people-card header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid #edf1f4;
+}
+
+.people-detail .people-card header > span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: #edf5ff;
+  color: #236fc7;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.people-detail .people-card h2,
+.people-detail .people-card h3,
+.people-detail .people-card header p {
+  margin: 0;
+}
+
+.people-detail .people-card h2 {
+  font-size: 13px;
+}
+
+.people-detail .people-card header p {
+  margin-top: 3px;
+  color: #8a96a5;
+  font-size: 9px;
+}
+
+.people-info-card dl {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+}
+
+.people-info-card dl > div {
+  display: grid;
+  gap: 5px;
+  padding: 11px 0;
+  border-bottom: 1px solid #f0f3f6;
+}
+
+.people-info-card dl > div:nth-child(odd) {
+  padding-right: 14px;
+}
+
+.people-info-card dt,
+.people-account-summary small {
+  color: #8a96a5;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.people-info-card dd {
+  color: #263449;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.people-value-status {
+  color: #236fc7;
+}
+
+.people-account-summary {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 54px;
+  padding: 11px;
+  border-radius: 9px;
+  background: #f7f9fc;
+}
+
+.people-account-summary > div {
+  display: grid;
+  gap: 4px;
+}
+
+.people-account-summary strong {
+  color: #263449;
+  font-size: 11px;
+}
+
+.people-account-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: #fff;
+  color: #236fc7;
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: 0 1px 3px #17203310;
+}
+
+.people-detail .action-row {
+  align-items: center;
+  margin: 0;
+}
+
+.people-detail .action-row button {
+  padding: 9px 12px;
+  font-size: 10px;
+}
+
+.people-detail .secondary-danger {
+  border: 1px solid #f0caca;
+  background: #fff6f6;
+  color: #b63d3d;
+}
+
+.people-access-card {
+  grid-column: 1 / -1;
+}
+
+.people-access-group {
+  display: grid;
+  gap: 8px;
+}
+
+.people-access-group h3 {
+  color: #607086;
+  font-size: 10px;
+}
+
+.people-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.people-chip-list .neutral {
+  background: #f0f3f6;
+  color: #536175;
+}
+
+.people-empty {
+  color: #98a3b1;
+  font-size: 10px;
+}
+
+.account-active { background: #e8f7ef; color: #20744a; }
+.account-blocked,
+.account-invitation_expired { background: #fff0f0; color: #b23d3d; }
+.account-invited,
+.account-pending_approval { background: #fff6dc; color: #8d6712; }
+.account-no_account { background: #eef1f5; color: #65758a; }
+
+@media (max-width: 700px) {
+  .work-page .page-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .work-page .page-heading > button,
+  .people-filters > button {
+    width: 100%;
+  }
+
+  .people-profile-head {
+    grid-template-columns: auto 1fr;
+  }
+
+  .people-profile-head > .badge {
+    grid-column: 1 / -1;
+  }
+
+  .people-columns,
+  .people-info-card dl {
+    grid-template-columns: 1fr;
+  }
+
+  .people-info-card dl > div:nth-child(odd) {
+    padding-right: 0;
+  }
+}

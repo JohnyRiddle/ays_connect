@@ -59,7 +59,8 @@ class CoreApiTests(TestCase):
         self.assertEqual(response.data["count"], 1)
 
     def test_personal_dashboard_uses_real_tasks(self):
-        deadline = timezone.now() + timedelta(hours=2)
+        local_now = timezone.localtime(timezone.now())
+        deadline = local_now.replace(hour=23, minute=59, second=59, microsecond=0)
         Task.objects.create(title="Реальная задача теста", creator=self.user, assignee=self.user, initial_deadline=deadline, deadline=deadline, status=Task.Status.IN_PROGRESS, priority=Task.Priority.HIGH)
         self.login()
         response = self.client.get("/api/v1/employees/dashboard/")

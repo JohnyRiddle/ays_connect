@@ -1,15 +1,15 @@
 # Текущее состояние AYS Connect
 
-> 01.09.2026: Phase 1.6C COMPLETE from checkpoint `0792ec2`. Employee Directory, hash-only invitations, atomic activation, controlled registration and account administration pass PostgreSQL 264/264, Playwright 15/15, pilot and isolated backup/restore gates. Phase 1.6B has not started.
+> 02.09.2026: Phase 2.1 People Domain Foundation and unified Work/People frontend are complete after checkpoint `98c23a7`. Existing Employee is reused; production numbering, historical assignments, manager hierarchy and lifecycle services pass PostgreSQL 276/276 plus two upgrade rehearsals.
 
-**Обновлено:** 01.09.2026
+**Обновлено:** 02.09.2026
 
 **Ветка:** `main`
 **Remote:** `origin` → `https://github.com/JohnyRiddle/ays_connect.git`
 
 ## Текущая задача
 
-Phase 1.6C — COMPLETE. Phase 1.6 LOCAL GATES PASS; production/server Phase 1.6B remains PENDING.
+Phase 2.1 — implementation, PostgreSQL 17.11 quality gates and frontend hardening complete locally. Phase 2.2 has not started.
 
 ## Сделано
 
@@ -45,6 +45,11 @@ Phase 1.6C — COMPLETE. Phase 1.6 LOCAL GATES PASS; production/server Phase 1.6
 - controlled `RELEASE-GATE-1.6A` scenario восстановлен в отдельных PostgreSQL container/media volume: Employee, Task, Request, execution Task, SLA, Notification и Performance PASS;
 - source/restored physical и DB SHA-256 обоих attachment совпадают; protected downloads после restore дают 401 без JWT и 200 с JWT;
 - исправлен production Performance enqueue entity-type mismatch и добавлен regression test; baseline 254/254.
+- Phase 2.1 расширяет существующий Employee без Person-дубликата: immutable `EMP-*`, historical assignments, manager hierarchy, termination/reactivation, Audit/Outbox;
+- append-only migration `employees.0007` сохраняет legacy-поля и создаёт initial history rows для существующих сотрудников;
+- два PostgreSQL upgrade rehearsal 0006 → 0007 и полный backend regression 276/276 проходят.
+- Work/People frontend возвращён к единой компактной стилистике; все пункты основного меню маршрутизируются, незавершённые разделы имеют штатную заглушку, формы создания Task/Request открываются в правом drawer;
+- production frontend build, Compose validation, deployment regression и local-pilot SPA/E2E gate проходят.
 
 ## Осталось
 

@@ -1,3 +1,5 @@
+@import url("./work.css") layer(feature-pages);
+@import url("./people.css") layer(feature-pages);
 @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
 :root {
   font-family: Manrope, Arial, sans-serif;
@@ -129,6 +131,18 @@ input {
   border-color: #2f80ed;
   box-shadow: 0 0 0 3px #2f80ed1c;
 }
+.login-register {
+  display: block;
+  margin-top: 10px;
+  text-align: center;
+  color: #236fc7;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.login-register:hover {
+  text-decoration: underline;
+}
 .primary {
   border: 0;
   background: #236fc7;
@@ -145,6 +159,34 @@ input {
 }
 .primary:disabled {
   opacity: 0.6;
+}
+.work-page .primary {
+  width: auto;
+}
+.under-development {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  max-width: 720px;
+  padding: 28px;
+}
+.under-development h2,
+.under-development p {
+  margin: 0;
+}
+.under-development p {
+  margin-top: 6px;
+  color: #7b879b;
+}
+.under-development-icon {
+  width: 58px;
+  height: 58px;
+  flex: 0 0 58px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  color: #236fc7;
+  background: #eaf3ff;
 }
 .demo {
   margin-top: 22px;
@@ -285,7 +327,7 @@ input {
 .workspace {
   margin-left: 250px;
 }
-.workspace header {
+.workspace > header {
   height: 72px;
   background: white;
   border-bottom: 1px solid #e7ecf2;
@@ -747,7 +789,7 @@ input {
   .workspace {
     margin: 0;
   }
-  .workspace header {
+  .workspace > header {
     padding: 0 18px;
   }
   .hamb {

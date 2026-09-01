@@ -1,0 +1,225 @@
+/* Visual bridge between the production Work Core and the original AYS UI. */
+.work-page {
+  padding: 32px clamp(20px, 3.5vw, 52px) 60px;
+  max-width: 1500px;
+}
+
+.work-title {
+  align-items: center;
+  margin-bottom: 26px;
+}
+
+.work-title h1,
+.work-detail-head h1 {
+  margin: 4px 0;
+  font-size: 29px;
+  line-height: 1.15;
+}
+
+.work-title p,
+.work-detail-head p {
+  color: #2f80ed;
+}
+
+.work-title span {
+  display: block;
+  color: #8190a2;
+  font-size: 12px;
+}
+
+.work-page .primary {
+  min-height: 40px;
+  padding: 11px 16px;
+  border-radius: 9px;
+  background: #236fc7;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.work-filters {
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.work-filters input,
+.work-filters select {
+  min-height: 42px;
+  border-color: #dfe6ee;
+  border-radius: 9px;
+  padding: 0 12px;
+  color: #536175;
+  font-size: 12px;
+}
+
+.work-filters input:focus,
+.work-filters select:focus {
+  border-color: #8bb9ea;
+  box-shadow: 0 0 0 3px #2f80ed14;
+  outline: 0;
+}
+
+.work-table {
+  border-color: #e2e8ef;
+  border-radius: 12px;
+}
+
+.work-table > b {
+  padding: 12px 17px;
+  background: #f8fafc;
+  color: #8995a4;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.work-table > span,
+.work-table > .work-object {
+  min-height: 68px;
+  padding: 14px 17px;
+  border-color: #edf1f4;
+  font-size: 11px;
+}
+
+.work-object {
+  color: #536175;
+}
+
+.work-object:hover {
+  background: #f8fbff;
+}
+
+.work-object strong {
+  color: #1d293b;
+  font-size: 12px;
+}
+
+.work-object small,
+.work-table span small {
+  color: #909cab;
+  font-size: 10px;
+}
+
+.work-status {
+  min-height: 0 !important;
+  height: max-content;
+  margin-left: 17px;
+  align-self: center;
+  justify-self: start;
+  padding: 5px 8px !important;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.work-pager {
+  color: #536175;
+  font-size: 11px;
+}
+
+.work-pager button {
+  padding: 8px 12px;
+  color: #536175;
+  font-size: 10px;
+}
+
+.work-detail-head,
+.work-card,
+.work-form {
+  border-color: #e2e8ef;
+  box-shadow: 0 1px 2px #17203308;
+}
+
+.work-drawer-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  width: 100%;
+  border: 0;
+  background: #16233c66;
+  cursor: default;
+}
+
+.work-page.work-drawer {
+  position: fixed;
+  inset: 0 0 0 auto;
+  z-index: 41;
+  width: min(560px, 100%);
+  max-width: none;
+  box-sizing: border-box;
+  margin: 0;
+  overflow-y: auto;
+  background: #f5f8fc;
+  box-shadow: -18px 0 60px #17203324;
+  padding: 28px 30px 36px;
+}
+
+.work-drawer .work-title {
+  margin-bottom: 14px;
+}
+
+.work-drawer .work-title h1 {
+  font-size: 24px;
+}
+
+.work-drawer .work-title p {
+  margin-bottom: 4px;
+  font-size: 10px;
+}
+
+.work-drawer .back {
+  margin-bottom: 14px;
+  font-size: 10px;
+}
+
+.work-drawer .work-form {
+  gap: 12px;
+  margin-bottom: 24px;
+  padding: 18px;
+}
+
+.work-drawer .work-field {
+  gap: 5px;
+}
+
+.work-drawer .work-field > span {
+  font-size: 11px;
+}
+
+.work-drawer .work-field input,
+.work-drawer .work-field select,
+.work-drawer .work-field textarea {
+  padding: 9px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.work-drawer .work-field input,
+.work-drawer .work-field select {
+  min-height: 38px;
+}
+
+.work-drawer .work-field textarea {
+  min-height: 76px;
+}
+
+.work-drawer .form-row {
+  gap: 10px;
+}
+
+.work-drawer .primary {
+  min-height: 36px;
+  padding: 9px 13px;
+  font-size: 10px;
+}
+
+@media (max-width: 800px) {
+  .work-page {
+    padding: 22px 14px 40px;
+  }
+
+  .work-title {
+    align-items: stretch;
+  }
+
+  .work-page .primary {
+    width: 100%;
+  }
+}
