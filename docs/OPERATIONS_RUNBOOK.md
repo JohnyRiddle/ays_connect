@@ -3,6 +3,14 @@
 Commands below assume the repository root and the local ignored `.env.pilot` file.
 Define `$pilot = @('--env-file','.env.pilot','-f','docker-compose.pilot.yml')` if desired.
 
+## Employee onboarding
+
+- Для expired/used/revoked invitation выпустите новое из карточки Employee; старый token не восстанавливается.
+- Pending registration рассматривайте в `/people/registrations`, выбирая только подтверждённого существующего Employee.
+- Block/unblock выполняйте account actions. Unblock разрешён только активному Employee.
+- При activation failure проверьте NTP, `FRONTEND_BASE_URL`, expiry и email collision. Никогда не логируйте raw token или пароль.
+- Invitation/Registration history не удаляйте вручную: она нужна для Audit/reconciliation.
+
 ## Status and health
 
 ```powershell

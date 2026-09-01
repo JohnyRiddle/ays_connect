@@ -32,6 +32,7 @@ urlpatterns = [
     path("api/v1/auth/", include("accounts.urls")),
     path("api/v1/organization/", include("organizations.urls")),
     path("api/v1/employees/", include("employees.urls")),
+    path("api/public/v1/", include("employees.public_urls")),
     path("api/v1/tasks/", include("tasks.urls")),
     path("api/v1/checklists/", include("checklists.urls")),
     path("api/v1/sensors/", include("sensors.urls")),

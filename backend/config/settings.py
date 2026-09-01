@@ -59,7 +59,7 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "config.exceptions.api_exception_handler",
     "DEFAULT_THROTTLE_CLASSES": ("rest_framework.throttling.ScopedRateThrottle",),
-    "DEFAULT_THROTTLE_RATES": {"login": os.getenv("LOGIN_THROTTLE_RATE", "5/min"), "binding": os.getenv("BINDING_THROTTLE_RATE", "5/hour")},
+    "DEFAULT_THROTTLE_RATES": {"login": os.getenv("LOGIN_THROTTLE_RATE", "5/min"), "binding": os.getenv("BINDING_THROTTLE_RATE", "5/hour"), "registration": os.getenv("REGISTRATION_THROTTLE_RATE", "5/hour"), "activation": os.getenv("ACTIVATION_THROTTLE_RATE", "10/hour")},
 }
 SPECTACULAR_SETTINGS = {"TITLE": "AYS Connect API", "VERSION": "1.6.0", "SERVE_INCLUDE_SCHEMA": False}
 # Existing schema-introspection diagnostics are documented release debt; they do not
@@ -94,5 +94,8 @@ TELEGRAM_HTTP_TIMEOUT=float(os.getenv("TELEGRAM_HTTP_TIMEOUT","10"))
 AYS_CONNECT_PUBLIC_URL=os.getenv("AYS_CONNECT_PUBLIC_URL","")
 NOTIFICATIONS_TELEGRAM_ENABLED=os.getenv("NOTIFICATIONS_TELEGRAM_ENABLED","0")=="1"
 NOTIFICATIONS_EMAIL_ENABLED=os.getenv("NOTIFICATIONS_EMAIL_ENABLED","0")=="1"
+EMPLOYEE_INVITATION_TTL_HOURS=int(os.getenv("EMPLOYEE_INVITATION_TTL_HOURS", "48"))
+REGISTRATION_REQUEST_TTL_DAYS=int(os.getenv("REGISTRATION_REQUEST_TTL_DAYS", "14"))
+FRONTEND_BASE_URL=os.getenv("FRONTEND_BASE_URL", os.getenv("AYS_CONNECT_PUBLIC_URL", "http://localhost:3000")).rstrip("/")
 EMAIL_BACKEND=os.getenv("EMAIL_BACKEND","django.core.mail.backends.console.EmailBackend")
 EMAIL_HOST=os.getenv("EMAIL_HOST","");EMAIL_PORT=int(os.getenv("EMAIL_PORT","587"));EMAIL_HOST_USER=os.getenv("EMAIL_HOST_USER","");EMAIL_HOST_PASSWORD=os.getenv("EMAIL_HOST_PASSWORD","");EMAIL_USE_TLS=os.getenv("EMAIL_USE_TLS","1")=="1";DEFAULT_FROM_EMAIL=os.getenv("DEFAULT_FROM_EMAIL","AYS Connect <no-reply@localhost>")

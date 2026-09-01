@@ -42,6 +42,7 @@ import "./notifications.css";
 import "./knowledge.css";
 import "./learning.css";
 import { ProductionWorkRouter, WorkHome } from "./work";
+import { ActivationPage, PeopleRouter, RegistrationPage } from "./people";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
 const APP_VERSION = import.meta.env.VITE_APP_VERSION || "1.0.0-rc1";
@@ -521,6 +522,7 @@ function Login({ onLogin }: { onLogin: (p: Profile) => void }) {
             {busy ? "Входим…" : "Войти"}
             <ChevronRight size={18} />
           </button>
+          <a href="/register">Зарегистрироваться</a>
         </form>
       </section>
     </main>
@@ -558,6 +560,8 @@ function App() {
     window.addEventListener("popstate", syncPath);
     return () => window.removeEventListener("popstate", syncPath);
   }, []);
+  if (path === "/register") return <RegistrationPage />;
+  if (path.startsWith("/activate/")) return <ActivationPage token={decodeURIComponent(path.slice("/activate/".length))} />;
   const [view, setView] = useState<
     | "dashboard"
     | "tasks"
@@ -693,6 +697,7 @@ function App() {
             <Wrench size={19} />
             Заявки
           </a>
+          <a href="/people/employees" className={path.startsWith("/people") ? "active" : ""} onClick={(event) => { event.preventDefault(); navigate("/people/employees"); }}><Users size={19} />Сотрудники</a>
           <a
             href="#checklists"
             className={view === "checklists" ? "active" : ""}
@@ -741,7 +746,7 @@ function App() {
             <Gauge size={19} />
             Эффективность
           </a>
-          {nav.slice(3, 5).map(([n, I]) => (
+          {nav.slice(3, 4).map(([n, I]) => (
             <button key={n}>
               <I size={19} />
               {n}
@@ -793,7 +798,9 @@ function App() {
             <div className="avatar small">{initials(profile.full_name)}</div>
           </div>
         </header>
-        {path.startsWith("/tasks") || path.startsWith("/requests") ? (
+        {path.startsWith("/people") ? (
+          <PeopleRouter path={path} navigate={navigate} />
+        ) : path.startsWith("/tasks") || path.startsWith("/requests") ? (
           <ProductionWorkRouter path={path} navigate={navigate} />
         ) : view === "notifications" ? (
           <NotificationsView />

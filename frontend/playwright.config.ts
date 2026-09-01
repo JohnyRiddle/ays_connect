@@ -7,8 +7,8 @@ export default defineConfig({
     baseURL: process.env.AYS_E2E_BASE_URL || "https://localhost",
     ignoreHTTPSErrors: true,
     trace: "retain-on-failure",
-    launchOptions: {
-      args: ["--host-resolver-rules=MAP localhost host.docker.internal"],
-    },
+    launchOptions: process.env.AYS_E2E_HOST_GATEWAY
+      ? { args: [`--host-resolver-rules=MAP localhost ${process.env.AYS_E2E_HOST_GATEWAY}`] }
+      : undefined,
   },
 });

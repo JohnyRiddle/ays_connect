@@ -121,3 +121,42 @@ class EmployeeFacility(models.Model):
     is_primary = models.BooleanField(default=False)
     class Meta:
         constraints = [models.UniqueConstraint(fields=["employee", "facility"], name="unique_employee_facility")]
+
+
+class EmployeeInvitation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    employee = models.ForeignKey(Employee, on_delete=models.PROTECT, related_name="invitations")
+    token_hash = models.CharField(max_length=64, unique=True)
+    delivery_address = models.EmailField(blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="employee_invitations_created")
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+    used_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["employee", "expires_at"])]
+        constraints = [models.UniqueConstraint(fields=["employee"], condition=models.Q(used_at__isnull=True, revoked_at__isnull=True), name="one_open_employee_invitation")]
+
+
+class RegistrationRequest(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Ожидает проверки"
+        APPROVED = "approved", "Одобрена"
+        REJECTED = "rejected", "Отклонена"
+        EXPIRED = "expired", "Истекла"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    full_name = models.CharField(max_length=300)
+    email = models.EmailField()
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)
+    matched_employee = models.ForeignKey(Employee, on_delete=models.PROTECT, null=True, blank=True, related_name="registration_requests")
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="registration_requests_reviewed")
+    rejection_code = models.CharField(max_length=80, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["email", "status", "created_at"])]
+        constraints = [models.UniqueConstraint(models.functions.Lower("email"), condition=models.Q(status="pending"), name="one_pending_registration_email")]

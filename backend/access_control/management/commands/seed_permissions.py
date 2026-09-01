@@ -5,6 +5,10 @@ from access_control.models import Permission
 PERMISSIONS = {
     "employee.view": "Просмотр сотрудников",
     "employee.manage": "Управление сотрудниками",
+    "people.employee.view": "Просмотр справочника сотрудников",
+    "people.invitation.manage": "Управление приглашениями сотрудников",
+    "people.registration.manage": "Рассмотрение заявок на регистрацию",
+    "people.account.manage": "Блокировка и разблокировка учётных записей",
     "organization.view": "Просмотр оргструктуры",
     "organization.manage": "Управление оргструктурой",
     "location.view": "Просмотр локаций",

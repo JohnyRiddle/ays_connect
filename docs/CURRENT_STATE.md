@@ -1,6 +1,6 @@
 # Текущее состояние AYS Connect
 
-> 01.09.2026: Phase 1.6A COMPLETE. Production Work frontend, PostgreSQL suite 254/254, Playwright 7/7 и business-object DB/media isolated restore с Task/Request attachment SHA-256 MATCH проходят. Phase 1.6 LOCAL GATES PASS; server-dependent production gates остаются PENDING.
+> 01.09.2026: Phase 1.6C COMPLETE from checkpoint `0792ec2`. Employee Directory, hash-only invitations, atomic activation, controlled registration and account administration pass PostgreSQL 264/264, Playwright 15/15, pilot and isolated backup/restore gates. Phase 1.6B has not started.
 
 **Обновлено:** 01.09.2026
 
@@ -9,7 +9,7 @@
 
 ## Текущая задача
 
-Phase 1.6 — Local Hardening Gate + Production Release Gate. LOCAL GATES PASS; production/server gates PENDING.
+Phase 1.6C — COMPLETE. Phase 1.6 LOCAL GATES PASS; production/server Phase 1.6B remains PENDING.
 
 ## Сделано
 

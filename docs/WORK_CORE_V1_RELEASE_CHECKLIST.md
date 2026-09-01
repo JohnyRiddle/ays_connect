@@ -4,6 +4,7 @@
 
 | Gate | Status | Evidence / blocker |
 |---|---|---|
+| Phase 1.6C Employee Directory / Onboarding | PASS | PostgreSQL 264/264, onboarding concurrency 10/10, Playwright 15/15, pilot and isolated restore PASS |
 | Phase 1.5 checkpoint | PASS | `0068d12`, clean initial baseline |
 | Functional scope freeze | PASS | Только security, correctness, recovery, deployment и UX hardening |
 | Authentication / refresh / logout | PASS | Disabled User/Employee, immediate access denial, generic errors, throttle, rotation and blacklist regressions |
