@@ -1,4 +1,4 @@
-{$PRODUCTION_HOST} {
+http://ays-connect.ru {
     encode zstd gzip
 
     header {
@@ -23,11 +23,15 @@
     }
 
     handle /api/* {
-        reverse_proxy backend:8000
+        reverse_proxy backend:8000 {
+            header_up X-Forwarded-Proto https
+        }
     }
 
     handle /admin/* {
-        reverse_proxy backend:8000
+        reverse_proxy backend:8000 {
+            header_up X-Forwarded-Proto https
+        }
     }
 
     handle {
