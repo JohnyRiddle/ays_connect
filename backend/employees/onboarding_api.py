@@ -158,6 +158,22 @@ class EmployeeDirectoryViewSet(viewsets.ModelViewSet):
         chain = [item for item in EmployeeManagerService.management_chain(employee) if item.pk in visible_ids]
         return Response(self.get_serializer(chain, many=True).data)
 
+    @action(detail=True, methods=["get"])
+    def teams(self, request, pk=None):
+        from .models import TeamMembership
+        from .teams_api import TeamMembershipSerializer, visible_teams
+        employee=self.get_object(); self._require("people.team_membership.view",employee)
+        qs=TeamMembership.objects.filter(employee=employee,valid_to__isnull=True,team__in=visible_teams(request.user,"people.team_membership.view")).select_related("team","employee")
+        return Response(TeamMembershipSerializer(qs,many=True).data)
+
+    @action(detail=True, methods=["get"], url_path="teams/history")
+    def teams_history(self, request, pk=None):
+        from .models import TeamMembership
+        from .teams_api import TeamMembershipSerializer, visible_teams
+        employee=self.get_object(); self._require("people.team_membership.view_history",employee)
+        queryset=TeamMembership.objects.filter(employee=employee,team__in=visible_teams(request.user,"people.team_membership.view_history")).select_related("team","employee")
+        return Response(TeamMembershipSerializer(queryset,many=True).data)
+
     @action(detail=True, methods=["post"], url_path="change-manager")
     def change_manager(self, request, pk=None):
         employee = self.get_object(); self._require("people.manager.manage", employee)

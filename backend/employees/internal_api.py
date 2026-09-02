@@ -54,11 +54,11 @@ class AssignmentTargetSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AssignmentTarget
-        fields = ("id", "target_type", "target_type_label", "display_name", "employee", "position", "org_unit", "functional_group")
+        fields = ("id", "target_type", "target_type_label", "display_name", "employee", "position", "org_unit", "functional_group", "team", "strategy", "team_role", "explicit_employee")
         read_only_fields = fields
 
     def get_display_name(self, obj):
-        target = obj.employee or obj.position or obj.org_unit or obj.functional_group
+        target = obj.employee or obj.position or obj.org_unit or obj.functional_group or obj.team
         return getattr(target, "display_name", None) or getattr(target, "name", None) or str(target)
 
 
@@ -159,7 +159,7 @@ class AssignmentTargetViewSet(viewsets.ReadOnlyModelViewSet):
     permission_domain = "employee"
 
     def get_queryset(self):
-        queryset = AssignmentTarget.objects.select_related("employee", "position", "org_unit", "functional_group")
+        queryset = AssignmentTarget.objects.select_related("employee", "position", "org_unit", "functional_group", "team", "explicit_employee")
         target_type = self.request.query_params.get("target_type")
         if target_type:
             queryset = queryset.filter(target_type=target_type)
@@ -169,5 +169,6 @@ class AssignmentTargetViewSet(viewsets.ReadOnlyModelViewSet):
                 Q(employee__first_name__icontains=search) | Q(employee__last_name__icontains=search)
                 | Q(position__name__icontains=search) | Q(org_unit__name__icontains=search)
                 | Q(functional_group__name__icontains=search)
+                | Q(team__name__icontains=search) | Q(team__code__icontains=search)
             )
         return queryset.order_by("target_type", "id")

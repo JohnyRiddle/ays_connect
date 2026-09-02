@@ -9,7 +9,7 @@
 
 ## Текущая задача
 
-Phase 2.1 — implementation, PostgreSQL 17.11 quality gates and frontend hardening complete locally. Phase 2.2 has not started.
+Phase 2.2 Organization & Teams — IN PROGRESS. Domain, API and PostgreSQL tests are implemented locally; clean/upgrade and final regression gates remain before completion status.
 
 ## Сделано
 
@@ -50,6 +50,10 @@ Phase 2.1 — implementation, PostgreSQL 17.11 quality gates and frontend harden
 - два PostgreSQL upgrade rehearsal 0006 → 0007 и полный backend regression 276/276 проходят.
 - Work/People frontend возвращён к единой компактной стилистике; все пункты основного меню маршрутизируются, незавершённые разделы имеют штатную заглушку, формы создания Task/Request открываются в правом drawer;
 - production frontend build, Compose validation, deployment regression и local-pilot SPA/E2E gate проходят.
+- Phase 2.2 расширяет единственную формальную модель `OrgUnit` и добавляет отдельный домен `Team`/`TeamMembership`, не заменяя legacy `FunctionalGroup`;
+- добавлены `AssignmentTarget.TEAM`, детерминированные Team Resolver strategies, preview API, scoped permissions, Audit/Outbox и интеграция с увольнением сотрудника;
+- PostgreSQL `btree_gist` exclusion constraint защищает всю историю членства от пересекающихся периодов, включая прямые записи вне service layer;
+- PostgreSQL 17.11 Phase 2.2 gate: clean migration PASS, upgrade `employees.0007` → current PASS, `23/23` phase tests и `299/299` полный backend regression PASS.
 
 ## Осталось
 

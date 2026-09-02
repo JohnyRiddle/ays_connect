@@ -1,4 +1,6 @@
 from django.conf import settings
+from django.contrib.postgres.constraints import ExclusionConstraint
+from django.contrib.postgres.fields import DateTimeRangeField, RangeOperators
 from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ValidationError
@@ -175,12 +177,128 @@ class FunctionalGroupMembership(models.Model):
         constraints = [models.UniqueConstraint(fields=["group", "employee"], condition=models.Q(is_active=True), name="unique_active_group_membership")]
 
 
+class TeamNumberSequence(models.Model):
+    key = models.CharField(max_length=32, unique=True, default="team")
+    next_value = models.PositiveBigIntegerField(default=1)
+
+
+class Team(models.Model):
+    class Type(models.TextChoices):
+        FUNCTIONAL = "functional", "Функциональная"
+        CROSS_FUNCTIONAL = "cross_functional", "Кросс-функциональная"
+        PROJECT = "project", "Проектная"
+        SERVICE = "service", "Сервисная"
+        COMMITTEE = "committee", "Комитет"
+        TEMPORARY = "temporary", "Временная"
+        OTHER = "other", "Другая"
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Черновик"
+        ACTIVE = "active", "Активна"
+        SUSPENDED = "suspended", "Приостановлена"
+        CLOSED = "closed", "Закрыта"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    code = models.CharField(max_length=32, unique=True, editable=False)
+    name = models.CharField(max_length=150)
+    short_name = models.CharField(max_length=80, blank=True)
+    description = models.TextField(blank=True)
+    team_type = models.CharField(max_length=32, choices=Type.choices, default=Type.FUNCTIONAL, db_index=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT, db_index=True)
+    legal_entity = models.ForeignKey("organizations.LegalEntity", on_delete=models.PROTECT, null=True, blank=True, related_name="teams")
+    org_unit = models.ForeignKey("organizations.OrgUnit", on_delete=models.PROTECT, null=True, blank=True, related_name="teams")
+    location = models.ForeignKey("organizations.Location", on_delete=models.PROTECT, null=True, blank=True, related_name="teams")
+    parent_team = models.ForeignKey("self", on_delete=models.PROTECT, null=True, blank=True, related_name="child_teams")
+    owner_employee = models.ForeignKey(Employee, on_delete=models.PROTECT, null=True, blank=True, related_name="owned_teams")
+    lead_employee = models.ForeignKey(Employee, on_delete=models.PROTECT, null=True, blank=True, related_name="led_teams")
+    valid_from = models.DateTimeField(default=timezone.now)
+    valid_to = models.DateTimeField(null=True, blank=True)
+    is_assignable = models.BooleanField(default=True, db_index=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="teams_created")
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="teams_updated")
+    version = models.PositiveIntegerField(default=1)
+
+    def save(self,*args,**kwargs):
+        if not self._state.adding:
+            previous=type(self).objects.filter(pk=self.pk).values_list("code",flat=True).first()
+            if previous and self.code!=previous: raise ValidationError({"code":"Team code is immutable."})
+        return super().save(*args,**kwargs)
+
+    class Meta:
+        indexes = [models.Index(fields=["parent_team"]), models.Index(fields=["legal_entity", "status"]), models.Index(fields=["org_unit", "status"]), models.Index(fields=["location", "status"]), models.Index(fields=["owner_employee"]), models.Index(fields=["lead_employee"])]
+        constraints = [
+            models.CheckConstraint(condition=~models.Q(id=models.F("parent_team_id")), name="team_parent_not_self"),
+            models.CheckConstraint(condition=models.Q(valid_to__isnull=True) | models.Q(valid_to__gte=models.F("valid_from")), name="team_valid_period"),
+        ]
+
+
+class TeamMembership(models.Model):
+    class Role(models.TextChoices):
+        LEAD = "lead", "Руководитель"
+        DEPUTY = "deputy", "Заместитель"
+        MEMBER = "member", "Участник"
+        COORDINATOR = "coordinator", "Координатор"
+        OBSERVER = "observer", "Наблюдатель"
+
+    class Type(models.TextChoices):
+        PERMANENT = "permanent", "Постоянное"
+        TEMPORARY = "temporary", "Временное"
+        OBSERVER = "observer", "Наблюдатель"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    team = models.ForeignKey(Team, on_delete=models.PROTECT, related_name="memberships")
+    employee = models.ForeignKey(Employee, on_delete=models.PROTECT, related_name="team_memberships")
+    role = models.CharField(max_length=24, choices=Role.choices, default=Role.MEMBER)
+    membership_type = models.CharField(max_length=24, choices=Type.choices, default=Type.PERMANENT)
+    valid_from = models.DateTimeField(default=timezone.now)
+    valid_to = models.DateTimeField(null=True, blank=True)
+    allocation_percent = models.PositiveSmallIntegerField(null=True, blank=True)
+    is_primary_in_team = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="team_memberships_created")
+    ended_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="team_memberships_ended")
+    end_reason = models.CharField(max_length=240, blank=True)
+    version = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ["-valid_from", "created_at"]
+        indexes = [models.Index(fields=["team", "employee"]), models.Index(fields=["team", "valid_from", "valid_to"]), models.Index(fields=["employee", "valid_from", "valid_to"])]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(valid_to__isnull=True) | models.Q(valid_to__gte=models.F("valid_from")), name="team_membership_valid_period"),
+            models.CheckConstraint(condition=models.Q(allocation_percent__isnull=True) | models.Q(allocation_percent__gte=1, allocation_percent__lte=100), name="team_membership_allocation_range"),
+            models.UniqueConstraint(fields=["team", "employee"], condition=models.Q(valid_to__isnull=True), name="one_open_team_membership"),
+            models.UniqueConstraint(fields=["team"], condition=models.Q(valid_to__isnull=True, role="lead", is_primary_in_team=True), name="one_primary_team_lead"),
+            ExclusionConstraint(
+                name="team_membership_no_period_overlap",
+                expressions=[
+                    ("team", RangeOperators.EQUAL),
+                    ("employee", RangeOperators.EQUAL),
+                    (
+                        models.Func(
+                            models.F("valid_from"),
+                            models.F("valid_to"),
+                            models.Value("[)"),
+                            function="TSTZRANGE",
+                            output_field=DateTimeRangeField(),
+                        ),
+                        RangeOperators.OVERLAPS,
+                    ),
+                ],
+            ),
+        ]
+
+
 class AssignmentTarget(models.Model):
     class Type(models.TextChoices):
         EMPLOYEE = "employee", "Сотрудник"
         POSITION = "position", "Должность"
         ORG_UNIT = "org_unit", "Подразделение"
         FUNCTIONAL_GROUP = "functional_group", "Функциональная группа"
+        TEAM = "team", "Команда"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     target_type = models.CharField(max_length=32, choices=Type.choices)
@@ -188,14 +306,19 @@ class AssignmentTarget(models.Model):
     position = models.ForeignKey(Position, on_delete=models.PROTECT, null=True, blank=True, related_name="assignment_targets")
     org_unit = models.ForeignKey("organizations.OrgUnit", on_delete=models.PROTECT, null=True, blank=True, related_name="assignment_targets")
     functional_group = models.ForeignKey(FunctionalGroup, on_delete=models.PROTECT, null=True, blank=True, related_name="assignment_targets")
+    team = models.ForeignKey(Team, on_delete=models.PROTECT, null=True, blank=True, related_name="assignment_targets")
+    strategy = models.CharField(max_length=32, blank=True)
+    team_role = models.CharField(max_length=24, blank=True)
+    explicit_employee = models.ForeignKey(Employee, on_delete=models.PROTECT, null=True, blank=True, related_name="explicit_assignment_targets")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         constraints = [models.CheckConstraint(condition=(
-            models.Q(target_type="employee", employee__isnull=False, position__isnull=True, org_unit__isnull=True, functional_group__isnull=True)
-            | models.Q(target_type="position", employee__isnull=True, position__isnull=False, org_unit__isnull=True, functional_group__isnull=True)
-            | models.Q(target_type="org_unit", employee__isnull=True, position__isnull=True, org_unit__isnull=False, functional_group__isnull=True)
-            | models.Q(target_type="functional_group", employee__isnull=True, position__isnull=True, org_unit__isnull=True, functional_group__isnull=False)
+            models.Q(target_type="employee", employee__isnull=False, position__isnull=True, org_unit__isnull=True, functional_group__isnull=True, team__isnull=True, explicit_employee__isnull=True)
+            | models.Q(target_type="position", employee__isnull=True, position__isnull=False, org_unit__isnull=True, functional_group__isnull=True, team__isnull=True, explicit_employee__isnull=True)
+            | models.Q(target_type="org_unit", employee__isnull=True, position__isnull=True, org_unit__isnull=False, functional_group__isnull=True, team__isnull=True, explicit_employee__isnull=True)
+            | models.Q(target_type="functional_group", employee__isnull=True, position__isnull=True, org_unit__isnull=True, functional_group__isnull=False, team__isnull=True, explicit_employee__isnull=True)
+            | models.Q(target_type="team", employee__isnull=True, position__isnull=True, org_unit__isnull=True, functional_group__isnull=True, team__isnull=False)
         ), name="assignment_target_exactly_one_reference")]
 
 class EmployeeFacility(models.Model):

@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 import uuid
 
 
@@ -23,17 +24,42 @@ class LegalEntity(TimestampedUUIDModel):
 
 
 class OrgUnit(TimestampedUUIDModel):
+    class Type(models.TextChoices):
+        COMPANY = "company", "Компания"
+        DIRECTION = "direction", "Направление"
+        DIVISION = "division", "Дивизион"
+        DEPARTMENT = "department", "Отдел"
+        BRANCH = "branch", "Филиал"
+        FACILITY = "facility", "Объект"
+        SECTION = "section", "Секция"
+        OTHER = "other", "Другое"
+
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Активно"
+        CLOSED = "closed", "Закрыто"
+
     name = models.CharField(max_length=150)
+    short_name = models.CharField(max_length=80, blank=True)
+    description = models.TextField(blank=True)
     code = models.CharField(max_length=64, blank=True, null=True, unique=True)
     parent = models.ForeignKey("self", on_delete=models.PROTECT, null=True, blank=True, related_name="children")
     legal_entity = models.ForeignKey(LegalEntity, on_delete=models.PROTECT, null=True, blank=True, related_name="org_units")
-    unit_type = models.CharField(max_length=64, blank=True)
+    unit_type = models.CharField(max_length=64, choices=Type.choices, default=Type.OTHER)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE, db_index=True)
+    valid_from = models.DateTimeField(default=timezone.now)
+    valid_to = models.DateTimeField(null=True, blank=True)
+    sort_order = models.IntegerField(default=0)
+    metadata = models.JSONField(default=dict, blank=True)
+    version = models.PositiveIntegerField(default=1)
     manager_position = models.ForeignKey("employees.Position", on_delete=models.SET_NULL, null=True, blank=True, related_name="managed_org_units")
     manager_employee = models.ForeignKey("employees.Employee", on_delete=models.SET_NULL, null=True, blank=True, related_name="managed_org_units")
 
     class Meta:
         indexes = [models.Index(fields=["parent"]), models.Index(fields=["legal_entity"])]
-        constraints = [models.CheckConstraint(condition=~models.Q(id=models.F("parent_id")), name="org_unit_parent_not_self")]
+        constraints = [
+            models.CheckConstraint(condition=~models.Q(id=models.F("parent_id")), name="org_unit_parent_not_self"),
+            models.CheckConstraint(condition=models.Q(valid_to__isnull=True) | models.Q(valid_to__gte=models.F("valid_from")), name="org_unit_valid_period"),
+        ]
 
     def __str__(self):
         return self.name

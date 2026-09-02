@@ -18,7 +18,7 @@ class OrgUnitSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrgUnit
         fields = "__all__"
-        read_only_fields = ("id", "created_at", "updated_at")
+        read_only_fields = ("id", "parent", "status", "valid_to", "version", "created_at", "updated_at")
 
 
 class LocationSerializer(serializers.ModelSerializer):
@@ -49,8 +49,25 @@ class OrgUnitViewSet(viewsets.ModelViewSet):
         unit = self.get_object()
         parent_id = request.data.get("parent_id")
         parent = OrgUnit.objects.get(pk=parent_id) if parent_id else None
-        moved = OrgUnitService.move(unit=unit, parent=parent, actor_user=request.user)
+        moved = OrgUnitService.move(unit=unit, parent=parent, expected_version=int(request.data.get("version",0)), actor_user=request.user)
         return Response(self.get_serializer(moved).data)
+
+    @action(detail=True, methods=["post"])
+    def close(self, request, pk=None):
+        return Response(self.get_serializer(OrgUnitService.close(unit=self.get_object(),expected_version=int(request.data.get("version",0)),actor_user=request.user,reason=request.data.get("reason",""))).data)
+
+    def perform_destroy(self, instance):
+        raise serializers.ValidationError("Подразделения не удаляются физически; используйте close.")
+
+    @action(detail=False, methods=["get"])
+    def tree(self, request):
+        qs=self.get_queryset()
+        if request.query_params.get("legal_entity"): qs=qs.filter(legal_entity=request.query_params["legal_entity"])
+        rows=list(qs.values("id","parent_id","code","name","short_name","unit_type","status","sort_order")); children={}
+        for row in rows: children.setdefault(row["parent_id"],[]).append(row)
+        for values in children.values(): values.sort(key=lambda x:(x["sort_order"],x["name"]))
+        def node(row): return {**row,"children":[node(x) for x in children.get(row["id"],[])]}
+        return Response([node(x) for x in children.get(None,[])])
 
 
 class LocationViewSet(viewsets.ModelViewSet):

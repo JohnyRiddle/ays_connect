@@ -14,6 +14,8 @@ from .models import (
     EmployeeNumberSequence,
     FunctionalGroup,
     FunctionalGroupMembership,
+    Team,
+    TeamMembership,
 )
 
 
@@ -88,6 +90,18 @@ class EmployeeService:
             Q(employee=locked) | Q(manager=locked), status=EmployeeManagerAssignment.Status.ACTIVE
         ).update(status=EmployeeManagerAssignment.Status.ENDED, valid_to=now)
         FunctionalGroupMembership.objects.select_for_update().filter(employee=locked, is_active=True).update(is_active=False, active_until=now)
+        for membership in TeamMembership.objects.select_for_update().filter(employee=locked, valid_to__isnull=True):
+            membership.valid_to=max(now,membership.valid_from); membership.end_reason="employee_terminated"; membership.ended_by=actor_user; membership.version+=1
+            membership.save(update_fields=["valid_to","end_reason","ended_by","version","updated_at"])
+            AuditService.record(actor_user=actor_user,action="people.team.member_ended",entity=membership,new_value={"valid_to":membership.valid_to,"reason":"employee_terminated"})
+            DomainEventService.publish(event_type="people.team.member_ended",entity=membership,actor=actor_user,payload={"employee_id":str(locked.pk),"reason":"employee_terminated"})
+        for team in Team.objects.select_for_update().filter(Q(owner_employee=locked) | Q(lead_employee=locked)):
+            before={"owner_employee":str(team.owner_employee_id) if team.owner_employee_id else None,"lead_employee":str(team.lead_employee_id) if team.lead_employee_id else None}
+            if team.owner_employee_id==locked.pk: team.owner_employee=None
+            if team.lead_employee_id==locked.pk: team.lead_employee=None
+            team.version+=1; team.save(update_fields=["owner_employee","lead_employee","version","updated_at"])
+            AuditService.record(actor_user=actor_user,action="people.team.leadership_vacated",entity=team,old_value=before,new_value={"owner_employee":str(team.owner_employee_id) if team.owner_employee_id else None,"lead_employee":str(team.lead_employee_id) if team.lead_employee_id else None})
+            DomainEventService.publish(event_type="people.team.leadership_vacated",entity=team,actor=actor_user,payload={"employee_id":str(locked.pk)})
         locked.invitations.select_for_update().filter(used_at__isnull=True, revoked_at__isnull=True).update(revoked_at=now)
         if locked.user_id:
             locked.user.is_active = False
@@ -124,6 +138,9 @@ class EmployeeAssignmentService:
         locked = Employee.objects.select_for_update().get(pk=employee.pk)
         if not locked.is_active or locked.status == Employee.Status.TERMINATED:
             raise ValidationError("Terminated employee cannot receive assignments.")
+        org_unit=context.get("org_unit")
+        if org_unit and (not org_unit.is_active or getattr(org_unit,"status","active")!="active"):
+            raise ValidationError("Closed organizational unit cannot receive active assignments.")
         if is_primary and EmployeeAssignment.objects.select_for_update().filter(employee=locked, is_primary=True, status=EmployeeAssignment.Status.ACTIVE).exists():
             raise ValidationError("Employee already has an active primary assignment.")
         assignment = EmployeeAssignment.objects.create(employee=locked, is_primary=is_primary, valid_from=valid_from or timezone.now(), **context)
