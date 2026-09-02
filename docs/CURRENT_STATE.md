@@ -1,6 +1,6 @@
 # Текущее состояние AYS Connect
 
-> 02.09.2026: Phase 2.1 People Domain Foundation and unified Work/People frontend are complete after checkpoint `98c23a7`. Existing Employee is reused; production numbering, historical assignments, manager hierarchy and lifecycle services pass PostgreSQL 276/276 plus two upgrade rehearsals.
+> 02.09.2026: Phase 2.2 Organization & Teams завершена checkpoint `96bb30a`; Phase 2.3 Employee Profile & Self-Service реализуется локально поверх чистой границы.
 
 **Обновлено:** 02.09.2026
 
@@ -9,7 +9,7 @@
 
 ## Текущая задача
 
-Phase 2.2 Organization & Teams — IN PROGRESS. Domain, API and PostgreSQL tests are implemented locally; clean/upgrade and final regression gates remain before completion status.
+Phase 2.3 Employee Profile & Self-Service — COMPLETE локально. PostgreSQL clean/upgrade, 27/27 phase tests, 10/10 concurrency, 326/326 full regression и frontend production build PASS; изменения ожидают отдельного checkpoint-разрешения.
 
 ## Сделано
 
@@ -54,6 +54,10 @@ Phase 2.2 Organization & Teams — IN PROGRESS. Domain, API and PostgreSQL tests
 - добавлены `AssignmentTarget.TEAM`, детерминированные Team Resolver strategies, preview API, scoped permissions, Audit/Outbox и интеграция с увольнением сотрудника;
 - PostgreSQL `btree_gist` exclusion constraint защищает всю историю членства от пересекающихся периодов, включая прямые записи вне service layer;
 - PostgreSQL 17.11 Phase 2.2 gate: clean migration PASS, upgrade `employees.0007` → current PASS, `23/23` phase tests и `299/299` полный backend regression PASS.
+- Phase 2.3 переиспользует `Employee.avatar`, добавляет OneToOne `EmployeeProfile`, типизированную field visibility и отдельный allowlisted `EmployeeDataChangeRequest` с optimistic locking, stale snapshot и запретом self-approval;
+- добавлены self-service, directory и review endpoints в существующем `/api/internal/v1/people/`, защищённая выдача avatar, Audit/Outbox и уведомления через действующий Notification Core;
+- frontend получил компактную страницу «Мой профиль», completeness, редактирование разрешённых полей и avatar actions; production build PASS.
+- PostgreSQL 17.11 Phase 2.3 gate: clean migrations PASS, upgrade `employees.0010 → 0012` PASS, 27/27 phase tests (10 concurrency/security), полный backend regression 326/326 PASS без skipped.
 
 ## Осталось
 

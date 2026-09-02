@@ -10,6 +10,12 @@ from events.models import OutboxEvent
 from .models import Notification,NotificationDelivery,NotificationDeliveryAttempt,NotificationIntent,NotificationPreference,NotificationQuietHours,NotificationTemplate,TelegramAccount
 ALLOWED_EVENTS={"notification.requested"};MANDATORY_IN_APP={"SLA_ESCALATION"};MAX_ATTEMPTS=5
 DEFAULT_TEMPLATE={"title":"SLA: заявка {request_id}","body":"Нарушение SLA, уровень {level}. Событие: {event_type}.","allowed":["request_id","level","event_type"]}
+PEOPLE_TEMPLATES={
+    "PEOPLE_CHANGE_APPROVED":{"title":"Изменение данных одобрено","body":"Запрос на изменение поля {field_type} одобрен.","allowed":["field_type"]},
+    "PEOPLE_CHANGE_REJECTED":{"title":"Изменение данных отклонено","body":"Запрос на изменение поля {field_type} отклонён.","allowed":["field_type"]},
+    "PEOPLE_CHANGE_APPLIED":{"title":"Данные профиля изменены","body":"Изменение поля {field_type} применено.","allowed":["field_type"]},
+    "PEOPLE_CHANGE_FAILED":{"title":"Изменение данных не применено","body":"Не удалось применить изменение поля {field_type}.","allowed":["field_type"]},
+}
 def validate_template(text,allowed):
     for _,field,fmt,conversion in Formatter().parse(text):
         if field and (field not in allowed or any(x in field for x in ".[]") or fmt or conversion):raise ValidationError(f"Unsafe or unavailable template variable: {field}")
@@ -48,7 +54,7 @@ def ingest_event(event):
     payload=event.payload or {};reason=payload.get("reason","");intent,created=NotificationIntent.objects.get_or_create(source_event_id=event.event_id,defaults={"event_type":event.event_type,"reason":reason,"payload":payload})
     if not created and intent.status==NotificationIntent.Status.MATERIALIZED:return intent
     try:
-        employee=Employee.objects.select_related("user").get(pk=payload.get("recipient_employee_id"),is_active=True,user__isnull=False);template=NotificationTemplate.objects.filter(code=reason,is_active=True).first();title_source=template.title_template if template else DEFAULT_TEMPLATE["title"];body_source=template.body_template if template else DEFAULT_TEMPLATE["body"];allowed=template.allowed_variables if template else DEFAULT_TEMPLATE["allowed"]
+        employee=Employee.objects.select_related("user").get(pk=payload.get("recipient_employee_id"),is_active=True,user__isnull=False);template=NotificationTemplate.objects.filter(code=reason,is_active=True).first();fallback=PEOPLE_TEMPLATES.get(reason,DEFAULT_TEMPLATE);title_source=template.title_template if template else fallback["title"];body_source=template.body_template if template else fallback["body"];allowed=template.allowed_variables if template else fallback["allowed"]
         item,_=Notification.objects.get_or_create(intent=intent,recipient_employee=employee,defaults={"recipient":employee.user,"template":template,"notification_type":"sla_escalation" if reason=="SLA_ESCALATION" else "system","priority":"critical" if reason=="SLA_ESCALATION" else "info","title":render_template(title_source,payload,allowed),"message":render_template(body_source,payload,allowed),"entity_type":"ServiceRequest","entity_id":str(payload.get("request_id") or ""),"action_url":f"/#requests/{payload.get('request_id')}" if payload.get("request_id") else ""})
         NotificationChannelRouter.route(item,reason)
         intent.status="materialized";intent.processed_at=timezone.now();intent.last_error="";intent.save(update_fields=["status","processed_at","last_error"]);return intent

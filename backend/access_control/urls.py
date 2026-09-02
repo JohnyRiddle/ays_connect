@@ -9,11 +9,14 @@ from work_tasks.automation_views import OccurrenceViewSet, RecurrenceViewSet, Sa
 from service_requests.views import CategoryViewSet, ServiceViewSet, RequestTypeViewSet, ServiceCatalogView, ServiceRequestViewSet
 from django.urls import path
 from sla.views import CalendarViewSet, PolicyViewSet, AssignmentRuleViewSet, PreviewViewSet, EscalationPolicyViewSet, EscalationPolicyVersionViewSet, EscalationBindingViewSet
+from employees.profile_api import AvatarView, ChangeRequestReviewViewSet, CompletenessView, DirectoryViewSet, MeView, OrganizationView, SelfChangeRequestViewSet, TeamsView, VisibilityView
 
 router = DefaultRouter()
 router.register("employees", EmployeeViewSet, basename="internal-employees")
 router.register("people/employees", EmployeeDirectoryViewSet, basename="people-employees")
 router.register("people/registrations", RegistrationViewSet, basename="people-registrations")
+router.register("people/directory", DirectoryViewSet, basename="people-directory")
+router.register("people/change-requests", ChangeRequestReviewViewSet, basename="people-change-requests")
 router.register("positions", PositionViewSet, basename="internal-positions")
 router.register("legal-entities", LegalEntityViewSet, basename="internal-legal-entities")
 router.register("org-units", OrgUnitViewSet, basename="internal-org-units")
@@ -41,4 +44,12 @@ router.register("sla/escalation-policies", EscalationPolicyViewSet, basename="in
 router.register("sla/escalation-policy-versions", EscalationPolicyVersionViewSet, basename="internal-sla-escalation-policy-versions")
 router.register("sla/escalation-bindings", EscalationBindingViewSet, basename="internal-sla-escalation-bindings")
 router.register("sla", PreviewViewSet, basename="internal-sla-preview")
-urlpatterns = router.urls + [path("service-catalog/", ServiceCatalogView.as_view(), name="internal-service-catalog")]
+self_changes=SelfChangeRequestViewSet.as_view({"get":"list","post":"create"})
+self_change_detail=SelfChangeRequestViewSet.as_view({"get":"retrieve"})
+self_change_cancel=SelfChangeRequestViewSet.as_view({"post":"cancel"})
+urlpatterns = [
+    path("people/me/",MeView.as_view()), path("people/me/completeness/",CompletenessView.as_view()),
+    path("people/me/organization/",OrganizationView.as_view()), path("people/me/teams/",TeamsView.as_view()),
+    path("people/me/visibility/",VisibilityView.as_view()), path("people/me/avatar/",AvatarView.as_view()),
+    path("people/me/change-requests/",self_changes),path("people/me/change-requests/<uuid:pk>/",self_change_detail),path("people/me/change-requests/<uuid:pk>/cancel/",self_change_cancel),
+] + router.urls + [path("service-catalog/", ServiceCatalogView.as_view(), name="internal-service-catalog")]

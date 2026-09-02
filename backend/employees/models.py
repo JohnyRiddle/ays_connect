@@ -366,3 +366,60 @@ class RegistrationRequest(models.Model):
     class Meta:
         indexes = [models.Index(fields=["email", "status", "created_at"])]
         constraints = [models.UniqueConstraint(models.functions.Lower("email"), condition=models.Q(status="pending"), name="one_pending_registration_email")]
+
+
+class EmployeeProfile(models.Model):
+    class Visibility(models.TextChoices):
+        PRIVATE = "private", "Только я и HR"
+        MANAGERS = "managers", "Руководители"
+        TEAM = "team", "Команды"
+        ORGANIZATION = "organization", "Организация"
+
+    employee = models.OneToOneField(Employee, on_delete=models.CASCADE, related_name="profile")
+    preferred_name = models.CharField(max_length=150, blank=True)
+    bio = models.TextField(max_length=1000, blank=True)
+    additional_email = models.EmailField(blank=True)
+    additional_phone = models.CharField(max_length=40, blank=True)
+    timezone = models.CharField(max_length=64, default="Asia/Novosibirsk")
+    preferred_language = models.CharField(max_length=12, default="ru")
+    bio_visibility = models.CharField(max_length=20, choices=Visibility.choices, default=Visibility.ORGANIZATION)
+    additional_email_visibility = models.CharField(max_length=20, choices=Visibility.choices, default=Visibility.PRIVATE)
+    additional_phone_visibility = models.CharField(max_length=20, choices=Visibility.choices, default=Visibility.PRIVATE)
+    version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class EmployeeDataChangeRequest(models.Model):
+    class FieldType(models.TextChoices):
+        LEGAL_NAME = "legal_name", "ФИО"
+        WORK_EMAIL = "work_email", "Рабочая почта"
+        WORK_PHONE = "work_phone", "Рабочий телефон"
+
+    class Status(models.TextChoices):
+        SUBMITTED = "submitted", "Отправлен"
+        APPROVED = "approved", "Одобрен"
+        REJECTED = "rejected", "Отклонён"
+        CANCELLED = "cancelled", "Отменён"
+        APPLIED = "applied", "Применён"
+        FAILED = "failed", "Ошибка"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    employee = models.ForeignKey(Employee, on_delete=models.PROTECT, related_name="data_change_requests")
+    field_type = models.CharField(max_length=24, choices=FieldType.choices)
+    requested_value = models.JSONField(default=dict)
+    current_value_snapshot = models.JSONField(default=dict)
+    reason = models.CharField(max_length=500)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.SUBMITTED, db_index=True)
+    submitted_at = models.DateTimeField(default=timezone.now)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="employee_change_requests_reviewed")
+    review_comment = models.CharField(max_length=500, blank=True)
+    applied_at = models.DateTimeField(null=True, blank=True)
+    version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-submitted_at", "-created_at"]
+        indexes = [models.Index(fields=["employee", "status", "submitted_at"])]

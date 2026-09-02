@@ -363,6 +363,21 @@
 .account-pending_approval { background: #fff6dc; color: #8d6712; }
 .account-no_account { background: #eef1f5; color: #65758a; }
 
+.people-avatar img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
+.profile-score { display: grid; justify-items: end; color: #7e8b9b; font-size: 9px; }
+.profile-score b { color: #236fc7; font-size: 18px; }
+.profile-form { display: grid; gap: 13px; padding: 18px; }
+.profile-form label,.avatar-upload { display: grid; gap: 6px; color: #607086; font-size: 10px; font-weight: 700; }
+.profile-form input,.profile-form textarea { box-sizing: border-box; width: 100%; border: 1px solid #dfe6ee; border-radius: 8px; padding: 10px 11px; font: inherit; }
+.profile-form textarea { min-height: 88px; resize: vertical; }
+.profile-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.avatar-upload { padding: 12px; border: 1px dashed #cbd8e7; border-radius: 9px; }
+.profile-lower { margin-top: 14px; }
+.profile-visibility label,.change-request-form { display: grid; gap: 6px; color: #607086; font-size: 10px; font-weight: 700; }
+.profile-visibility select,.change-request-form select,.change-request-form input { min-height: 38px; border: 1px solid #dfe6ee; border-radius: 8px; padding: 8px 10px; background: #fff; color: #35445a; font-size: 11px; }
+.change-request-list { display: grid; gap: 8px; }
+.change-request-list > div { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid #edf1f4; font-size: 10px; }
+
 @media (max-width: 700px) {
   .work-page .page-heading {
     align-items: stretch;

@@ -17,7 +17,7 @@ AYS Connect объединяет сотрудников, оргструктур�
 
 ## Текущее состояние
 
-Завершены Work Core 1.1–1.6 и Phase 2.1 People Domain Foundation. Последний полный gate: 276 тестов на PostgreSQL 17.11; production frontend и local-pilot E2E проверяются как часть release gate. Текущее состояние передачи работы поддерживается в `docs/CURRENT_STATE.md`.
+Завершены Work Core 1.1–1.6, People Domain Foundation 2.1 и Organization & Teams 2.2. Последний зафиксированный полный gate: 299 тестов на PostgreSQL 17.11. Phase 2.3 Employee Profile & Self-Service находится в локальной реализации; текущее состояние передачи работы поддерживается в `docs/CURRENT_STATE.md`.
 
 ## Ограничения
 
@@ -26,4 +26,4 @@ AYS Connect объединяет сотрудников, оргструктур�
 
 ## Ближайшая цель
 
-Начать Phase 2.2 поверх стабильного People Domain Foundation без дублирования Employee и без переработки завершённых Work Core доменов.
+Завершить PostgreSQL Quality Gate Phase 2.3 без дублирования Employee, Organization/Teams и Notification Core.
