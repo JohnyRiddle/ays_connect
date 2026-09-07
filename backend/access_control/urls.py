@@ -10,6 +10,7 @@ from service_requests.views import CategoryViewSet, ServiceViewSet, RequestTypeV
 from django.urls import path
 from sla.views import CalendarViewSet, PolicyViewSet, AssignmentRuleViewSet, PreviewViewSet, EscalationPolicyViewSet, EscalationPolicyVersionViewSet, EscalationBindingViewSet
 from employees.profile_api import AvatarView, ChangeRequestReviewViewSet, CompletenessView, DirectoryViewSet, MeView, OrganizationView, SelfChangeRequestViewSet, TeamsView, VisibilityView
+from employees.onboarding_phase24_api import AccountAccessView, AccountBlockView, AccountReactivateView, AccountRestoreView, FirstLoginView, InvitationViewSet, OnboardingTemplateViewSet, OnboardingViewSet, SelfOnboardingViewSet
 
 router = DefaultRouter()
 router.register("employees", EmployeeViewSet, basename="internal-employees")
@@ -17,6 +18,10 @@ router.register("people/employees", EmployeeDirectoryViewSet, basename="people-e
 router.register("people/registrations", RegistrationViewSet, basename="people-registrations")
 router.register("people/directory", DirectoryViewSet, basename="people-directory")
 router.register("people/change-requests", ChangeRequestReviewViewSet, basename="people-change-requests")
+router.register("people/invitations", InvitationViewSet, basename="people-invitations")
+router.register("people/onboarding", OnboardingViewSet, basename="people-onboarding")
+router.register("people/onboarding-templates", OnboardingTemplateViewSet, basename="people-onboarding-templates")
+router.register("people/me/onboarding", SelfOnboardingViewSet, basename="people-self-onboarding")
 router.register("positions", PositionViewSet, basename="internal-positions")
 router.register("legal-entities", LegalEntityViewSet, basename="internal-legal-entities")
 router.register("org-units", OrgUnitViewSet, basename="internal-org-units")
@@ -49,6 +54,11 @@ self_change_detail=SelfChangeRequestViewSet.as_view({"get":"retrieve"})
 self_change_cancel=SelfChangeRequestViewSet.as_view({"post":"cancel"})
 urlpatterns = [
     path("people/me/",MeView.as_view()), path("people/me/completeness/",CompletenessView.as_view()),
+    path("people/me/first-login/", FirstLoginView.as_view()),
+    path("people/<uuid:employee_id>/access/suspend/", AccountAccessView.as_view()),
+    path("people/<uuid:employee_id>/access/restore/", AccountRestoreView.as_view()),
+    path("people/<uuid:employee_id>/access/block/", AccountBlockView.as_view()),
+    path("people/<uuid:employee_id>/access/reactivate/", AccountReactivateView.as_view()),
     path("people/me/organization/",OrganizationView.as_view()), path("people/me/teams/",TeamsView.as_view()),
     path("people/me/visibility/",VisibilityView.as_view()), path("people/me/avatar/",AvatarView.as_view()),
     path("people/me/change-requests/",self_changes),path("people/me/change-requests/<uuid:pk>/",self_change_detail),path("people/me/change-requests/<uuid:pk>/cancel/",self_change_cancel),

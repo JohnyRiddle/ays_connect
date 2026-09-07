@@ -102,15 +102,25 @@ class EmployeeService:
             team.version+=1; team.save(update_fields=["owner_employee","lead_employee","version","updated_at"])
             AuditService.record(actor_user=actor_user,action="people.team.leadership_vacated",entity=team,old_value=before,new_value={"owner_employee":str(team.owner_employee_id) if team.owner_employee_id else None,"lead_employee":str(team.lead_employee_id) if team.lead_employee_id else None})
             DomainEventService.publish(event_type="people.team.leadership_vacated",entity=team,actor=actor_user,payload={"employee_id":str(locked.pk)})
-        locked.invitations.select_for_update().filter(used_at__isnull=True, revoked_at__isnull=True).update(revoked_at=now)
+        locked.invitations.select_for_update().filter(used_at__isnull=True, revoked_at__isnull=True).update(revoked_at=now, status="revoked", revoke_reason="employee_terminated")
+        from .models import OnboardingInstance
+        active_onboarding = OnboardingInstance.objects.select_for_update().filter(employee=locked, status__in=["pending", "active", "paused"])
+        for onboarding in active_onboarding:
+            onboarding.status = "cancelled"; onboarding.cancelled_at = now; onboarding.cancellation_reason = "employee_terminated"; onboarding.version += 1
+            onboarding.save(update_fields=["status", "cancelled_at", "cancellation_reason", "version", "updated_at"])
+            onboarding.steps.exclude(status__in=["completed", "skipped"]).update(status="cancelled")
         if locked.user_id:
             locked.user.is_active = False
             locked.user.save(update_fields=["is_active"])
+            from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+            for token in OutstandingToken.objects.filter(user_id=locked.user_id):
+                BlacklistedToken.objects.get_or_create(token=token)
         locked.status = Employee.Status.TERMINATED
+        locked.account_access_state = Employee.AccountAccessState.REACTIVATION_REQUIRED
         locked.is_active = False
         locked.dismissed_at = termination_date or timezone.localdate()
         locked.manager = None
-        locked.save(update_fields=["status", "is_active", "dismissed_at", "manager", "updated_at"])
+        locked.save(update_fields=["status", "account_access_state", "is_active", "dismissed_at", "manager", "updated_at"])
         new = {"status": locked.status, "is_active": False, "dismissed_at": locked.dismissed_at}
         AuditService.record(actor_user=actor_user, action="people.employee.terminated", entity=locked, old_value=old, new_value=new)
         DomainEventService.publish(event_type="people.employee.terminated", entity=locked, actor=actor_user, payload=new)
@@ -122,12 +132,35 @@ class EmployeeService:
         locked = Employee.objects.select_for_update().get(pk=employee.pk)
         old = {"status": locked.status, "is_active": locked.is_active}
         locked.status = Employee.Status.ACTIVE
+        locked.account_access_state = Employee.AccountAccessState.REACTIVATION_REQUIRED
         locked.is_active = True
         locked.dismissed_at = None
-        locked.save(update_fields=["status", "is_active", "dismissed_at", "updated_at"])
+        locked.save(update_fields=["status", "account_access_state", "is_active", "dismissed_at", "updated_at"])
+        if locked.user_id:
+            locked.user.is_active = False
+            locked.user.save(update_fields=["is_active"])
         new = {"status": locked.status, "is_active": True}
         AuditService.record(actor_user=actor_user, action="people.employee.reactivated", entity=locked, old_value=old, new_value=new)
         DomainEventService.publish(event_type="people.employee.reactivated", entity=locked, actor=actor_user, payload=new)
+        return locked
+
+
+class AccountAccessService:
+    @staticmethod
+    @transaction.atomic
+    def set_access(*, employee, actor_user, enabled, action):
+        locked = Employee.objects.select_for_update().select_related("user").get(pk=employee.pk)
+        if not locked.user_id:
+            raise ValidationError("Employee has no account.")
+        if enabled and (not locked.is_active or locked.status == Employee.Status.TERMINATED):
+            raise ValidationError("Terminated employee access cannot be restored.")
+        locked.user.is_active = enabled
+        locked.user.save(update_fields=["is_active"])
+        locked.account_access_state = Employee.AccountAccessState.NORMAL if enabled else (Employee.AccountAccessState.SUSPENDED if action == "suspended" else Employee.AccountAccessState.BLOCKED)
+        locked.save(update_fields=["account_access_state", "updated_at"])
+        payload = {"employee_id": str(locked.pk), "enabled": enabled}
+        AuditService.record(actor_user=actor_user, action=f"people.account.{action}", entity=locked, new_value=payload)
+        DomainEventService.publish(event_type=f"people.account.{action}", entity=locked, actor=actor_user, payload=payload)
         return locked
 
 

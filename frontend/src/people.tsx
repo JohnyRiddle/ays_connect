@@ -23,13 +23,50 @@ export function ActivationPage({ token }: { token: string }) {
 
 const labels: Record<string,string>={NO_ACCOUNT:"Нет аккаунта",INVITED:"Приглашён",PENDING_APPROVAL:"Ожидает подтверждения",ACTIVE:"Активен",BLOCKED:"Заблокирован",INVITATION_EXPIRED:"Приглашение истекло"};
 const initials = (name = "") => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "—";
+
+function MyOnboardingPage() {
+  const [items,setItems]=useState<any[]>([]);const [error,setError]=useState("");const [busy,setBusy]=useState("");
+  const load=()=>request("/api/internal/v1/people/me/onboarding/").then(x=>setItems(x.results||x)).catch(e=>setError(e.message));
+  useEffect(()=>{void load()},[]);
+  async function stepAction(onboardingId:string,step:any,action:string){setBusy(step.id);setError("");try{await request(`/api/internal/v1/people/me/onboarding/${onboardingId}/steps/${step.id}/${action}/`,{method:"POST",body:JSON.stringify({version:step.version})});load()}catch(e){setError((e as Error).message)}finally{setBusy("")}}
+  return <main className="work-page"><div className="page-heading"><div><p className="eyebrow blue">People</p><h1>Мой онбординг</h1><p className="muted">Шаги адаптации, ответственные и связанные задачи</p></div></div>{error&&<div className="error">{error}</div>}{!items.length&&!error?<div className="people-empty"><h2>Нет активного онбординга</h2><p>Когда программа будет назначена, её шаги появятся здесь.</p></div>:items.map(item=><section className="onboarding-card" key={item.id}><div className="onboarding-summary"><div><b>{item.employee_name||"Программа адаптации"}</b><span className="badge">{item.status}</span></div><strong>{item.progress_percent}%</strong></div><div className="progress-track"><i style={{width:`${item.progress_percent}%`}}/></div><div className="onboarding-steps">{item.steps.map((step:any)=><article key={step.id} className={`onboarding-step state-${step.status}`}><div><b>{step.title_snapshot}</b><small>{step.description_snapshot||"Без дополнительного описания"}</small><small>{step.due_at?`Срок: ${new Date(step.due_at).toLocaleString("ru-RU")}`:"Без срока"}</small></div><span className="badge">{step.status}</span>{["pending","in_progress"].includes(step.status)&&<button disabled={busy===step.id} onClick={()=>stepAction(item.id,step,step.status==="pending"?"start":"complete")}>{step.status==="pending"?"Начать":"Завершить"}</button>}{step.task&&<a href={`/tasks/${step.task}`}>Открыть задачу</a>}</article>)}</div></section>)}</main>;
+}
+
+function FirstLoginPage({navigate}:{navigate:(x:string)=>void}) {
+  const [progress,setProgress]=useState<any>();const [error,setError]=useState("");
+  const load=()=>request("/api/internal/v1/people/me/first-login/").then(setProgress).catch(e=>setError(e.message));useEffect(()=>{void load()},[]);
+  async function complete(field:string){try{const next=await request("/api/internal/v1/people/me/first-login/",{method:"PATCH",body:JSON.stringify({version:progress.version,[field]:true})});setProgress(next)}catch(e){setError((e as Error).message)}}
+  const steps=[{key:"profile_completed",title:"Проверьте профиль",action:()=>complete("profile_completed")},{key:"timezone_completed",title:"Подтвердите часовой пояс",action:()=>complete("timezone_completed")},{key:"visibility_completed",title:"Настройте видимость",action:()=>complete("visibility_completed")}];
+  return <main className="work-page"><div className="page-heading"><div><p className="eyebrow blue">Первый вход</p><h1>Настройка рабочего профиля</h1><p className="muted">Прогресс сохраняется — к настройке можно вернуться позже.</p></div></div>{error&&<div className="error">{error}</div>}<section className="onboarding-card">{steps.map(step=><article className="onboarding-step" key={step.key}><div><b>{step.title}</b><small>{progress?.[step.key]?"Готово":"Требуется действие"}</small></div><span className="badge">{progress?.[step.key]?"Завершено":"Ожидает"}</span>{!progress?.[step.key]&&<button onClick={step.action}>Выполнить</button>}</article>)}{progress?.completed_at&&<button className="primary" onClick={()=>navigate("/people/me/onboarding")}>Перейти к онбордингу</button>}</section></main>;
+}
+
+function OnboardingManagementPage({templates=false}:{templates?:boolean}) {
+  const [data,setData]=useState<any>();const [error,setError]=useState("");
+  const endpoint=templates?"/api/internal/v1/people/onboarding-templates/":"/api/internal/v1/people/onboarding/";
+  useEffect(()=>{request(endpoint).then(setData).catch(e=>setError(e.message))},[endpoint]);
+  const items=data?.results||data||[];
+  return <main className="work-page"><div className="page-heading"><div><p className="eyebrow blue">People management</p><h1>{templates?"Шаблоны онбординга":"Онбординг сотрудников"}</h1><p className="muted">{templates?"Версионируемые программы адаптации":"Назначения, прогресс и просроченные шаги"}</p></div></div>{error&&<div className="error">{error}</div>}<div className="people-table"><div className="people-row people-head"><b>{templates?"Шаблон":"Сотрудник"}</b><b>Статус</b><b>{templates?"Область":"Прогресс"}</b><b>Версия</b><b>Обновлено</b></div>{items.map((x:any)=><div className="people-row" key={x.id}><span><b>{templates?x.name:x.employee_name}</b></span><span className="badge">{x.status}</span><span>{templates?x.scope:`${x.progress_percent}%`}</span><span>{templates?(x.published_version_number||"—"):x.version}</span><span>{new Date(x.updated_at||x.created_at).toLocaleDateString("ru-RU")}</span></div>)}</div>{!items.length&&!error&&<div className="people-empty"><h2>Записей пока нет</h2></div>}</main>;
+}
+
+function InvitationManagementPage() {
+  const [data,setData]=useState<any>();const [error,setError]=useState("");
+  useEffect(()=>{request("/api/internal/v1/people/invitations/").then(setData).catch(e=>setError(e.message))},[]);
+  const items=data?.results||[];
+  return <main className="work-page"><div className="page-heading"><div><p className="eyebrow blue">People management</p><h1>Приглашения</h1><p className="muted">Состояние доступа без отображения секретных токенов</p></div></div>{error&&<div className="error">{error}</div>}<div className="people-grid">{items.map((x:any)=><article className="people-card" key={x.id}><b>{x.employee_name}</b><span>{x.delivery_address}</span><span className="badge">{x.status}</span><small>Действует до {new Date(x.expires_at).toLocaleString("ru-RU")}</small></article>)}</div></main>;
+}
+
 export function PeopleRouter({path,navigate}:{path:string;navigate:(x:string)=>void}) {
   const [data,setData]=useState<any>(); const [error,setError]=useState(""); const [search,setSearch]=useState("");
-  const id=path.match(/^\/people\/employees\/([^/]+)$/)?.[1]; const registrations=path==="/people/registrations"; const selfProfile=path==="/people/me";
+  const id=path.match(/^\/people\/employees\/([^/]+)$/)?.[1]; const registrations=path==="/people/registrations"; const selfProfile=path==="/people/me";const special=["/people/first-login","/people/me/onboarding","/people/onboarding","/people/onboarding-templates","/people/invitations"].includes(path);
   const load=()=>request(registrations?"/api/internal/v1/people/registrations/":id?`/api/internal/v1/people/employees/${id}/`:`/api/internal/v1/people/employees/?search=${encodeURIComponent(search)}`).then(setData).catch(e=>setError(e.message));
-  useEffect(()=>{ if(!selfProfile)load(); },[path]);
+  useEffect(()=>{ if(!selfProfile&&!special)load(); },[path]);
   async function employeeAction(action:string, payload:any={}){setError("");try{const result=await request(`/api/internal/v1/people/employees/${id}/${action}/`,{method:"POST",body:JSON.stringify(payload)});if(result.activation_url) await navigator.clipboard.writeText(result.activation_url);load();}catch(e){setError((e as Error).message)}}
   if(selfProfile) return <MyProfilePage navigate={navigate}/>;
+  if(path==="/people/first-login")return <FirstLoginPage navigate={navigate}/>;
+  if(path==="/people/me/onboarding")return <MyOnboardingPage/>;
+  if(path==="/people/onboarding")return <OnboardingManagementPage/>;
+  if(path==="/people/onboarding-templates")return <OnboardingManagementPage templates/>;
+  if(path==="/people/invitations")return <InvitationManagementPage/>;
   if(error&&!data)return <main className="work-page"><div className="error">{error}</div></main>;
   if(registrations)return <main className="work-page"><div className="page-heading"><div><p className="eyebrow blue">People</p><h1>Заявки на регистрацию</h1></div></div><div className="people-grid">{data?.results?.map((x:any)=><article className="people-card" key={x.id}><b>{x.full_name}</b><span>{x.email}</span><span className="badge">{x.status}</span>{x.status==="pending"&&<><button onClick={()=>{const employee_id=prompt("UUID сотрудника");if(employee_id)request(`/api/internal/v1/people/registrations/${x.id}/approve/`,{method:"POST",body:JSON.stringify({employee_id})}).then(load).catch(e=>setError(e.message))}}>Одобрить и пригласить</button><button onClick={()=>request(`/api/internal/v1/people/registrations/${x.id}/reject/`,{method:"POST",body:JSON.stringify({reason:"not_confirmed"})}).then(load)}>Отклонить</button></>}</article>)}</div>{error&&<div className="error">{error}</div>}</main>;
   if(id&&data)return <main className="work-page people-detail">

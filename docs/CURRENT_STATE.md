@@ -1,15 +1,15 @@
 # Текущее состояние AYS Connect
 
-> 02.09.2026: Phase 2.2 Organization & Teams завершена checkpoint `96bb30a`; Phase 2.3 Employee Profile & Self-Service реализуется локально поверх чистой границы.
+> 03.09.2026: Phase 2.3 зафиксирована checkpoint `067c60d`; Phase 2.4 Onboarding & Account Lifecycle реализуется локально поверх чистой границы.
 
-**Обновлено:** 02.09.2026
+**Обновлено:** 03.09.2026
 
 **Ветка:** `main`
 **Remote:** `origin` → `https://github.com/JohnyRiddle/ays_connect.git`
 
 ## Текущая задача
 
-Phase 2.3 Employee Profile & Self-Service — COMPLETE локально. PostgreSQL clean/upgrade, 27/27 phase tests, 10/10 concurrency, 326/326 full regression и frontend production build PASS; изменения ожидают отдельного checkpoint-разрешения.
+Phase 2.4 Onboarding & Account Lifecycle — COMPLETE локально; PostgreSQL 17.11 quality gate PASS, готово к отдельному checkpoint.
 
 ## Сделано
 
@@ -58,6 +58,9 @@ Phase 2.3 Employee Profile & Self-Service — COMPLETE локально. Postgre
 - добавлены self-service, directory и review endpoints в существующем `/api/internal/v1/people/`, защищённая выдача avatar, Audit/Outbox и уведомления через действующий Notification Core;
 - frontend получил компактную страницу «Мой профиль», completeness, редактирование разрешённых полей и avatar actions; production build PASS.
 - PostgreSQL 17.11 Phase 2.3 gate: clean migrations PASS, upgrade `employees.0010 → 0012` PASS, 27/27 phase tests (10 concurrency/security), полный backend regression 326/326 PASS без skipped.
+- Phase 2.4 расширяет существующие Employee/User/Invitation/Profile, добавляет безопасную реактивацию, first-login, versioned onboarding templates/snapshots, dependency/responsible resolution, production Task integration и `SKIP LOCKED` reconciliation worker;
+- append-only migrations `employees.0013–0015`; clean PostgreSQL 17.11 и upgrade `0012 → current` PASS; 16 Phase 2.4 tests, 10 PostgreSQL concurrency tests и полный regression 342/342 PASS без skipped;
+- обнаружены и исправлены PostgreSQL nullable-join `FOR UPDATE` и termination/step deadlock с regression coverage; frontend production build PASS.
 
 ## Осталось
 

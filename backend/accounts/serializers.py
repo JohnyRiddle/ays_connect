@@ -11,7 +11,7 @@ class EmailTokenSerializer(TokenObtainPairSerializer):
         try: data = super().validate(attrs)
         except (AuthenticationFailed, DRFAuthenticationFailed) as exc: raise DRFAuthenticationFailed("Authentication failed.", code="no_active_account") from exc
         employee = getattr(self.user, "employee", None)
-        if employee and (not employee.is_active or employee.status in {"archived", "suspended", "dismissed"}):
+        if employee and (not employee.is_active or employee.status in {"archived", "suspended", "dismissed", "terminated"}):
             raise DRFAuthenticationFailed("Authentication failed.", code="no_active_account")
         data["user"] = ProfileSerializer(self.user).data
         return data
@@ -37,6 +37,6 @@ class ActiveTokenRefreshSerializer(TokenRefreshSerializer):
         try: user = User.objects.select_related("employee").get(pk=refresh["user_id"], is_active=True)
         except User.DoesNotExist as exc: raise AuthenticationFailed("Account is unavailable.", code="account_unavailable") from exc
         employee = getattr(user, "employee", None)
-        if employee and (not employee.is_active or employee.status in {"archived", "suspended", "dismissed"}):
+        if employee and (not employee.is_active or employee.status in {"archived", "suspended", "dismissed", "terminated"}):
             raise AuthenticationFailed("Account is unavailable.", code="account_unavailable")
         return super().validate(attrs)

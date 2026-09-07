@@ -22,6 +22,11 @@ class Position(models.Model):
         return self.name
 
 class Employee(models.Model):
+    class AccountAccessState(models.TextChoices):
+        NORMAL = "normal", "Обычный доступ"
+        SUSPENDED = "suspended", "Доступ приостановлен"
+        BLOCKED = "blocked", "Доступ заблокирован"
+        REACTIVATION_REQUIRED = "reactivation_required", "Требуется реактивация"
     class Status(models.TextChoices):
         ACTIVE = "active", "Работает"
         VACATION = "vacation", "Отпуск"
@@ -56,6 +61,7 @@ class Employee(models.Model):
     created_at = models.DateTimeField(default=timezone.now, editable=False)
     updated_at = models.DateTimeField(default=timezone.now)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    account_access_state = models.CharField(max_length=24, choices=AccountAccessState.choices, default=AccountAccessState.NORMAL, db_index=True)
     work_schedule = models.CharField(max_length=100, default="5/2, 09:00–18:00")
     skills = models.JSONField(default=list, blank=True)
     is_demo = models.BooleanField(default=False)
@@ -330,19 +336,43 @@ class EmployeeFacility(models.Model):
 
 
 class EmployeeInvitation(models.Model):
+    class Status(models.TextChoices):
+        CREATED = "created", "Создано"
+        SENT = "sent", "Отправлено"
+        ACCEPTED = "accepted", "Принято"
+        REVOKED = "revoked", "Отозвано"
+        EXPIRED = "expired", "Истекло"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     employee = models.ForeignKey(Employee, on_delete=models.PROTECT, related_name="invitations")
     token_hash = models.CharField(max_length=64, unique=True)
+    token_prefix = models.CharField(max_length=12, blank=True, editable=False)
     delivery_address = models.EmailField(blank=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.CREATED, db_index=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="employee_invitations_created")
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField(db_index=True)
     used_at = models.DateTimeField(null=True, blank=True)
     revoked_at = models.DateTimeField(null=True, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    accepted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="employee_invitations_accepted")
+    revoke_reason = models.CharField(max_length=240, blank=True)
+    version = models.PositiveIntegerField(default=1)
+
+    def save(self, *args, **kwargs):
+        if self.expires_at and self.created_at and self.expires_at <= timezone.now() and self.expires_at <= self.created_at:
+            self.status = self.Status.EXPIRED
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None:
+                kwargs["update_fields"] = set(update_fields) | {"status"}
+        return super().save(*args, **kwargs)
 
     class Meta:
-        indexes = [models.Index(fields=["employee", "expires_at"])]
-        constraints = [models.UniqueConstraint(fields=["employee"], condition=models.Q(used_at__isnull=True, revoked_at__isnull=True), name="one_open_employee_invitation")]
+        indexes = [models.Index(fields=["employee", "expires_at"]), models.Index(fields=["status", "expires_at"])]
+        constraints = [
+            models.UniqueConstraint(fields=["employee"], condition=models.Q(used_at__isnull=True, revoked_at__isnull=True), name="one_open_employee_invitation"),
+            models.CheckConstraint(condition=models.Q(expires_at__gt=models.F("created_at")) | models.Q(status="expired"), name="employee_invitation_expiry_after_creation"),
+        ]
 
 
 class RegistrationRequest(models.Model):
@@ -388,6 +418,176 @@ class EmployeeProfile(models.Model):
     version = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class FirstLoginProgress(models.Model):
+    employee = models.OneToOneField(Employee, on_delete=models.CASCADE, related_name="first_login_progress")
+    profile_completed = models.BooleanField(default=False)
+    timezone_completed = models.BooleanField(default=False)
+    visibility_completed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class OnboardingTemplate(models.Model):
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Черновик"
+        PUBLISHED = "published", "Опубликован"
+        ARCHIVED = "archived", "Архив"
+
+    class Scope(models.TextChoices):
+        GLOBAL = "global", "Глобально"
+        LEGAL_ENTITY = "legal_entity", "Юридическое лицо"
+        ORG_UNIT = "org_unit", "Подразделение"
+        LOCATION = "location", "Локация"
+        POSITION = "position", "Должность"
+        TEAM = "team", "Команда"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.DRAFT, db_index=True)
+    scope = models.CharField(max_length=24, choices=Scope.choices, default=Scope.GLOBAL, db_index=True)
+    legal_entity = models.ForeignKey("organizations.LegalEntity", on_delete=models.PROTECT, null=True, blank=True, related_name="onboarding_templates")
+    org_unit = models.ForeignKey("organizations.OrgUnit", on_delete=models.PROTECT, null=True, blank=True, related_name="onboarding_templates")
+    location = models.ForeignKey("organizations.Location", on_delete=models.PROTECT, null=True, blank=True, related_name="onboarding_templates")
+    position = models.ForeignKey(Position, on_delete=models.PROTECT, null=True, blank=True, related_name="onboarding_templates")
+    team = models.ForeignKey(Team, on_delete=models.PROTECT, null=True, blank=True, related_name="onboarding_templates")
+    published_version = models.ForeignKey("OnboardingTemplateVersion", on_delete=models.PROTECT, null=True, blank=True, related_name="published_for_templates")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="onboarding_templates_created")
+    version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["status", "scope"]), models.Index(fields=["legal_entity", "org_unit", "position"])]
+
+
+class OnboardingTemplateVersion(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    template = models.ForeignKey(OnboardingTemplate, on_delete=models.PROTECT, related_name="versions")
+    number = models.PositiveIntegerField()
+    name_snapshot = models.CharField(max_length=200)
+    description_snapshot = models.TextField(blank=True)
+    published_at = models.DateTimeField(default=timezone.now)
+    published_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="onboarding_versions_published")
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["template", "number"], name="unique_onboarding_template_version")]
+        ordering = ["template_id", "number"]
+
+
+class OnboardingTemplateStep(models.Model):
+    class Type(models.TextChoices):
+        PROFILE = "profile", "Профиль"
+        ACKNOWLEDGEMENT = "acknowledgement", "Ознакомление"
+        MANUAL = "manual", "Ручной шаг"
+        TASK = "task", "Задача"
+        LINK = "link", "Ссылка"
+        LEARNING_PLACEHOLDER = "learning_placeholder", "Обучение"
+
+    class ResponsibleStrategy(models.TextChoices):
+        SELF = "self", "Сам сотрудник"
+        DIRECT_MANAGER = "direct_manager", "Прямой руководитель"
+        POSITION = "position", "Должность"
+        ORG_UNIT = "org_unit", "Подразделение"
+        TEAM_LEAD = "team_lead", "Руководитель команды"
+        TEAM_ROLE = "team_role", "Роль команды"
+        EXPLICIT_EMPLOYEE = "explicit_employee", "Сотрудник"
+        ASSIGNMENT_TARGET = "assignment_target", "Цель назначения"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    version = models.ForeignKey(OnboardingTemplateVersion, on_delete=models.PROTECT, related_name="steps")
+    key = models.SlugField(max_length=80)
+    title = models.CharField(max_length=240)
+    description = models.TextField(blank=True)
+    step_type = models.CharField(max_length=32, choices=Type.choices)
+    position = models.PositiveIntegerField()
+    required = models.BooleanField(default=True)
+    due_offset = models.DurationField(null=True, blank=True)
+    external_url = models.URLField(blank=True)
+    task_template = models.ForeignKey("work_tasks.TaskTemplate", on_delete=models.PROTECT, null=True, blank=True, related_name="onboarding_steps")
+    responsible_strategy = models.CharField(max_length=32, choices=ResponsibleStrategy.choices, default=ResponsibleStrategy.SELF)
+    responsible_target = models.ForeignKey(AssignmentTarget, on_delete=models.PROTECT, null=True, blank=True, related_name="onboarding_steps")
+    explicit_employee = models.ForeignKey(Employee, on_delete=models.PROTECT, null=True, blank=True, related_name="explicit_onboarding_steps")
+    team_role = models.CharField(max_length=24, blank=True)
+    dependencies = models.ManyToManyField("self", symmetrical=False, blank=True, related_name="dependents")
+
+    class Meta:
+        ordering = ["position", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["version", "key"], name="unique_onboarding_step_key"),
+            models.UniqueConstraint(fields=["version", "position"], name="unique_onboarding_step_position"),
+        ]
+
+
+class OnboardingInstance(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Ожидает"
+        ACTIVE = "active", "Активен"
+        PAUSED = "paused", "Приостановлен"
+        COMPLETED = "completed", "Завершён"
+        CANCELLED = "cancelled", "Отменён"
+        FAILED = "failed", "Ошибка"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    employee = models.ForeignKey(Employee, on_delete=models.PROTECT, related_name="onboarding_instances")
+    template_version = models.ForeignKey(OnboardingTemplateVersion, on_delete=models.PROTECT, related_name="instances")
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING, db_index=True)
+    progress_percent = models.PositiveSmallIntegerField(default=0)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancellation_reason = models.CharField(max_length=500, blank=True)
+    assigned_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="onboarding_instances_assigned")
+    version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["employee", "status"]), models.Index(fields=["status", "created_at"])]
+        constraints = [
+            models.UniqueConstraint(fields=["employee"], condition=models.Q(status__in=["pending", "active", "paused"]), name="one_active_onboarding_per_employee"),
+            models.CheckConstraint(condition=models.Q(progress_percent__lte=100), name="onboarding_progress_lte_100"),
+        ]
+
+
+class OnboardingStepInstance(models.Model):
+    class Status(models.TextChoices):
+        BLOCKED = "blocked", "Заблокирован"
+        PENDING = "pending", "Ожидает"
+        IN_PROGRESS = "in_progress", "В работе"
+        COMPLETED = "completed", "Завершён"
+        SKIPPED = "skipped", "Пропущен"
+        CANCELLED = "cancelled", "Отменён"
+        FAILED = "failed", "Ошибка"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    onboarding = models.ForeignKey(OnboardingInstance, on_delete=models.PROTECT, related_name="steps")
+    template_step = models.ForeignKey(OnboardingTemplateStep, on_delete=models.PROTECT, related_name="instances")
+    title_snapshot = models.CharField(max_length=240)
+    description_snapshot = models.TextField(blank=True)
+    required = models.BooleanField(default=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)
+    responsible_employee = models.ForeignKey(Employee, on_delete=models.PROTECT, null=True, blank=True, related_name="responsible_onboarding_steps")
+    resolution_detail = models.JSONField(default=dict, blank=True)
+    due_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    completed_by = models.ForeignKey(Employee, on_delete=models.PROTECT, null=True, blank=True, related_name="completed_onboarding_steps")
+    skipped_at = models.DateTimeField(null=True, blank=True)
+    skipped_by = models.ForeignKey(Employee, on_delete=models.PROTECT, null=True, blank=True, related_name="skipped_onboarding_steps")
+    skip_reason = models.CharField(max_length=500, blank=True)
+    task = models.OneToOneField("work_tasks.Task", on_delete=models.PROTECT, null=True, blank=True, related_name="onboarding_step")
+    version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["onboarding", "status"]), models.Index(fields=["status", "due_at"])]
+        constraints = [models.UniqueConstraint(fields=["onboarding", "template_step"], name="unique_onboarding_step_instance")]
 
 
 class EmployeeDataChangeRequest(models.Model):

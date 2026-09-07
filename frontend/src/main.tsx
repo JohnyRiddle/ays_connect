@@ -722,6 +722,7 @@ function App() {
           </a>
           <a href="/people/employees" className={path.startsWith("/people") ? "active" : ""} onClick={(event) => { event.preventDefault(); navigate("/people/employees"); }}><Users size={19} />Сотрудники</a>
           <a href="/people/me" className={path === "/people/me" ? "active" : ""} onClick={(event) => { event.preventDefault(); navigate("/people/me"); }}><ShieldCheck size={19} />Мой профиль</a>
+          <a href="/people/me/onboarding" className={path === "/people/me/onboarding" ? "active" : ""} onClick={(event) => { event.preventDefault(); navigate("/people/me/onboarding"); }}><ClipboardCheck size={19} />Мой онбординг</a>
           <a
             href="/#checklists"
             className={path === "/" && view === "checklists" ? "active" : ""}

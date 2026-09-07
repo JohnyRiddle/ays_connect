@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 from access_control.models import EmployeeRole, Scope
 from access_control.services import PermissionService
 from .models import Employee, EmployeeAssignment, EmployeeInvitation, EmployeeManagerAssignment, RegistrationRequest
-from .onboarding import InvitationService, RegistrationService
+from .onboarding import InvitationService, RegistrationService, account_status as lifecycle_account_status
 from .services import EmployeeAssignmentService, EmployeeManagerService, EmployeeService
 
 
@@ -21,8 +21,10 @@ class PublicScopedThrottle(ScopedRateThrottle):
 
 
 def account_status(employee):
+    if employee.status == Employee.Status.TERMINATED or not employee.is_active:
+        return "TERMINATED"
     if employee.user_id:
-        return "ACTIVE" if employee.user.is_active else "BLOCKED"
+        return lifecycle_account_status(employee)
     invite = next((x for x in getattr(employee, "open_invitations", []) if not x.used_at and not x.revoked_at), None)
     if invite:
         return "INVITED" if invite.expires_at > timezone.now() else "INVITATION_EXPIRED"
