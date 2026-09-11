@@ -301,6 +301,7 @@
 .team-ranking article > small {
   grid-column: 2 / 4;
 }
+.learning-team-head,.learning-team-row{display:grid;grid-template-columns:2fr repeat(6,1fr);gap:12px;align-items:center;padding:12px;border-bottom:1px solid #edf0f4;font-size:10px}.learning-team-head{color:#7b8999;background:#f7f9fb;border-radius:8px}.learning-team-row>span:first-child{display:grid}.learning-team-row small{color:#8794a4;font-size:8px}.danger-text{color:#c84a50;font-weight:800}.learning-management-summary{grid-template-columns:repeat(5,1fr)}
 @media (max-width: 720px) {
   .performance-hero {
     grid-template-columns: 1fr;
@@ -322,4 +323,5 @@
   .analytics-switch {
     margin-top: 10px;
   }
+  .learning-team-head{display:none}.learning-team-row{grid-template-columns:2fr repeat(2,1fr)}.learning-team-row>span:nth-child(n+4){display:none}
 }

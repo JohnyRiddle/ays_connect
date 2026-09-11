@@ -10,7 +10,7 @@ from sensors.models import Sensor
 from sensors.models import SensorEvent
 from incidents.models import Incident, IncidentHistory
 from notifications.models import Notification
-from knowledge_base.models import KnowledgeCategory, KnowledgeMaterial, MaterialAcknowledgmentAssignment, MaterialFavorite, MaterialTag, MaterialVersion
+from knowledge_base.models import KnowledgeCategory, KnowledgeMaterial, MaterialAcknowledgmentAssignment, MaterialFavorite, MaterialTag, MaterialVersion, TTKMetadata
 from learning.models import AnswerOption, Assessment, Certificate, Course, CourseAssignment, CourseCategory, CourseModule, Lesson, LessonProgress, Question
 from learning.integrations import provision_course_assignment
 from django.utils import timezone
@@ -90,6 +90,8 @@ class Command(BaseCommand):
             if material.current_version_id != version.id:
                 material.current_version = version; material.save(update_fields=["current_version"])
             material.tags.add(tag_daily, *([tag_safety] if required_flag else []))
+            if kind == KnowledgeMaterial.Type.TTK:
+                TTKMetadata.objects.update_or_create(material=material, defaults={"dish_name": "Салат фирменный", "dish_category": "Салаты", "brand": "AYS Hospitality", "facility": facility, "workshop": "Холодный цех", "output_weight": 250, "yield_unit": "г", "cooking_time_minutes": 15, "storage_temperature": "+2…+6 °C", "storage_duration": "12 часов", "ingredients": ["овощи", "зелень", "заправка"], "technology": "Подготовить ингредиенты, смешать и оформить перед подачей.", "allergens": [], "serving_requirements": "Подавать охлаждённым", "approved_by": manager_user, "effective_from": now})
             if index in {1, 2}:
                 MaterialAcknowledgmentAssignment.objects.get_or_create(version=version, employee=ivan, defaults={"assigned_by": manager_user, "due_at": now + timedelta(days=index + 1)})
             if index in {3, 5}:
@@ -111,11 +113,19 @@ class Command(BaseCommand):
             lesson1, _ = Lesson.objects.update_or_create(module=module, sort_order=1, defaults={"title": "Основные положения", "lesson_type": Lesson.Type.TEXT, "content": f"{description}\n\nИзучите порядок действий и используйте его в ежедневной работе.", "estimated_duration_minutes": 15, "is_required": True})
             lesson2, _ = Lesson.objects.update_or_create(module=module, sort_order=2, defaults={"title": "Практические действия", "lesson_type": Lesson.Type.TEXT, "content": "Проверьте последовательность действий и подтвердите ознакомление.", "estimated_duration_minutes": 10, "is_required": True, "requires_confirmation": True})
             assessment, _ = Assessment.objects.update_or_create(course=course, title="Итоговый тест", defaults={"description": "Проверка усвоения основных положений", "time_limit_minutes": 10, "passing_score": 80, "max_attempts": 3, "shuffle_questions": False, "shuffle_answers": True, "is_active": True})
-            question, _ = Question.objects.update_or_create(assessment=assessment, sort_order=1, defaults={"text": "Какое действие выполняется первым?", "question_type": Question.Type.SINGLE_CHOICE, "explanation": "Сначала необходимо оценить ситуацию и следовать утверждённому регламенту.", "points": 1, "is_required": True})
-            AnswerOption.objects.update_or_create(question=question, sort_order=1, defaults={"text": "Оценить ситуацию и открыть регламент", "is_correct": True})
-            AnswerOption.objects.update_or_create(question=question, sort_order=2, defaults={"text": "Игнорировать событие", "is_correct": False})
+            demo_questions = [
+                ("Какое действие выполняется первым?", Question.Type.SINGLE_CHOICE, [("Оценить ситуацию и открыть регламент", True), ("Игнорировать событие", False)]),
+                ("Какие действия обязательны?", Question.Type.MULTIPLE_CHOICE, [("Зафиксировать событие", True), ("Уведомить ответственного", True), ("Скрыть отклонение", False)]),
+                ("Нужно ли фиксировать результат?", Question.Type.TRUE_FALSE, [("Да", True), ("Нет", False)]),
+                ("Укажите допустимое число пропущенных обязательных шагов", Question.Type.NUMBER, [("0", True)]),
+                ("Кратко опишите порядок эскалации", Question.Type.TEXT, []),
+            ]
+            for question_index, (question_text, question_type, options) in enumerate(demo_questions, 1):
+                question, _ = Question.objects.update_or_create(assessment=assessment, sort_order=question_index, defaults={"text": question_text, "question_type": question_type, "explanation": "Следуйте утверждённому регламенту.", "points": 1, "is_required": True, "manual_review_required": question_type == Question.Type.TEXT})
+                for option_index, (option_text, is_correct) in enumerate(options, 1):
+                    AnswerOption.objects.update_or_create(question=question, sort_order=option_index, defaults={"text": option_text, "match_key": option_text if question_type == Question.Type.NUMBER else "", "is_correct": is_correct})
             seeded_courses.append((course, lesson1, lesson2))
-        assignment_states = [CourseAssignment.Status.WAITING_ASSESSMENT, CourseAssignment.Status.IN_PROGRESS, CourseAssignment.Status.OVERDUE, CourseAssignment.Status.COMPLETED, CourseAssignment.Status.ASSIGNED]
+        assignment_states = [CourseAssignment.Status.WAITING_ASSESSMENT, CourseAssignment.Status.IN_PROGRESS, CourseAssignment.Status.OVERDUE, CourseAssignment.Status.COMPLETED, CourseAssignment.Status.COMPLETED]
         for index, ((course, lesson1, lesson2), assignment_status) in enumerate(zip(seeded_courses, assignment_states), 1):
             assignment, _ = CourseAssignment.objects.update_or_create(course=course, employee=ivan, source=CourseAssignment.Source.MANUAL, defaults={"assigned_by": manager_user, "due_at": now + timedelta(days=3-index) if assignment_status != CourseAssignment.Status.OVERDUE else now-timedelta(days=2), "status": assignment_status, "is_mandatory": course.is_mandatory, "progress_percent": 100 if assignment_status in {CourseAssignment.Status.WAITING_ASSESSMENT, CourseAssignment.Status.COMPLETED} else 50 if assignment_status == CourseAssignment.Status.IN_PROGRESS else 0, "started_at": now-timedelta(days=1) if assignment_status not in {CourseAssignment.Status.ASSIGNED, CourseAssignment.Status.OVERDUE} else None, "completed_at": now-timedelta(days=1) if assignment_status == CourseAssignment.Status.COMPLETED else None, "current_lesson": lesson2 if assignment_status == CourseAssignment.Status.IN_PROGRESS else None})
             provision_course_assignment(assignment, create_task=index in {1, 3})
@@ -123,5 +133,6 @@ class Command(BaseCommand):
                 for lesson in (lesson1, lesson2):
                     LessonProgress.objects.update_or_create(assignment=assignment, lesson=lesson, defaults={"opened_at": now-timedelta(days=1), "completed_at": now-timedelta(days=1), "progress_percent": 100, "confirmed": True, "confirmed_at": now-timedelta(days=1), "time_spent_seconds": 600})
             if assignment_status == CourseAssignment.Status.COMPLETED:
-                Certificate.objects.get_or_create(assignment=assignment, defaults={"employee": ivan, "course": course, "certificate_number": f"AYS-DEMO-{assignment.id:06d}", "verification_code": f"demo-{assignment.id:08d}", "expires_at": now+timedelta(days=90), "issued_by": manager_user})
+                expires_in = 10 if index == 5 else 90
+                Certificate.objects.get_or_create(assignment=assignment, defaults={"employee": ivan, "course": course, "certificate_number": f"AYS-DEMO-{assignment.id:06d}", "verification_code": f"demo-{assignment.id:08d}", "expires_at": now+timedelta(days=expires_in), "status": Certificate.Status.EXPIRING if expires_in <= 30 else Certificate.Status.ACTIVE, "issued_by": manager_user})
         self.stdout.write(self.style.SUCCESS("Демо-данные готовы. Вход: ivan@demo.ays-connect.local / Demo12345!"))

@@ -4,12 +4,39 @@ from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
+from django.core.files.base import ContentFile
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from audit.services import record
 from .models import (AssessmentAttempt, AssessmentResponse, Certificate,
                      CourseAssignment, LessonProgress, Question)
+
+
+def _certificate_pdf(certificate):
+    lines = [
+        "BT /F1 22 Tf 72 740 Td (AYS Connect Certificate) Tj ET",
+        f"BT /F1 12 Tf 72 700 Td (Number: {certificate.certificate_number}) Tj ET",
+        f"BT /F1 12 Tf 72 675 Td (Verification: {certificate.verification_code}) Tj ET",
+        f"BT /F1 12 Tf 72 650 Td (Employee ID: {certificate.employee_id}) Tj ET",
+        f"BT /F1 12 Tf 72 625 Td (Course ID: {certificate.course_id}) Tj ET",
+    ]
+    stream = "\n".join(lines).encode("ascii")
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream",
+    ]
+    pdf = bytearray(b"%PDF-1.4\n")
+    offsets = [0]
+    for index, obj in enumerate(objects, 1):
+        offsets.append(len(pdf)); pdf.extend(f"{index} 0 obj\n".encode()); pdf.extend(obj); pdf.extend(b"\nendobj\n")
+    xref = len(pdf); pdf.extend(f"xref\n0 {len(objects)+1}\n".encode()); pdf.extend(b"0000000000 65535 f \n")
+    for offset in offsets[1:]: pdf.extend(f"{offset:010d} 00000 n \n".encode())
+    pdf.extend(f"trailer\n<< /Size {len(objects)+1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode())
+    return bytes(pdf)
 
 
 @transaction.atomic
@@ -139,9 +166,11 @@ def _finalize_attempt(attempt, actor=None, request=None):
             validity = assignment.course.certificate_validity_days
             certificate, created = Certificate.objects.get_or_create(assignment=assignment, defaults={"employee": assignment.employee, "course": assignment.course, "certificate_number": f"AYS-{timezone.now():%Y%m}-{assignment.id:06d}", "verification_code": uuid.uuid4().hex, "expires_at": timezone.now() + timedelta(days=validity) if validity else None, "issued_by": actor})
             if created:
+                certificate.file.save(f"{certificate.certificate_number}.pdf", ContentFile(_certificate_pdf(certificate)), save=True)
                 from notifications.models import Notification
                 from .integrations import notify_once
                 notify_once(recipient=assignment.employee.user, notification_type=Notification.Type.CERTIFICATE_ISSUED, title="Сертификат выдан", message=f"Выдан сертификат по курсу «{assignment.course.title}».", entity_type="Certificate", entity_id=certificate.id)
+                record(actor, "learning.certificate_issued", certificate, request=request)
         from .integrations import complete_linked_task, notify_course_completed
         complete_linked_task(assignment, actor=actor)
         notify_course_completed(assignment)

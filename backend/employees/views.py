@@ -5,6 +5,7 @@ from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from drf_spectacular.utils import OpenApiTypes, extend_schema
 from .models import Employee
 from .permissions import IsOrganizationManager
 from .serializers import EmployeeSerializer
@@ -32,6 +33,7 @@ class EmployeeDetailView(RetrieveAPIView):
 
 class PersonalDashboardView(APIView):
     permission_classes = [IsAuthenticated]
+    @extend_schema(responses=OpenApiTypes.OBJECT)
     def get(self, request):
         user = request.user
         active = Task.objects.filter(Q(assignee=user) | Q(collaborators=user)).distinct().exclude(status__in=[Task.Status.CLOSED, Task.Status.COMPLETED, Task.Status.CANCELLED])

@@ -41,6 +41,24 @@ class AccessRuleSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class TTKMetadataSerializer(serializers.ModelSerializer):
+    facility_name = serializers.CharField(source="facility.name", read_only=True)
+    approved_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TTKMetadata
+        fields = (
+            "dish_name", "dish_category", "brand", "facility", "facility_name",
+            "workshop", "output_weight", "yield_unit", "cooking_time_minutes",
+            "storage_temperature", "storage_duration", "ingredients", "technology",
+            "storage_requirements", "allergens", "serving_requirements", "approved_by",
+            "approved_by_name", "effective_from", "reference_image",
+        )
+
+    def get_approved_by_name(self, obj) -> str:
+        return obj.approved_by.get_full_name() if obj.approved_by else ""
+
+
 class MaterialListSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source="category.name", read_only=True)
     material_type_label = serializers.CharField(source="get_material_type_display", read_only=True)
@@ -60,9 +78,10 @@ class MaterialListSerializer(serializers.ModelSerializer):
 class MaterialDetailSerializer(MaterialListSerializer):
     versions = VersionSerializer(many=True, read_only=True)
     access_rules = AccessRuleSerializer(many=True, read_only=True)
+    ttk_metadata = TTKMetadataSerializer(read_only=True)
 
     class Meta(MaterialListSerializer.Meta):
-        fields = MaterialListSerializer.Meta.fields + ("versions", "access_rules")
+        fields = MaterialListSerializer.Meta.fields + ("versions", "access_rules", "ttk_metadata")
 
 
 class MaterialWriteSerializer(serializers.ModelSerializer):
@@ -103,5 +122,5 @@ class AcknowledgmentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = MaterialAcknowledgmentAssignment
-        fields = ("id", "material_id", "material_title", "version", "version_number", "employee", "assigned_by", "related_task", "status", "due_at", "opened_at", "acknowledged_at", "created_at")
+        fields = ("id", "material_id", "material_title", "version", "version_number", "employee", "assigned_by", "related_task", "requires_test", "status", "due_at", "opened_at", "acknowledged_at", "created_at")
         read_only_fields = fields

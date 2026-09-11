@@ -16,9 +16,9 @@ class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ("id", "email", "phone", "full_name", "roles", "employee", "is_demo")
-    def get_full_name(self, obj): return " ".join(filter(None, [obj.last_name, obj.first_name, obj.middle_name]))
-    def get_roles(self, obj): return [{"code": x.role.code, "name": x.role.name} for x in obj.role_assignments.select_related("role")]
-    def get_employee(self, obj):
+    def get_full_name(self, obj) -> str: return " ".join(filter(None, [obj.last_name, obj.first_name, obj.middle_name]))
+    def get_roles(self, obj) -> list[dict]: return [{"code": x.role.code, "name": x.role.name} for x in obj.role_assignments.select_related("role")]
+    def get_employee(self, obj) -> dict | None:
         if not hasattr(obj, "employee"): return None
         e = obj.employee
         return {"id": e.id, "position": e.position, "department": e.department.name if e.department else None, "company": e.company.name, "employee_number": e.employee_number}

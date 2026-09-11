@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   ChevronRight,
   ClipboardCheck,
+  CreditCard,
   Gauge,
   LayoutDashboard,
   LogOut,
@@ -41,6 +42,7 @@ import "./analytics.css";
 import "./notifications.css";
 import "./knowledge.css";
 import "./learning.css";
+import IikoCardsPage from "./IikoCardsPage";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
 type Profile = {
@@ -285,6 +287,8 @@ type AssignmentData = { id:number; course:number; course_title:string; status:st
 type AssessmentData = { id:number; course:number; title:string; description:string; time_limit_minutes:number; passing_score:number; max_attempts:number; questions_count:number };
 type AttemptData = { id:number; assessment:number; assessment_title:string; status:string; score_percent:string; passed:boolean; attempt_number:number; questions:{id:number;text:string;question_type:string;is_required:boolean;options:{id:number;text:string}[]}[]; responses:{id:number;question:number;is_correct:boolean|null;points_awarded:string}[] };
 type CertificateData = { id:number; course_title:string; certificate_number:string; issued_at:string; expires_at:string|null; status:string; verification_code:string };
+type LearningManagementSummary = { assigned:number; completed:number; overdue:number; completion_rate:number; average_score:number; repeat_attempts:number; certificates_active:number; certificates_expiring:number; certificates_expired:number; acknowledgments_pending:number };
+type LearningEmployeeRow = { employee_id:number; full_name:string; department:string|null; mandatory_courses:number; completed:number; overdue:number; average_score:number; certificates:number; nearest_expiration:string|null; acknowledgment_rate:number };
 async function api(path: string, options: RequestInit = {}) {
   const token = sessionStorage.getItem("access");
   const r = await fetch(`${API}${path}`, {
@@ -444,9 +448,11 @@ function App() {
     | "analytics"
     | "knowledge"
     | "learning"
+    | "learning-management"
     | "notifications"
+    | "iiko-cards"
   >(
-    window.location.hash === "#tasks"
+    window.location.hash === "#iiko-cards" ? "iiko-cards" : window.location.hash === "#tasks"
       ? "tasks"
       : window.location.hash === "#checklists"
         ? "checklists"
@@ -458,6 +464,8 @@ function App() {
               ? "analytics"
               : window.location.hash.startsWith("#knowledge")
                 ? "knowledge"
+                : window.location.hash === "#learning-team"
+                  ? "learning-management"
                 : window.location.hash.startsWith("#learning")
                   ? "learning"
               : window.location.hash === "#notifications"
@@ -467,7 +475,7 @@ function App() {
   useEffect(() => {
     const syncRoute = () =>
       setView(
-        window.location.hash === "#tasks"
+        window.location.hash === "#iiko-cards" ? "iiko-cards" : window.location.hash === "#tasks"
           ? "tasks"
           : window.location.hash === "#checklists"
             ? "checklists"
@@ -479,6 +487,8 @@ function App() {
                   ? "analytics"
                   : window.location.hash.startsWith("#knowledge")
                     ? "knowledge"
+                    : window.location.hash === "#learning-team"
+                      ? "learning-management"
                     : window.location.hash.startsWith("#learning")
                       ? "learning"
                   : window.location.hash === "#notifications"
@@ -509,6 +519,7 @@ function App() {
   if (loading) return <div className="loader">AYS</div>;
   if (!profile) return <Login onLogin={setProfile} />;
   const emp = profile.employee;
+  const canManageLearning = profile.roles.some((role) => ["manager", "facility_manager", "hr", "admin", "executive", "owner"].includes(role.code));
   const logout = () => {
     sessionStorage.clear();
     setProfile(null);
@@ -578,6 +589,14 @@ function App() {
             <GraduationCap size={19} />
             Обучение
           </a>
+          {canManageLearning && <a
+            href="#learning-team"
+            className={view === "learning-management" ? "active" : ""}
+            onClick={() => setMobile(false)}
+          >
+            <Users size={19} />
+            Обучение команды
+          </a>}
           <a
             href="#knowledge"
             className={view === "knowledge" ? "active" : ""}
@@ -600,6 +619,9 @@ function App() {
               {n}
             </button>
           ))}
+          <a href="#iiko-cards" className={view === "iiko-cards" ? "active" : ""} onClick={() => setMobile(false)}>
+            <CreditCard size={19} />Карты сотрудников
+          </a>
           <a
             href="#notifications"
             className={view === "notifications" ? "active" : ""}
@@ -646,10 +668,14 @@ function App() {
             <div className="avatar small">{initials(profile.full_name)}</div>
           </div>
         </header>
-        {view === "notifications" ? (
+        {view === "iiko-cards" ? (
+          <IikoCardsPage />
+        ) : view === "notifications" ? (
           <NotificationsView />
         ) : view === "learning" ? (
           <LearningView />
+        ) : view === "learning-management" ? (
+          <LearningManagementView />
         ) : view === "knowledge" ? (
           <KnowledgeView />
         ) : view === "analytics" ? (
@@ -2476,6 +2502,29 @@ function TasksView({ profile }: { profile: Profile }) {
     </main>
   );
 }
+function LearningManagementView() {
+  const [summary,setSummary]=useState<LearningManagementSummary|null>(null);
+  const [employees,setEmployees]=useState<LearningEmployeeRow[]>([]);
+  const [error,setError]=useState("");
+  useEffect(()=>{Promise.all([api("/management/learning/summary/"),api("/management/learning/employees/")]).then(([s,e])=>{setSummary(s);setEmployees(e.results||e)}).catch(()=>setError("Не удалось загрузить данные обучения команды"))},[]);
+  if(error)return <main className="tasks-page"><div className="knowledge-error">{error}</div></main>;
+  if(!summary)return <main className="tasks-page"><div className="tasks-loading">Собираем показатели обучения…</div></main>;
+  return <main className="tasks-page management-page">
+    <div className="tasks-title"><div><p className="eyebrow blue">Развитие и обязательные допуски</p><h1>Обучение команды</h1><p>Прогресс, просрочки, результаты и ознакомление сотрудников.</p></div></div>
+    <section className="management-summary learning-management-summary">
+      <article><GraduationCap/><span><b>{summary.assigned}</b>Назначено</span></article>
+      <article><CircleCheckBig/><span><b>{summary.completion_rate}%</b>Завершено</span></article>
+      <article className={summary.overdue?"danger":""}><CalendarDays/><span><b>{summary.overdue}</b>Просрочено</span></article>
+      <article><Award/><span><b>{summary.certificates_active}</b>Допусков</span></article>
+      <article className={summary.acknowledgments_pending?"warning":""}><BookOpen/><span><b>{summary.acknowledgments_pending}</b>Без ознакомления</span></article>
+    </section>
+    <section className="management-card learning-team-table"><div className="card-heading"><h2>Сотрудники</h2><p>Средний балл тестов и дисциплина обязательного обучения</p></div>
+      <div className="learning-team-head"><b>Сотрудник</b><b>Курсы</b><b>Завершено</b><b>Просрочено</b><b>Средний балл</b><b>Допуски</b><b>Ознакомление</b></div>
+      {employees.map(e=><div className="learning-team-row" key={e.employee_id}><span><b>{e.full_name}</b><small>{e.department||"Без подразделения"}</small></span><span>{e.mandatory_courses}</span><span>{e.completed}</span><span className={e.overdue?"danger-text":""}>{e.overdue}</span><span>{e.average_score}%</span><span>{e.certificates}</span><span>{e.acknowledgment_rate}%</span></div>)}
+    </section>
+  </main>;
+}
+
 function LearningView() {
   const [tabMode,setTabMode]=useState<"my"|"catalog"|"results"|"certificates">("my");
   const [courses,setCourses]=useState<CourseData[]>([]); const [assignments,setAssignments]=useState<AssignmentData[]>([]); const [attempts,setAttempts]=useState<AttemptData[]>([]); const [certificates,setCertificates]=useState<CertificateData[]>([]);

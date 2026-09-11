@@ -8,7 +8,7 @@ from employees.models import Employee, EmployeeFacility
 from organizations.models import Cluster, Company, Department, Facility, Region
 from .models import (KnowledgeCategory, KnowledgeMaterial, MaterialAccessRule,
                      MaterialAcknowledgmentAssignment, MaterialFavorite,
-                     MaterialVersion, MaterialView)
+                     MaterialVersion, MaterialView, TTKMetadata)
 
 
 class KnowledgeBaseApiTests(APITestCase):
@@ -100,3 +100,19 @@ class KnowledgeBaseApiTests(APITestCase):
         self.assertEqual(self.client.get(f"/api/v1/knowledge/materials/{material.id}/versions/{version_id}/download/").status_code, 200)
         self.authenticate(self.outsider)
         self.assertEqual(self.client.get(f"/api/v1/knowledge/materials/{material.id}/versions/{version_id}/download/").status_code, 404)
+
+    def test_required_test_blocks_acknowledgment(self):
+        material = self.create_material(); response = self.publish(material)
+        MaterialAcknowledgmentAssignment.objects.create(version_id=response.data["id"], employee=self.worker_employee, assigned_by=self.manager, requires_test=True)
+        self.authenticate(self.worker)
+        result = self.client.post(f"/api/v1/knowledge/materials/{material.id}/acknowledge/")
+        self.assertEqual(result.status_code, 400)
+
+    def test_ttk_metadata_is_managed_through_api(self):
+        material = KnowledgeMaterial.objects.create(title="ТТК", slug="ttk", material_type=KnowledgeMaterial.Type.TTK, category=self.category, owner=self.manager)
+        self.authenticate(self.manager)
+        result = self.client.patch(f"/api/v1/knowledge/materials/{material.id}/ttk-metadata/", {"dish_name": "Салат", "brand": "AYS", "facility": self.facility.id}, format="json")
+        self.assertEqual(result.status_code, 200)
+        metadata = TTKMetadata.objects.get(material=material)
+        self.assertEqual(metadata.brand, "AYS")
+        self.assertEqual(metadata.facility_id, self.facility.id)

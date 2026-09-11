@@ -10,7 +10,7 @@ from notifications.models import Notification
 from organizations.models import Company, Department
 from tasks.models import Task
 from .integrations import provision_course_assignment
-from .models import Certificate, Course, CourseAssignment, CourseCategory, CourseModule, Lesson
+from .models import Certificate, Course, CourseAssignment, CourseAudience, CourseCategory, CourseModule, Lesson
 from .scheduler import process_learning_deadlines
 from .services import complete_lesson
 
@@ -56,3 +56,21 @@ class LearningIntegrationTests(TestCase):
         process_learning_deadlines();certificate.refresh_from_db()
         self.assertEqual(certificate.status,Certificate.Status.EXPIRING)
         self.assertTrue(Notification.objects.filter(notification_type=Notification.Type.CERTIFICATE_EXPIRING,entity_id=certificate.id).exists())
+
+    def test_audience_rule_creates_assignment_and_task(self):
+        CourseAudience.objects.create(course=self.course, department=self.department, is_required=True)
+        result = process_learning_deadlines()
+        assignment = CourseAssignment.objects.get(course=self.course, employee=self.employee)
+        self.assertEqual(result["audience_assignments"], 1)
+        self.assertEqual(assignment.source, CourseAssignment.Source.DEPARTMENT_RULE)
+        self.assertIsNotNone(assignment.related_task_id)
+
+    def test_management_learning_endpoints(self):
+        CourseAssignment.objects.create(course=self.course, employee=self.employee, assigned_by=self.manager)
+        client = APIClient(); client.force_authenticate(self.manager)
+        summary = client.get("/api/v1/management/learning/summary/")
+        employees = client.get("/api/v1/management/learning/employees/")
+        self.assertEqual(summary.status_code, 200)
+        self.assertEqual(summary.data["assigned"], 1)
+        self.assertEqual(employees.status_code, 200)
+        self.assertEqual(employees.data[0]["employee_id"], self.employee.id)

@@ -147,7 +147,8 @@ class AssessmentApiTests(APITestCase):
         self.assertEqual(result.data["score_percent"], "100.00")
         self.assignment.refresh_from_db()
         self.assertEqual(self.assignment.status, CourseAssignment.Status.COMPLETED)
-        self.assertTrue(Certificate.objects.filter(assignment=self.assignment).exists())
+        certificate = Certificate.objects.get(assignment=self.assignment)
+        self.assertTrue(certificate.file.name.endswith(".pdf"))
 
     def test_failed_attempt_allows_retry_then_enforces_limit(self):
         first = self.start(); failed1 = self.submit(first.data["id"], self.wrong.id)

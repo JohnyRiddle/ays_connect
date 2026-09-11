@@ -4,11 +4,18 @@ from pathlib import Path
 import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+IIKO_CONNECTIONS = {
+    "sheregesh": {
+        "env_file": os.getenv("IIKO_SHEREGESH_ENV_FILE", ""),
+        "organization_id": os.getenv("IIKO_SHEREGESH_ORGANIZATION_ID", "07727ae8-4b93-4529-ac85-9232fae45be3"),
+    },
+}
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "unsafe-local-development-key-change-before-production")
 DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,backend,testserver").split(",")
 
 INSTALLED_APPS = [
+    "iiko",
     "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",
     "django.contrib.sessions", "django.contrib.messages", "django.contrib.staticfiles",
     "corsheaders", "rest_framework", "drf_spectacular", "accounts", "organizations", "employees", "access_control", "audit", "events", "work_tasks", "service_requests", "tasks", "checklists", "sensors", "incidents", "analytics", "notifications", "knowledge_base", "learning",
@@ -41,6 +48,13 @@ MEDIA_URL = "media/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"
 CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+SECURE_SSL_REDIRECT = os.getenv("DJANGO_SECURE_SSL_REDIRECT", "0") == "1"
+SESSION_COOKIE_SECURE = os.getenv("DJANGO_SESSION_COOKIE_SECURE", "0") == "1"
+CSRF_COOKIE_SECURE = os.getenv("DJANGO_CSRF_COOKIE_SECURE", "0") == "1"
+SECURE_HSTS_SECONDS = int(os.getenv("DJANGO_SECURE_HSTS_SECONDS", "0"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv("DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", "0") == "1"
+SECURE_HSTS_PRELOAD = os.getenv("DJANGO_SECURE_HSTS_PRELOAD", "0") == "1"
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ("rest_framework_simplejwt.authentication.JWTAuthentication",),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
@@ -49,7 +63,7 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "config.exceptions.api_exception_handler",
 }
-SPECTACULAR_SETTINGS = {"TITLE": "AYS Connect API", "VERSION": "1.6.0", "SERVE_INCLUDE_SCHEMA": False}
+SPECTACULAR_SETTINGS = {"TITLE": "AYS Connect API", "VERSION": "1.9.0", "SERVE_INCLUDE_SCHEMA": False}
 KNOWLEDGE_MAX_FILE_SIZE_MB = int(os.getenv("KNOWLEDGE_MAX_FILE_SIZE_MB", "50"))
 TASK_ATTACHMENT_MAX_SIZE = int(os.getenv("TASK_ATTACHMENT_MAX_SIZE", str(25 * 1024 * 1024)))
 TASK_ATTACHMENT_ALLOWED_TYPES = tuple(filter(None, os.getenv(

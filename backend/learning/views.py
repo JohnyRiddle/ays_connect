@@ -1,8 +1,9 @@
 from django.db.models import Count, Q
+from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.response import Response
 
 from audit.services import record
@@ -69,7 +70,8 @@ class CourseViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         if not is_learning_manager(self.request.user):
             raise PermissionDenied("Недостаточно прав")
-        serializer.save()
+        course = serializer.save()
+        record(self.request.user, "learning.course_changed", course, request=self.request)
 
     @action(detail=True, methods=["post"])
     def publish(self, request, pk=None):
@@ -273,3 +275,22 @@ class CertificateViewSet(viewsets.ReadOnlyModelViewSet):
         employee = getattr(request.user, "employee", None)
         qs = self.get_queryset().filter(employee=employee) if employee else Certificate.objects.none()
         return Response(CertificateSerializer(qs, many=True).data)
+
+    @action(detail=True, methods=["post"])
+    def revoke(self, request, pk=None):
+        if not is_learning_manager(request.user):
+            raise PermissionDenied("Отзывать сертификаты может только руководитель")
+        certificate = self.get_object()
+        if certificate.status != Certificate.Status.REVOKED:
+            certificate.status = Certificate.Status.REVOKED
+            certificate.save(update_fields=["status"])
+            record(request.user, "learning.certificate_revoked", certificate, request=request)
+        return Response(CertificateSerializer(certificate).data)
+
+    @action(detail=True, methods=["get"])
+    def download(self, request, pk=None):
+        certificate = self.get_object()
+        if not certificate.file:
+            raise NotFound("Файл сертификата не сформирован")
+        record(request.user, "learning.certificate_downloaded", certificate, request=request)
+        return FileResponse(certificate.file.open("rb"), as_attachment=True, filename=f"{certificate.certificate_number}.pdf", content_type="application/pdf")

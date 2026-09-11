@@ -24,6 +24,7 @@ class OutboxEvent(models.Model):
     processed_at = models.DateTimeField(null=True, blank=True)
     attempts = models.PositiveIntegerField(default=0)
     last_error = models.TextField(blank=True)
+    last_error_code = models.CharField(max_length=120, blank=True, default="")
 
     class Meta:
         indexes = [models.Index(fields=["status", "created_at"])]

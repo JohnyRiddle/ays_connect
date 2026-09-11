@@ -11,11 +11,11 @@ from audit.services import record
 from .access import accessible_materials, can_download, can_manage, employee_for, is_manager
 from .models import (KnowledgeCategory, KnowledgeMaterial, MaterialAccessRule,
                      MaterialAcknowledgmentAssignment, MaterialFavorite,
-                     MaterialTag, MaterialVersion, MaterialView)
+                     MaterialTag, MaterialVersion, MaterialView, TTKMetadata)
 from .serializers import (AccessRuleSerializer, AcknowledgmentSerializer,
                           CategorySerializer, MaterialDetailSerializer,
                           MaterialListSerializer, MaterialWriteSerializer,
-                          TagSerializer, VersionCreateSerializer,
+                          TagSerializer, TTKMetadataSerializer, VersionCreateSerializer,
                           VersionSerializer)
 from .services import publish_version
 from notifications.models import Notification
@@ -66,6 +66,11 @@ class MaterialViewSet(viewsets.ModelViewSet):
                 qs = qs.filter(**{key: params[key]})
         if params.get("tag"):
             qs = qs.filter(tags__slug=params["tag"])
+        for key in ("brand", "workshop"):
+            if params.get(key):
+                qs = qs.filter(**{f"ttk_metadata__{key}__icontains": params[key]})
+        if params.get("facility"):
+            qs = qs.filter(ttk_metadata__facility_id=params["facility"])
         if params.get("featured") == "true":
             qs = qs.filter(is_featured=True)
         if params.get("required") == "true":
@@ -89,12 +94,15 @@ class MaterialViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         if not can_manage(self.request.user, self.get_object()):
             raise PermissionDenied("Недостаточно прав для изменения материала")
-        serializer.save()
+        material = serializer.save()
+        record(self.request.user, "knowledge.material_changed", material, request=self.request)
 
     def perform_destroy(self, instance):
         if not can_manage(self.request.user, instance):
             raise PermissionDenied("Недостаточно прав для удаления материала")
-        instance.delete()
+        instance.status = KnowledgeMaterial.Status.ARCHIVED
+        instance.save(update_fields=["status", "updated_at"])
+        record(self.request.user, "knowledge.material_archived", instance, request=self.request)
 
     def retrieve(self, request, *args, **kwargs):
         material = self.get_object()
@@ -158,6 +166,15 @@ class MaterialViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Ознакомление не назначено")
         if assignment.status in {assignment.Status.CANCELLED, assignment.Status.OVERDUE}:
             raise ValidationError("Назначение нельзя подтвердить в текущем статусе")
+        if assignment.requires_test:
+            from learning.models import AssessmentAttempt
+            passed = AssessmentAttempt.objects.filter(
+                employee=employee,
+                passed=True,
+                assessment__course__modules__lessons__material=material,
+            ).exists()
+            if not passed:
+                raise ValidationError("Сначала необходимо успешно пройти связанный тест")
         assignment.status = assignment.Status.ACKNOWLEDGED
         assignment.acknowledged_at = timezone.now()
         assignment.opened_at = assignment.opened_at or timezone.now()
@@ -193,6 +210,10 @@ class MaterialViewSet(viewsets.ModelViewSet):
             version=material.current_version, employee_id=employee_id,
             defaults={"assigned_by": request.user, "due_at": request.data.get("due_at") or None},
         )
+        requires_test = str(request.data.get("requires_test", "")).lower() in {"1", "true", "yes"}
+        if assignment.requires_test != requires_test:
+            assignment.requires_test = requires_test
+            assignment.save(update_fields=["requires_test"])
         if created and assignment.employee.user:
             notify_once(recipient=assignment.employee.user, notification_type=Notification.Type.MATERIAL_ACK_REQUIRED, title="Требуется ознакомление", message=f"Ознакомьтесь с «{material.title}».", entity_type="MaterialAcknowledgmentAssignment", entity_id=assignment.id, priority=Notification.Priority.WARNING)
         if str(request.data.get("create_task", "")).lower() in {"1", "true", "yes"} and not assignment.related_task_id and assignment.employee.user:
@@ -219,3 +240,19 @@ class MaterialViewSet(viewsets.ModelViewSet):
     def ttk(self, request):
         qs = self.get_queryset().filter(material_type=KnowledgeMaterial.Type.TTK)
         return Response(MaterialListSerializer(qs, many=True, context={"request": request}).data)
+
+    @action(detail=True, methods=["get", "put", "patch"], url_path="ttk-metadata")
+    def ttk_metadata(self, request, pk=None):
+        material = self.get_object()
+        if material.material_type != KnowledgeMaterial.Type.TTK:
+            raise ValidationError("Метаданные ТТК доступны только для материалов типа ТТК")
+        metadata, _ = TTKMetadata.objects.get_or_create(material=material)
+        if request.method == "GET":
+            return Response(TTKMetadataSerializer(metadata).data)
+        if not can_manage(request.user, material):
+            raise PermissionDenied("Недостаточно прав")
+        serializer = TTKMetadataSerializer(metadata, data=request.data, partial=request.method == "PATCH")
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        record(request.user, "knowledge.ttk_metadata_changed", metadata, request=request)
+        return Response(serializer.data)

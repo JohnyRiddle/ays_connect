@@ -3,6 +3,11 @@ from access_control.models import Permission
 
 
 PERMISSIONS = {
+    "iiko.sheregesh.card.reassign": "Снятие регистрации и передача карт iikoCard: Шерегеш",
+    "iiko.sheregesh.card.delete_guest": "Удаление прежнего гостя при переоформлении iikoCard: Шерегеш",
+    "iiko.sheregesh.card.topup": "Пополнение кошелька при создании iikoCard: Шерегеш",
+    "iiko.sheregesh.card.create": "Создание карт iikoCard: Шерегеш",
+    "iiko.sheregesh.card.view": "Проверка карт iikoCard: Шерегеш",
     "employee.view": "Просмотр сотрудников",
     "employee.manage": "Управление сотрудниками",
     "organization.view": "Просмотр оргструктуры",

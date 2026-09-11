@@ -2,15 +2,17 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from knowledge_base.models import MaterialAcknowledgmentAssignment
+from knowledge_base.models import KnowledgeMaterial, MaterialAcknowledgmentAssignment
 from notifications.models import Notification
 from .integrations import notify_once
 from .models import Certificate, CourseAssignment
+from .automation import assign_courses_by_audience, reassign_expired_certificates
 
 
 def process_learning_deadlines(now=None):
     now = now or timezone.now()
-    counters = {"courses_overdue": 0, "due_reminders": 0, "ack_overdue": 0, "certificates_expiring": 0, "certificates_expired": 0}
+    counters = {"courses_overdue": 0, "due_reminders": 0, "ack_overdue": 0, "certificates_expiring": 0, "certificates_expired": 0, "audience_assignments": 0, "repeat_assignments": 0, "materials_need_update": 0}
+    counters["audience_assignments"] = assign_courses_by_audience(now)
     active = CourseAssignment.objects.select_related("employee__user", "course").filter(due_at__isnull=False).exclude(status__in=[CourseAssignment.Status.COMPLETED, CourseAssignment.Status.CANCELLED, CourseAssignment.Status.EXPIRED])
     for assignment in active:
         user = assignment.employee.user
@@ -36,4 +38,9 @@ def process_learning_deadlines(now=None):
             if certificate.status != Certificate.Status.ACTIVE: certificate.status = Certificate.Status.ACTIVE; certificate.save(update_fields=["status"])
             continue
         if certificate.employee.user: notify_once(recipient=certificate.employee.user, notification_type=kind, title=title, message=f"Сертификат по курсу «{certificate.course.title}»: {certificate.expires_at:%d.%m.%Y}.", entity_type="Certificate", entity_id=certificate.id, priority=Notification.Priority.WARNING)
+    counters["repeat_assignments"] = reassign_expired_certificates(now)
+    counters["materials_need_update"] = KnowledgeMaterial.objects.filter(
+        review_at__lt=now,
+        status=KnowledgeMaterial.Status.PUBLISHED,
+    ).update(status=KnowledgeMaterial.Status.NEEDS_UPDATE)
     return counters
