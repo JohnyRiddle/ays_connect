@@ -84,10 +84,11 @@ guards. iiko API tests используют mocks; staging не содержит
 1. Зафиксировать target host, текущие image IDs/digests, deployment markers,
    `docker compose ps`, health, `showmigrations` и хеши Compose/config templates.
    Остановиться при неизвестном server drift; файлы на месте не перезаписывать.
-2. Собрать backend/frontend/worker images только из будущего неизменяемого integrated
-   checkpoint. Выполнить `docker compose config`, `check`, migration plan и проверить,
-   что init/seed не входят в автоматический startup. `seed_permissions` при необходимости
-   запускается отдельно и не выдаёт grants.
+2. До maintenance собрать backend/frontend/worker images только из неизменяемого
+   integrated checkpoint, зафиксировать новые и прежние digests и проверить, что
+   `init` использует новый release image. Выполнить `docker compose config`, `check`,
+   migration plan и проверить, что init не входит в обычный resume. `seed_permissions`
+   может пополнить каталог кодами релиза, но не выдаёт и не расширяет grants.
 3. До maintenance проверить свободное место на основном и backup-диске и согласованный
    off-host target. Включить maintenance, остановить backend write traffic и все workers.
 4. Создать `pg_dump --format=custom` и media tar штатным `deployment/backup.sh`, сохранить
@@ -104,8 +105,18 @@ guards. iiko API tests используют mocks; staging не содержит
    JWT, Projects, Work, iiko config availability, Cards seasons и защищённую выдачу
    файлов. Write smoke допускается только на маркированных synthetic объектах и
    существующей тестовой учётной записи, без реальной отправки iiko/уведомлений.
-7. Снять maintenance только после обязательного smoke. Сохранить предыдущие images и
-   backup до отдельного решения о retention.
+7. После запуска proxy обязательно выполнить внешний HTTPS smoke с проверкой сертификата,
+   live/ready, SPA и аутентифицированных read-only маршрутов. Снять maintenance и явно
+   зафиксировать момент открытия пользовательских записей только после успешного smoke.
+   Сохранить предыдущие images и backup до отдельного решения о retention.
+
+При backup-only maintenance существующие контейнеры нужно возобновлять через
+`docker start <container ids>`. `docker compose start backend ...` использовать нельзя:
+из-за `depends_on` он запускает `init` и может повторно выполнить migration/permissions
+bootstrap. При настоящем deployment `init` выполняется ровно один раз командой
+`docker compose ... run --rm --no-deps init`; backend, workers, frontend assets и proxy
+после этого переключаются с `--no-deps`. Точные команды приведены в
+[PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md).
 
 Условия остановки: неожиданный migration plan, неизвестный drift, отсутствие полного
 backup/off-host checksum/restore, нехватка места, выдача новых grants, unhealthy
