@@ -84,7 +84,7 @@ begins and writers are stopped, keep the database and Redis running. Run the rel
 init exactly once and without dependency traversal:
 
 ```bash
-$dc build backend frontend_assets \
+$dc build init backend frontend_assets \
   recurrence_worker schedule_worker sla_worker escalation_worker \
   notification_worker performance_worker
 
