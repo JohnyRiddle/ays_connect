@@ -23,9 +23,13 @@ test('manager creates project, stage, Work task, links existing task and complet
   await expect(page.getByRole('link',{name:'Проекты'})).toBeVisible();
   await page.getByRole('link',{name:'Проекты'}).click();
   await expect(page.getByRole('heading',{name:'Проекты'})).toBeVisible();
+  const createProject=page.getByRole('button',{name:'Создать проект',exact:true});
+  await expect(createProject).toBeEnabled();
+  await expect(page.getByLabel('Название нового проекта')).toHaveCount(0);
+  await createProject.click();
   await page.getByLabel('Название нового проекта').fill('Synthetic browser project');
   await page.getByLabel('Руководитель проекта').selectOption(manager.employee);
-  await page.getByRole('button',{name:'Создать проект'}).click();
+  await page.getByRole('button',{name:'Создать',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Synthetic browser project'})).toBeVisible();
   const projectPath=new URL(page.url()).pathname;
   await page.getByLabel('Название этапа').fill('Synthetic browser stage');
