@@ -8,7 +8,9 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from drf_spectacular.utils import OpenApiTypes, extend_schema
 
+@extend_schema(responses=OpenApiTypes.OBJECT)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def health(request):
@@ -30,6 +32,7 @@ urlpatterns = [
     path("api/v1/health/live/", health),
     path("api/v1/health/ready/", readiness),
     path("api/v1/auth/", include("accounts.urls")),
+    path("api/v1/iiko/", include("iiko.urls")),
     path("api/v1/organization/", include("organizations.urls")),
     path("api/v1/employees/", include("employees.urls")),
     path("api/public/v1/", include("employees.public_urls")),

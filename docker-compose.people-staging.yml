@@ -46,12 +46,16 @@ services:
       DEFAULT_FROM_EMAIL: acceptance@example.test
       EMAIL_HOST_PASSWORD: ''
     volumes:
-      - ./backend:/app:ro
       - ./deployment/people-staging:/acceptance:ro
       - people_media:/app/media
       - people_static:/app/staticfiles
       - people_private:/staging-private
     networks: [acceptance]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+  migrate:
+    <<: *backend
+    command: [sh, -ec, 'python manage.py migrate --noinput && python manage.py collectstatic --noinput']
     depends_on:
       db: {condition: service_healthy}
       redis: {condition: service_started}

@@ -29,6 +29,7 @@ import {
   PlayCircle,
   Award,
   CircleCheckBig,
+  CreditCard,
   X,
 } from "lucide-react";
 import "./styles.css";
@@ -46,6 +47,9 @@ import "./people-theme.css";
 import { ProductionWorkRouter } from "./work";
 import { ProjectsRouter } from "./projects";
 import { ActivationPage, PeopleRouter, RegistrationPage } from "./people";
+import IikoCardsPage from "./IikoCardsPage";
+import { CardsDashboard } from "./CardsDashboard";
+import { isCardsDashboard } from "./cardsDashboardData";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
 const APP_VERSION = import.meta.env.VITE_APP_VERSION || "1.0.0-rc1";
@@ -671,7 +675,7 @@ function App() {
     window.scrollTo(0, 0);
   };
   return (
-    <div className="app-shell">
+    <div className={isCardsDashboard({ pathname: path, hash: window.location.hash }) ? "app-shell cards-shell" : "app-shell"}>
       <aside className={mobile ? "sidebar open" : "sidebar"}>
         <div className="logo">
           <span>A</span> AYS Connect
@@ -791,6 +795,8 @@ function App() {
           </a>
         </nav>
         <div className="sidebar-bottom">
+          <a href="/iiko-cards" className={path === "/iiko-cards" ? "active" : ""} onClick={(event) => { if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return; event.preventDefault(); navigate("/iiko-cards"); }}><CreditCard size={19} />Оформление iikoCard</a>
+          <a href="/cards-dashboard" className={isCardsDashboard({ pathname: path, hash: window.location.hash }) ? "active" : ""} aria-current={isCardsDashboard({ pathname: path, hash: window.location.hash }) ? "page" : undefined} onClick={(event) => { if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return; event.preventDefault(); navigate("/cards-dashboard"); }}><CreditCard size={19} />Карты</a>
           <small className="build-version">Work Core {APP_VERSION}</small>
           <button
             onClick={() => openLegacyView("notification-settings", "#notification-settings")}
@@ -827,7 +833,11 @@ function App() {
             <div className="avatar small">{initials(profile.full_name)}</div>
           </div>
         </header>
-        {path.startsWith("/people") ? (
+        {path === "/iiko-cards" || window.location.hash === "#iiko-cards" ? (
+          <IikoCardsPage />
+        ) : isCardsDashboard({ pathname: path, hash: window.location.hash }) ? (
+          <CardsDashboard />
+        ) : path.startsWith("/people") ? (
           <PeopleRouter path={path} navigate={navigate} />
         ) : path.startsWith("/projects") ? (
           <ProjectsRouter path={path} navigate={navigate} />

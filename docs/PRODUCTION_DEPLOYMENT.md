@@ -1,5 +1,11 @@
 # Production deployment
 
+> Для интегрированного релиза People + Projects + iiko + Cards от 27.09.2026
+> обязательны inventory, migration delta, off-host restore gate и порядок переключения
+> компонентов из
+> [INTEGRATED_RELEASE_2026_09_27.md](INTEGRATED_RELEASE_2026_09_27.md). Этот runbook не
+> разрешает deployment без immutable checkpoint и проверенного off-host restore point.
+
 ## Prerequisites
 
 Linux host with current Docker Engine/Compose, persistent disk, NTP enabled, DNS A/AAAA record and inbound 80/443 only. PostgreSQL, Redis and backend ports stay on the internal Compose network.

@@ -1,0 +1,3362 @@
+{
+  "source": "https://api-ru.iiko.services/api-docs/docs",
+  "retrieved": "2026-09-10",
+  "note": "Official specification excerpt. Customer creation, category assignment and card addition implemented on explicit user request; real mutations await user testing. Removal remains research only.",
+  "openapi": "3.0.1",
+  "paths": {
+    "/api/v2/access_token": {
+      "post": {
+        "tags": [
+          "Authorization"
+        ],
+        "summary": "Retrieve session key for API access (v2)",
+        "description": "Authenticates an application and returns a short-lived JWT token for subsequent API calls.\r\n            \r\n**Getting started:**\r\n1. Register at https://public-api.iikoweb.ru/portal and fill in your company details.\r\n2. Create an application — you will receive an `appId` and a one-time `clientSecret`.\r\n3. In iikoWeb → \"Integrations\" → \"API Keys\", generate an API key.\r\n4. Call this method with all three credentials.\r\n5. Use the returned `token` as a Bearer token in the `Authorization` header of all\r\n   subsequent API requests: `Authorization: Bearer {token}`.\r\n**Token lifetime:** the token is valid for **1 hour**. The exact expiration is encoded\r\nin the JWT `exp` claim. Request a new token before the current one expires — there is\r\nno refresh token flow.",
+        "parameters": [
+          {
+            "name": "Timeout",
+            "in": "header",
+            "description": "Timeout in seconds.",
+            "schema": {
+              "type": "integer",
+              "default": 15,
+              "example": 10
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Auth.GetAccessTokenV2Request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Auth.GetAccessTokenV2Response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Request Timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/1/organizations": {
+      "get": {
+        "tags": [
+          "Deprecated"
+        ],
+        "summary": "Returns organizations available to api-login user.",
+        "description": "> Deprecated, use `POST api/1/organizations`.\n\n > Restriction group: `Data: dictionaries`.",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "Authorization token.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "Bearer nRzIn0dJu1LpbGMbVfnCFDjKM4iwPhDV8tMlh7X5eWBR64iw"
+            }
+          },
+          {
+            "name": "Timeout",
+            "in": "header",
+            "description": "Timeout in seconds.",
+            "schema": {
+              "type": "integer",
+              "default": 15,
+              "example": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Organizations.GetSimpleOrganizationsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Request Timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": true
+      },
+      "post": {
+        "tags": [
+          "Organizations"
+        ],
+        "summary": "Returns organizations available to api-login user.",
+        "description": "\n\n > Restriction group: `Data: dictionaries`.",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "Authorization token.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "Bearer nRzIn0dJu1LpbGMbVfnCFDjKM4iwPhDV8tMlh7X5eWBR64iw"
+            }
+          },
+          {
+            "name": "Timeout",
+            "in": "header",
+            "description": "Timeout in seconds.",
+            "schema": {
+              "type": "integer",
+              "default": 15,
+              "example": 10
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Organizations.GetOrganizationsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Organizations.GetOrganizationsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Request Timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/1/loyalty/iiko/customer_category": {
+      "post": {
+        "tags": [
+          "Customer categories"
+        ],
+        "summary": "Get customer categories.",
+        "description": "Get all organization's customer categories.\n\n > Restriction group: `Loyalty: dictionaries`.",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "Authorization token.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "Bearer nRzIn0dJu1LpbGMbVfnCFDjKM4iwPhDV8tMlh7X5eWBR64iw"
+            }
+          },
+          {
+            "name": "Timeout",
+            "in": "header",
+            "description": "Timeout in seconds.",
+            "schema": {
+              "type": "integer",
+              "default": 15,
+              "example": 10
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.GetCategoriesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.GetCategoriesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Request Timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/1/loyalty/iiko/program": {
+      "post": {
+        "tags": [
+          "Discounts and promotions"
+        ],
+        "summary": "Get programs.",
+        "description": "Get all loyalty programs for organization.\n\n > Restriction group: `Loyalty: dictionaries`.",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "Authorization token.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "Bearer nRzIn0dJu1LpbGMbVfnCFDjKM4iwPhDV8tMlh7X5eWBR64iw"
+            }
+          },
+          {
+            "name": "Timeout",
+            "in": "header",
+            "description": "Timeout in seconds.",
+            "schema": {
+              "type": "integer",
+              "default": 15,
+              "example": 10
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Organization.GetProgramsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Organization.GetProgramsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Request Timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/1/loyalty/iiko/customer/info": {
+      "post": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Get customer info.",
+        "description": "Get customer info by specified criterion.\n\n > Restriction group: `Guests: info`.",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "Authorization token.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "Bearer nRzIn0dJu1LpbGMbVfnCFDjKM4iwPhDV8tMlh7X5eWBR64iw"
+            }
+          },
+          {
+            "name": "Timeout",
+            "in": "header",
+            "description": "Timeout in seconds.",
+            "schema": {
+              "type": "integer",
+              "default": 15,
+              "example": 10
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.GetCustomerInfoRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.GetCustomerInfoResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Request Timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/1/loyalty/iiko/customer/card/remove": {
+      "post": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Delete card.",
+        "description": "Delete existing card for customer.\n\n > Restriction group: `Guests: changing`.",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "Authorization token.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "Bearer nRzIn0dJu1LpbGMbVfnCFDjKM4iwPhDV8tMlh7X5eWBR64iw"
+            }
+          },
+          {
+            "name": "Timeout",
+            "in": "header",
+            "description": "Timeout in seconds.",
+            "schema": {
+              "type": "integer",
+              "default": 15,
+              "example": 10
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.DeleteMagnetCardRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.DeleteMagnetCardResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Request Timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/1/loyalty/iiko/customer/card/add": {
+      "post": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Add card.",
+        "description": "Add new card for customer.\n\n > Restriction group: `Guests: changing`.",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "Authorization token.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "Bearer nRzIn0dJu1LpbGMbVfnCFDjKM4iwPhDV8tMlh7X5eWBR64iw"
+            }
+          },
+          {
+            "name": "Timeout",
+            "in": "header",
+            "description": "Timeout in seconds.",
+            "schema": {
+              "type": "integer",
+              "default": 15,
+              "example": 10
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.AddMagnetCardRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.AddMagnetCardResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Request Timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/1/loyalty/iiko/customer/transactions/by_revision": {
+      "post": {
+        "tags": [
+          "Report"
+        ],
+        "summary": "Get transaction report by revision.",
+        "description": "Get transaction report for specified customer by provided revision.\n\n > Restriction group: `Guests: info`.",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "Authorization token.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "Bearer nRzIn0dJu1LpbGMbVfnCFDjKM4iwPhDV8tMlh7X5eWBR64iw"
+            }
+          },
+          {
+            "name": "Timeout",
+            "in": "header",
+            "description": "Timeout in seconds.",
+            "schema": {
+              "type": "integer",
+              "default": 15,
+              "example": 10
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Report.GetTransactionsReportByRevisionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Report.GetTransactionsReportByRevisionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Request Timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/1/loyalty/iiko/customer/create_or_update": {
+      "post": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Create or update customer.",
+        "description": "Create or update customer info by id or phone or card track.\n\n > Restriction group: `Guests: creating`.",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "Authorization token.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "Bearer nRzIn0dJu1LpbGMbVfnCFDjKM4iwPhDV8tMlh7X5eWBR64iw"
+            }
+          },
+          {
+            "name": "Timeout",
+            "in": "header",
+            "description": "Timeout in seconds.",
+            "schema": {
+              "type": "integer",
+              "default": 15,
+              "example": 10
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.CreateOrUpdateCustomerRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.CreateOrUpdateCustomerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Request Timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/1/loyalty/iiko/customer_category/add": {
+      "post": {
+        "tags": [
+          "Customer categories"
+        ],
+        "summary": "Add category for customer.",
+        "description": "Add specified category for customer.\n\n > Restriction group: `Guests: changing`.",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "Authorization token.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "Bearer nRzIn0dJu1LpbGMbVfnCFDjKM4iwPhDV8tMlh7X5eWBR64iw"
+            }
+          },
+          {
+            "name": "Timeout",
+            "in": "header",
+            "description": "Timeout in seconds.",
+            "schema": {
+              "type": "integer",
+              "default": 15,
+              "example": 10
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.ChangeCategoryForCustomerRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.ChangeCategoryForCustomerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Request Timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/1/loyalty/iiko/delete_customers": {
+      "post": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Logical deletion of customers.",
+        "description": "Mark customers as deleted.",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "Authorization token.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "Bearer nRzIn0dJu1LpbGMbVfnCFDjKM4iwPhDV8tMlh7X5eWBR64iw"
+            }
+          },
+          {
+            "name": "Timeout",
+            "in": "header",
+            "description": "Timeout in seconds.",
+            "schema": {
+              "type": "integer",
+              "default": 15,
+              "example": 10
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.DeleteCustomersRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.DeleteCustomersResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Request Timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/1/loyalty/iiko/customer/wallet/topup": {
+      "post": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Refill balance.",
+        "description": "Refill customer balance.\n\n > Restriction group: `Loyalty: wallets`.",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "Authorization token.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "Bearer nRzIn0dJu1LpbGMbVfnCFDjKM4iwPhDV8tMlh7X5eWBR64iw"
+            }
+          },
+          {
+            "name": "Timeout",
+            "in": "header",
+            "description": "Timeout in seconds.",
+            "schema": {
+              "type": "integer",
+              "default": 15,
+              "example": 10
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.ChangeUserBalanceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Organization.RefillUserBalanceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Request Timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Errors.ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "iikoTransport.PublicApi.Contracts.Auth.GetAccessTokenV2Request": {
+        "title": " ",
+        "required": [
+          "appId",
+          "clientSecret",
+          "apiKey"
+        ],
+        "type": "object",
+        "properties": {
+          "apiKey": {
+            "type": "string",
+            "description": "API key generated in iikoWeb under \"Integrations → API Keys\". \r\nThe key determines which restaurant organizations the token grants access to.",
+            "example": "user-generated-api-key"
+          },
+          "appId": {
+            "type": "string",
+            "description": "Unique application identifier issued by the iiko Developer Portal (https://public-api.iikoweb.ru/portal).\r\nYou receive it when you register a new application in your developer account.\r\nThe `appId` never changes for the lifetime of the application.",
+            "format": "uuid",
+            "example": "15"
+          },
+          "clientSecret": {
+            "type": "string",
+            "description": "Application secret key issued by the iiko Developer Portal (https://public-api.iikoweb.ru/portal).\r\nThe secret is shown **only once** — right after the application is created.\r\nStore it securely. If the secret is lost or compromised, regenerate it in the Developer Portal; the previous secret will be revoked immediately.",
+            "example": "sk_live_abc123def456..."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Authentication token request."
+      },
+      "iikoTransport.PublicApi.Contracts.Auth.GetAccessTokenV2Response": {
+        "title": " ",
+        "required": [
+          "correlationId",
+          "token"
+        ],
+        "type": "object",
+        "properties": {
+          "correlationId": {
+            "type": "string",
+            "description": "Unique request identifier for tracing and support purposes.\r\nInclude this value when contacting support about a specific request.",
+            "format": "uuid"
+          },
+          "token": {
+            "type": "string",
+            "description": "JWT session token. Pass it in the `Authorization` header as `Bearer {token}`\r\nin every subsequent API call.\r\nThe token is valid for 1 hour (see the `exp` claim in the decoded JWT).\r\nWhen the token expires, call this method again to obtain a new one.",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Response to authentication token request."
+      },
+      "iikoTransport.PublicApi.Contracts.Errors.ErrorResponse": {
+        "title": " ",
+        "required": [
+          "correlationId",
+          "errorDescription"
+        ],
+        "type": "object",
+        "properties": {
+          "correlationId": {
+            "type": "string",
+            "description": "Operation ID.",
+            "format": "uuid"
+          },
+          "errorDescription": {
+            "type": "string",
+            "description": "Error text."
+          },
+          "error": {
+            "type": "string",
+            "description": "Error code.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Error response."
+      },
+      "iikoTransport.PublicApi.Contracts.Organizations.GetSimpleOrganizationsResponse": {
+        "title": " ",
+        "required": [
+          "correlationId",
+          "organizations"
+        ],
+        "type": "object",
+        "properties": {
+          "correlationId": {
+            "type": "string",
+            "description": "Operation ID.",
+            "format": "uuid"
+          },
+          "organizations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Organizations.SimpleOrganizationInfo"
+            },
+            "description": "List of organizations.\r\n            \r\nCan be obtained by `/api/1/organizations` operation."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Response to request for organizations."
+      },
+      "iikoTransport.PublicApi.Contracts.Organizations.SimpleOrganizationInfo": {
+        "title": " ",
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Organizations.OrganizationInfo"
+          }
+        ],
+        "additionalProperties": false,
+        "description": "Organization details."
+      },
+      "iikoTransport.PublicApi.Contracts.Organizations.OrganizationInfo": {
+        "title": " ",
+        "required": [
+          "responseType",
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "responseType": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "description": "Organization ID.\r\n            \r\nCan be obtained by `/api/1/organizations` operation.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Organization name.",
+            "nullable": true
+          },
+          "code": {
+            "type": "string",
+            "description": "Organization`s code.",
+            "nullable": true
+          },
+          "externalData": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Common.ExternalData"
+            },
+            "description": "Organization`s external data.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Organization details.",
+        "discriminator": {
+          "propertyName": "responseType",
+          "mapping": {
+            "Simple": "#/components/schemas/iikoTransport.PublicApi.Contracts.Organizations.SimpleOrganizationInfo",
+            "Extended": "#/components/schemas/iikoTransport.PublicApi.Contracts.Organizations.ExtendedOrganizationInfo"
+          }
+        }
+      },
+      "iikoTransport.PublicApi.Contracts.Common.ExternalData": {
+        "title": " ",
+        "required": [
+          "key",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "External data key."
+          },
+          "value": {
+            "type": "string",
+            "description": "External data value."
+          }
+        },
+        "additionalProperties": false,
+        "description": "External data key and value pair."
+      },
+      "iikoTransport.PublicApi.Contracts.Organizations.ExtendedOrganizationInfo": {
+        "title": " ",
+        "required": [
+          "country",
+          "restaurantAddress",
+          "latitude",
+          "longitude",
+          "useUaeAddressingSystem",
+          "version",
+          "currencyIsoName",
+          "currencyMinimumDenomination",
+          "countryPhoneCode",
+          "marketingSourceRequiredInDelivery",
+          "defaultDeliveryCityId",
+          "deliveryCityIds",
+          "deliveryServiceType",
+          "defaultCallCenterPaymentTypeId",
+          "orderItemCommentEnabled",
+          "inn",
+          "addressFormatType",
+          "isConfirmationEnabled",
+          "confirmAllowedIntervalInMinutes",
+          "isCloud",
+          "addressLookup"
+        ],
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Organizations.OrganizationInfo"
+          }
+        ],
+        "properties": {
+          "country": {
+            "type": "string",
+            "description": "Country.",
+            "nullable": true
+          },
+          "restaurantAddress": {
+            "type": "string",
+            "description": "Restaurant address.",
+            "nullable": true
+          },
+          "latitude": {
+            "type": "number",
+            "description": "Latitude.",
+            "format": "double"
+          },
+          "longitude": {
+            "type": "number",
+            "description": "Longitude.",
+            "format": "double"
+          },
+          "useUaeAddressingSystem": {
+            "type": "boolean",
+            "description": "Regional setting \"Use the UAE Addressing System\"."
+          },
+          "version": {
+            "type": "string",
+            "description": "RMS version."
+          },
+          "currencyIsoName": {
+            "type": "string",
+            "description": "ISO currency code (for example: RUB, USD, EUR).",
+            "nullable": true
+          },
+          "currencyMinimumDenomination": {
+            "type": "number",
+            "description": "Value rounding of position.",
+            "format": "double",
+            "nullable": true
+          },
+          "countryPhoneCode": {
+            "type": "string",
+            "description": "Country dialing code.",
+            "nullable": true
+          },
+          "marketingSourceRequiredInDelivery": {
+            "type": "boolean",
+            "description": "Require mandatory marketing source input when creating a delivery.",
+            "nullable": true
+          },
+          "defaultDeliveryCityId": {
+            "type": "string",
+            "description": "Default delivery city.",
+            "format": "uuid",
+            "nullable": true
+          },
+          "deliveryCityIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Delivery cities.",
+            "nullable": true
+          },
+          "deliveryServiceType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Organizations.DeliverySettingsServiceType"
+              }
+            ],
+            "description": "Delivery type.",
+            "nullable": true
+          },
+          "deliveryOrderPaymentSettings": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Organizations.DeliveryOrderPaymentSettings"
+              }
+            ],
+            "description": "Delivery order payment settings.",
+            "nullable": true
+          },
+          "defaultCallCenterPaymentTypeId": {
+            "type": "string",
+            "description": "Default payment type for CallCenter.",
+            "format": "uuid",
+            "nullable": true
+          },
+          "orderItemCommentEnabled": {
+            "type": "boolean",
+            "description": "Allow text comments for order items (in all restaurant sections).",
+            "nullable": true
+          },
+          "inn": {
+            "type": "string",
+            "description": "Restaurant`s INN (Taxpayer Identification Number).",
+            "nullable": true
+          },
+          "addressFormatType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Organizations.AddressFormatType"
+              }
+            ],
+            "description": "Address format type."
+          },
+          "isConfirmationEnabled": {
+            "type": "boolean",
+            "description": "Determines whether to use delivery confirmation.",
+            "nullable": true
+          },
+          "confirmAllowedIntervalInMinutes": {
+            "type": "integer",
+            "description": "Confirm orders time interval.",
+            "format": "int32",
+            "nullable": true
+          },
+          "isCloud": {
+            "type": "boolean",
+            "description": "Determines whether organization is hosted in iikoCloud."
+          },
+          "isAnonymousGuestsAllowed": {
+            "type": "boolean",
+            "description": "If the store allows orders for anonymous guests, then it is not necessary to transfer\r\ninformation about the guest as part of the delivery order. You can only transfer\r\nthe phone number and optionally name of the guest, which will not be stored in the guest base\r\nand will only be used for the delivery of a current delivery order."
+          },
+          "addressLookup": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.AddressHints.AddressHintsServiceType"
+            },
+            "description": "Available address lookup services."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Organization details."
+      },
+      "iikoTransport.PublicApi.Contracts.Organizations.DeliverySettingsServiceType": {
+        "title": " ",
+        "enum": [
+          "CourierOnly",
+          "SelfServiceOnly",
+          "CourierAndSelfService"
+        ],
+        "type": "string",
+        "description": "Delivery settings service type."
+      },
+      "iikoTransport.PublicApi.Contracts.Organizations.DeliveryOrderPaymentSettings": {
+        "title": " ",
+        "enum": [
+          "WhenOrderOnTheWay",
+          "WhenOrderClosed"
+        ],
+        "type": "string",
+        "description": "Delivery payment time option."
+      },
+      "iikoTransport.PublicApi.Contracts.Organizations.AddressFormatType": {
+        "title": " ",
+        "enum": [
+          "Legacy",
+          "City",
+          "International",
+          "IntNoPostcode"
+        ],
+        "type": "string",
+        "description": "Address format type."
+      },
+      "iikoTransport.PublicApi.Contracts.AddressHints.AddressHintsServiceType": {
+        "title": " ",
+        "enum": [
+          "DaData",
+          "GetAddress",
+          "Ya",
+          "GooglePlaces"
+        ],
+        "type": "string",
+        "description": "Address hints service type."
+      },
+      "iikoTransport.PublicApi.Contracts.Organizations.GetOrganizationsRequest": {
+        "title": " ",
+        "type": "object",
+        "properties": {
+          "organizationIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Organizations IDs which have to be returned. By default - all organizations from apiLogin.\r\n            \r\nCan be obtained by `/api/1/organizations` operation.",
+            "nullable": true
+          },
+          "returnAdditionalInfo": {
+            "type": "boolean",
+            "description": "A sign whether additional information about the organization should be returned (RMS version, country, restaurantAddress, etc.),\r\n  or only minimal information should be returned (id and name)."
+          },
+          "includeDisabled": {
+            "type": "boolean",
+            "description": "Attribute that shows that response contains disabled organizations."
+          },
+          "returnExternalData": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "External data keys that have to be returned.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Request for organizations."
+      },
+      "iikoTransport.PublicApi.Contracts.Organizations.GetOrganizationsResponse": {
+        "title": " ",
+        "required": [
+          "correlationId",
+          "organizations"
+        ],
+        "type": "object",
+        "properties": {
+          "correlationId": {
+            "type": "string",
+            "description": "Operation ID.",
+            "format": "uuid"
+          },
+          "organizations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/iikoTransport.PublicApi.Contracts.Organizations.OrganizationInfo"
+            },
+            "description": "List of organizations.\r\n            \r\nCan be obtained by `/api/1/organizations` operation."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Response to request for organizations."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.GetCategoriesRequest": {
+        "title": " ",
+        "required": [
+          "organizationId"
+        ],
+        "type": "object",
+        "properties": {
+          "organizationId": {
+            "type": "string",
+            "description": "Organization id.",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Get categories request."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.GetCategoriesResponse": {
+        "title": " ",
+        "type": "object",
+        "properties": {
+          "guestCategories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.GuestCategoryShortInfo"
+            },
+            "description": "Guest categories for organization."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Get categories response."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.GuestCategoryShortInfo": {
+        "title": " ",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Category id.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Category name."
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Is category active or not."
+          },
+          "isDefaultForNewGuests": {
+            "type": "boolean",
+            "description": "Is category default for new guests or not."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Guest category info."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Organization.GetProgramsRequest": {
+        "title": " ",
+        "required": [
+          "organizationId"
+        ],
+        "type": "object",
+        "properties": {
+          "withoutMarketingCampaigns": {
+            "type": "boolean",
+            "description": "Determines if marketing campaigns not required.",
+            "nullable": true
+          },
+          "organizationId": {
+            "type": "string",
+            "description": "Organization id.",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Get programs request."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Organization.GetProgramsResponse": {
+        "title": " ",
+        "type": "object",
+        "properties": {
+          "Programs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Organization.LoyaltyProgram"
+            },
+            "description": "Programs."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Get programs response."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Organization.LoyaltyProgram": {
+        "title": " ",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Program id.",
+            "format": "uuid",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "description": "Program name. Can be null."
+          },
+          "description": {
+            "type": "string",
+            "description": "Program description. Can be null."
+          },
+          "serviceFrom": {
+            "type": "string",
+            "description": "Program works since date.",
+            "format": "yyyy-MM-dd HH:mm:ss.fff",
+            "example": "2019-08-24 14:15:22.123"
+          },
+          "serviceTo": {
+            "type": "string",
+            "description": "Program works till date.",
+            "format": "yyyy-MM-dd HH:mm:ss.fff",
+            "nullable": true,
+            "example": "2019-08-24 14:15:22.123"
+          },
+          "notifyAboutBalanceChanges": {
+            "type": "boolean",
+            "description": "Notify customer when balance has changed (sms/push)."
+          },
+          "programType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.ProgramType"
+              }
+            ],
+            "description": "Program type.\r\n<br>0 - deposit or corporate nutrition,<br />1 - bonus program,<br />2 - products program,<br />3 - discount program,<br />4 - certificate program."
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Program is active."
+          },
+          "walletId": {
+            "type": "string",
+            "description": "Wallet id. Program has only wallet that means global payment type for customers.",
+            "format": "uuid",
+            "nullable": true
+          },
+          "marketingCampaigns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Organization.MarketingCampaignInfo"
+            },
+            "description": "Program marketing campaigns."
+          },
+          "appliedOrganizations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Program applied organizations."
+          },
+          "templateType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/iikoNet.Common.Enums.TemplateType"
+              }
+            ],
+            "description": "Program template type.\r\n<br>0 - None,<br />1 - BonusProgram,<br />2 - DiscountProgram,<br />3 - NthDishProgram,<br />4 - ManualOrderAnonymousDiscount,<br />5 - AutoOrderAnonymousDiscount,<br />6 - AutoDishAnonymousDiscount,<br />7 - PromotionsProgram,<br />8 - NthDishPromotionsProgram."
+          },
+          "isExchangeRateEnabled": {
+            "type": "boolean",
+            "description": "Exchange rate for bonuses and real currency."
+          },
+          "refillType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/iikoNet.Common.Enums.RefillType"
+              }
+            ],
+            "description": "Refill type with payment."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Loyalty program."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.ProgramType": {
+        "title": " ",
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "type": "integer",
+        "description": "Corporate program type.",
+        "format": "int32"
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Organization.MarketingCampaignInfo": {
+        "title": " ",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Marketing campaign id.",
+            "format": "uuid",
+            "nullable": true
+          },
+          "programId": {
+            "type": "string",
+            "description": "Loyalty program id.",
+            "format": "uuid",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "description": "Loyalty program name. Can be null."
+          },
+          "description": {
+            "type": "string",
+            "description": "Marketing campaign description. Can be null."
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Marketing campaign is active."
+          },
+          "periodFrom": {
+            "type": "string",
+            "description": "Marketing campaign works since date.",
+            "format": "yyyy-MM-dd HH:mm:ss.fff",
+            "example": "2019-08-24 14:15:22.123"
+          },
+          "periodTo": {
+            "type": "string",
+            "description": "Marketing campaign works till date. Null means limitless.",
+            "format": "yyyy-MM-dd HH:mm:ss.fff",
+            "nullable": true,
+            "example": "2019-08-24 14:15:22.123"
+          },
+          "orderActionConditionBindings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Organization.MarketingCampaignActionConditionBindingInfo"
+            },
+            "description": "Conditions and actions that will be checked when order is processed."
+          },
+          "periodicActionConditionBindings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Organization.MarketingCampaignActionConditionBindingInfo"
+            },
+            "description": "Conditions and actions that will be checked by schedule."
+          },
+          "overdraftActionConditionBindings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Organization.MarketingCampaignActionConditionBindingInfo"
+            },
+            "description": "Conditions and actions that will be checked by overdraft."
+          },
+          "guestRegistrationActionConditionBindings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Organization.MarketingCampaignActionConditionBindingInfo"
+            },
+            "description": "Conditions and actions that will be checked by guest registration."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Marketing campaign info."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Organization.MarketingCampaignActionConditionBindingInfo": {
+        "title": " ",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Id.",
+            "format": "uuid",
+            "nullable": true
+          },
+          "stopFurtherExecution": {
+            "type": "boolean",
+            "description": "Loyalty processing stop after successful execution of binding. So means order of bindings affects."
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Organization.MarketingCampaignSettingsInfo"
+            },
+            "description": "Marketing actions."
+          },
+          "conditions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Organization.MarketingCampaignSettingsInfo"
+            },
+            "description": "Marketing conditions."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Marketing campaign binding info."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Organization.MarketingCampaignSettingsInfo": {
+        "title": " ",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Id.",
+            "format": "uuid",
+            "nullable": true
+          },
+          "settings": {
+            "type": "string",
+            "description": "Action/condition settings. Stored as Json. Can be null."
+          },
+          "typeName": {
+            "type": "string",
+            "description": "Action/condition type name. Can be null."
+          },
+          "checkSum": {
+            "type": "string",
+            "description": "Hash value of checksum. Can be null."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Marketing campaign settings info."
+      },
+      "iikoNet.Common.Enums.TemplateType": {
+        "title": " ",
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "iikoNet.Common.Enums.RefillType": {
+        "title": " ",
+        "enum": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.GetCustomerInfoRequest": {
+        "title": " ",
+        "required": [
+          "type"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string",
+            "description": "Organization id.",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Base class for customer info request.",
+        "discriminator": {
+          "propertyName": "type",
+          "mapping": {
+            "phone": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.GetCustomerInfoByPhoneRequest",
+            "cardTrack": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.GetCustomerInfoByCardTrackRequest",
+            "cardNumber": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.GetCustomerInfoByCardNumberRequest",
+            "email": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.GetCustomerInfoByEmailRequest",
+            "id": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.GetCustomerInfoByIdRequest"
+          }
+        }
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.GetCustomerInfoByPhoneRequest": {
+        "title": " ",
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.GetCustomerInfoRequest"
+          }
+        ],
+        "properties": {
+          "phone": {
+            "type": "string",
+            "description": "Customer phone number."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Request to get customer by phone number."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.GetCustomerInfoByCardTrackRequest": {
+        "title": " ",
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.GetCustomerInfoRequest"
+          }
+        ],
+        "properties": {
+          "cardTrack": {
+            "type": "string",
+            "description": "Customer card track."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Request to get customer by card track."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.GetCustomerInfoByCardNumberRequest": {
+        "title": " ",
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.GetCustomerInfoRequest"
+          }
+        ],
+        "properties": {
+          "cardNumber": {
+            "type": "string",
+            "description": "Customer card number."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Request to get customer by card number."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.GetCustomerInfoByEmailRequest": {
+        "title": " ",
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.GetCustomerInfoRequest"
+          }
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Customer email."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Request to get customer by email."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.GetCustomerInfoByIdRequest": {
+        "title": " ",
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.GetCustomerInfoRequest"
+          }
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Customer id."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Request to get customer by Id."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.GetCustomerInfoResponse": {
+        "title": " ",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Guest id.",
+            "format": "uuid"
+          },
+          "referrerId": {
+            "type": "string",
+            "description": "Guest referrer id.",
+            "format": "uuid",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "description": "Guest name. Can be null."
+          },
+          "surname": {
+            "type": "string",
+            "description": "Guest surname. Can be null."
+          },
+          "middleName": {
+            "type": "string",
+            "description": "Guest middle name. Can be null."
+          },
+          "comment": {
+            "type": "string",
+            "description": "Guest comment. Can be null."
+          },
+          "phone": {
+            "type": "string",
+            "description": "Main customer's phone. Can be null."
+          },
+          "cultureName": {
+            "type": "string",
+            "description": "Guest culture name. Can be null."
+          },
+          "birthday": {
+            "type": "string",
+            "description": "Guest birthday.",
+            "format": "yyyy-MM-dd HH:mm:ss.fff",
+            "nullable": true,
+            "example": "2019-08-24 14:15:22.123"
+          },
+          "email": {
+            "type": "string",
+            "description": "Guest email. Can be null."
+          },
+          "sex": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.IikoNetUserSex"
+              }
+            ],
+            "description": "Sex.\r\n<br>0 - not specified,<br />1 - male,<br />2 - female."
+          },
+          "consentStatus": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.PersonalDataConsentStatus"
+              }
+            ],
+            "description": "Guest consent status.\r\n<br>0 - unknown,<br />1 - given,<br />2 - revoked."
+          },
+          "anonymized": {
+            "type": "boolean",
+            "description": "Guest anonymized."
+          },
+          "cards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.GuestCardInfo"
+            },
+            "description": "Customer's cards."
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.GuestCategoryShortInfo"
+            },
+            "description": "Customer categories."
+          },
+          "walletBalances": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.GuestBalanceInfo"
+            },
+            "description": "Customer's user wallets. Contains bonus balances of different loyalty programs."
+          },
+          "userData": {
+            "type": "string",
+            "description": "Technical user data, customizable by restaurateur. Can be null."
+          },
+          "shouldReceivePromoActionsInfo": {
+            "type": "boolean",
+            "description": "Customer get promo messages (email, sms). If null - unknown.",
+            "nullable": true
+          },
+          "shouldReceiveLoyaltyInfo": {
+            "type": "boolean",
+            "description": "Guest should receive loyalty info.",
+            "nullable": true
+          },
+          "shouldReceiveOrderStatusInfo": {
+            "type": "boolean",
+            "description": "Guest should receive order status info.",
+            "nullable": true
+          },
+          "personalDataConsentFrom": {
+            "type": "string",
+            "description": "Guest personal data consent from.",
+            "format": "yyyy-MM-dd HH:mm:ss.fff",
+            "nullable": true,
+            "example": "2019-08-24 14:15:22.123"
+          },
+          "personalDataConsentTo": {
+            "type": "string",
+            "description": "Guest personal data consent to.",
+            "format": "yyyy-MM-dd HH:mm:ss.fff",
+            "nullable": true,
+            "example": "2019-08-24 14:15:22.123"
+          },
+          "personalDataProcessingFrom": {
+            "type": "string",
+            "description": "Guest personal data processing from.",
+            "format": "yyyy-MM-dd HH:mm:ss.fff",
+            "nullable": true,
+            "example": "2019-08-24 14:15:22.123"
+          },
+          "personalDataProcessingTo": {
+            "type": "string",
+            "description": "Guest personal data processing to.",
+            "format": "yyyy-MM-dd HH:mm:ss.fff",
+            "nullable": true,
+            "example": "2019-08-24 14:15:22.123"
+          },
+          "isDeleted": {
+            "type": "boolean",
+            "description": "Customer marked as deleted.",
+            "nullable": true
+          },
+          "whenRegistered": {
+            "type": "string",
+            "description": "Registration date.",
+            "format": "yyyy-MM-dd HH:mm:ss.fff",
+            "example": "2019-08-24 14:15:22.123"
+          },
+          "lastProcessedOrderDate": {
+            "type": "string",
+            "description": "Last order date.",
+            "format": "yyyy-MM-dd HH:mm:ss.fff",
+            "nullable": true,
+            "example": "2019-08-24 14:15:22.123"
+          },
+          "firstOrderDate": {
+            "type": "string",
+            "description": "First order date.",
+            "format": "yyyy-MM-dd HH:mm:ss.fff",
+            "nullable": true,
+            "example": "2019-08-24 14:15:22.123"
+          },
+          "lastVisitedOrganizationId": {
+            "type": "string",
+            "description": "Guest last visited organization id.",
+            "format": "uuid",
+            "nullable": true
+          },
+          "registrationOrganizationId": {
+            "type": "string",
+            "description": "Guest registration organization id.",
+            "format": "uuid",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Get customer info response."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.IikoNetUserSex": {
+        "title": " ",
+        "enum": [
+          0,
+          1,
+          2
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.PersonalDataConsentStatus": {
+        "title": " ",
+        "enum": [
+          0,
+          1,
+          2
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.GuestCardInfo": {
+        "title": " ",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Card id.",
+            "format": "uuid"
+          },
+          "track": {
+            "type": "string",
+            "description": "Card track."
+          },
+          "number": {
+            "type": "string",
+            "description": "Card number."
+          },
+          "validToDate": {
+            "type": "string",
+            "description": "Card valid to date.",
+            "format": "yyyy-MM-dd HH:mm:ss.fff",
+            "nullable": true,
+            "example": "2019-08-24 14:15:22.123"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Guest card info."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.GuestBalanceInfo": {
+        "title": " ",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Wallet id.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Wallet name."
+          },
+          "type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.ProgramType"
+              }
+            ],
+            "description": "Wallet type.\r\n<br>0 - deposit or corporate nutrition,<br />1 - bonus program,<br />2 - products program,<br />3 - discount program,<br />4 - certificate program."
+          },
+          "balance": {
+            "type": "number",
+            "description": "Wallet balance.",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Information about guest balance."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.DeleteMagnetCardRequest": {
+        "title": " ",
+        "required": [
+          "customerId",
+          "cardTrack",
+          "organizationId"
+        ],
+        "type": "object",
+        "properties": {
+          "customerId": {
+            "type": "string",
+            "description": "Customer id.",
+            "format": "uuid"
+          },
+          "cardTrack": {
+            "type": "string",
+            "description": "Card track. Can be null."
+          },
+          "organizationId": {
+            "type": "string",
+            "description": "Organization id.",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Delete magnet card request."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.DeleteMagnetCardResponse": {
+        "title": " ",
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Delete magnet card response."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.AddMagnetCardRequest": {
+        "title": " ",
+        "required": [
+          "customerId",
+          "cardTrack",
+          "cardNumber",
+          "organizationId"
+        ],
+        "type": "object",
+        "properties": {
+          "customerId": {
+            "type": "string",
+            "description": "Customer id.",
+            "format": "uuid"
+          },
+          "cardTrack": {
+            "type": "string",
+            "description": "Card track. Can be null."
+          },
+          "cardNumber": {
+            "type": "string",
+            "description": "Card number. Can be null."
+          },
+          "organizationId": {
+            "type": "string",
+            "description": "Organization id.",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Add magnet card request."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.AddMagnetCardResponse": {
+        "title": " ",
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Add magnet card response."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Report.GetTransactionsReportByRevisionRequest": {
+        "title": " ",
+        "required": [
+          "customerId",
+          "pageSize",
+          "organizationId"
+        ],
+        "type": "object",
+        "properties": {
+          "customerId": {
+            "type": "string",
+            "description": "Customer id.",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "integer",
+            "description": "Report since revision. Included if LastTransactionId set..",
+            "format": "int64"
+          },
+          "lastTransactionId": {
+            "type": "string",
+            "description": "Report since transaction. Excluded. Can't be used without revision..",
+            "format": "uuid",
+            "nullable": true
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Page size. Ignored if more than max size on server..",
+            "format": "int32"
+          },
+          "organizationId": {
+            "type": "string",
+            "description": "Organization id.",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Report request."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Report.GetTransactionsReportByRevisionResponse": {
+        "title": " ",
+        "type": "object",
+        "properties": {
+          "transactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Report.TransportTransactionsReportItem"
+            },
+            "description": "Transactions."
+          },
+          "lastRevision": {
+            "type": "integer",
+            "description": "Last known transaction revision.",
+            "format": "int64"
+          },
+          "lastTransactionId": {
+            "type": "string",
+            "description": "Last known transaction id.",
+            "format": "uuid",
+            "nullable": true
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "Page size.",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Get transactions report by revision response."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Report.TransportTransactionsReportItem": {
+        "title": " ",
+        "required": [
+          "organizationId",
+          "id",
+          "revision"
+        ],
+        "type": "object",
+        "properties": {
+          "apiClientLogin": {
+            "type": "string",
+            "description": "Api client login. Can be null."
+          },
+          "balanceAfter": {
+            "type": "number",
+            "description": "Balance after.",
+            "format": "double",
+            "nullable": true
+          },
+          "balanceBefore": {
+            "type": "number",
+            "description": "Balance before.",
+            "format": "double",
+            "nullable": true
+          },
+          "blockReason": {
+            "type": "string",
+            "description": "Block reason. Can be null."
+          },
+          "certificate": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Report.TransportTransactionsCertificateReportItem"
+              }
+            ],
+            "description": "Certificate."
+          },
+          "comment": {
+            "type": "string",
+            "description": "Comment. Can be null."
+          },
+          "counteragent": {
+            "type": "string",
+            "description": "Counteragent. Can be null."
+          },
+          "counteragentType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Report.CertificateCounteragentType"
+              }
+            ],
+            "description": "Counteragent type.",
+            "nullable": true
+          },
+          "counteragentTypeName": {
+            "type": "string",
+            "description": "Counteragent type name. Can be null."
+          },
+          "coupon": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Report.TransportTransactionsCouponReportItem"
+              }
+            ],
+            "description": "Coupon."
+          },
+          "emitentName": {
+            "type": "string",
+            "description": "Emitent name. Can be null."
+          },
+          "loyaltyUser": {
+            "type": "string",
+            "description": "Loyalty user. Can be null."
+          },
+          "marketingCampaignId": {
+            "type": "string",
+            "description": "Marketing campaign id.",
+            "format": "uuid",
+            "nullable": true
+          },
+          "nominal": {
+            "type": "number",
+            "description": "Nominal.",
+            "format": "double",
+            "nullable": true
+          },
+          "orderNumber": {
+            "type": "integer",
+            "description": "Order number.",
+            "format": "int32",
+            "nullable": true
+          },
+          "orderSum": {
+            "type": "number",
+            "description": "Order sum.",
+            "format": "double",
+            "nullable": true
+          },
+          "organizationId": {
+            "type": "string",
+            "description": "Organization id.",
+            "format": "uuid",
+            "nullable": true
+          },
+          "posBalanceBefore": {
+            "type": "number",
+            "description": "Pos balance before.",
+            "format": "double",
+            "nullable": true
+          },
+          "programId": {
+            "type": "string",
+            "description": "Program id.",
+            "format": "uuid",
+            "nullable": true
+          },
+          "sum": {
+            "type": "number",
+            "description": "Sum.",
+            "format": "double"
+          },
+          "type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Report.TransactionType"
+              }
+            ],
+            "description": "Type."
+          },
+          "typeName": {
+            "type": "string",
+            "description": "Type name. Can be null."
+          },
+          "walletId": {
+            "type": "string",
+            "description": "Wallet id.",
+            "format": "uuid",
+            "nullable": true
+          },
+          "whenCreated": {
+            "type": "string",
+            "description": "When created. In UTC.",
+            "format": "yyyy-MM-dd HH:mm:ss.fff",
+            "example": "2019-08-24 14:15:22.123"
+          },
+          "whenCreatedOrder": {
+            "type": "string",
+            "description": "When created order. In UTC.",
+            "format": "yyyy-MM-dd HH:mm:ss.fff",
+            "nullable": true,
+            "example": "2019-08-24 14:15:22.123"
+          },
+          "id": {
+            "type": "string",
+            "description": "Id.",
+            "format": "uuid"
+          },
+          "isDelivery": {
+            "type": "boolean",
+            "description": "Is delivery.",
+            "nullable": true
+          },
+          "isIgnored": {
+            "type": "boolean",
+            "description": "Is ignored."
+          },
+          "posOrderId": {
+            "type": "string",
+            "description": "Pos order id.",
+            "format": "uuid",
+            "nullable": true
+          },
+          "revision": {
+            "type": "integer",
+            "description": "Revision.",
+            "format": "int64"
+          },
+          "terminalGroupId": {
+            "type": "string",
+            "description": "Terminal group id.",
+            "format": "uuid",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Transactions report item."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Report.TransportTransactionsCertificateReportItem": {
+        "title": " ",
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "string",
+            "description": "Number. Can be null."
+          },
+          "series": {
+            "type": "string",
+            "description": "Series. Can be null."
+          },
+          "statusName": {
+            "type": "string",
+            "description": "Status name. Can be null."
+          },
+          "typeName": {
+            "type": "string",
+            "description": "Type name. Can be null."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Transactions report item."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Report.CertificateCounteragentType": {
+        "title": " ",
+        "enum": [
+          0,
+          1,
+          2
+        ],
+        "type": "integer",
+        "description": "Certificate counteragent type",
+        "format": "int32"
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Report.TransportTransactionsCouponReportItem": {
+        "title": " ",
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "string",
+            "description": "Number. Can be null."
+          },
+          "series": {
+            "type": "string",
+            "description": "Series. Can be null."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Transactions report item."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Report.TransactionType": {
+        "title": " ",
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          28,
+          29,
+          30,
+          32,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48,
+          49,
+          50,
+          51,
+          52,
+          53,
+          54,
+          55,
+          56,
+          57,
+          58,
+          59,
+          60
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.CreateOrUpdateCustomerRequest": {
+        "title": " ",
+        "required": [
+          "organizationId"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Customer id.",
+            "format": "uuid",
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "description": "Customer phone. Can be null."
+          },
+          "cardTrack": {
+            "type": "string",
+            "description": "Card track. Required if cardNumber set. Can be null."
+          },
+          "cardNumber": {
+            "type": "string",
+            "description": "Card number. Required if cardTrack set. Can be null."
+          },
+          "name": {
+            "type": "string",
+            "description": "Customer name. Can be null."
+          },
+          "middleName": {
+            "type": "string",
+            "description": "Customer middle name. Can be null."
+          },
+          "surName": {
+            "type": "string",
+            "description": "Customer surname. Can be null."
+          },
+          "birthday": {
+            "type": "string",
+            "description": "Customer birthday.",
+            "format": "yyyy-MM-dd HH:mm:ss.fff",
+            "nullable": true,
+            "example": "2019-08-24 14:15:22.123"
+          },
+          "email": {
+            "type": "string",
+            "description": "Customer email. Can be null."
+          },
+          "sex": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.IikoNetUserSex"
+              }
+            ],
+            "description": "Customer sex.\r\n<br>0 - not specified,<br />1 - male,<br />2 - female.",
+            "nullable": true
+          },
+          "consentStatus": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/iikoNet.Service.Contracts.Api.iikoTransport.Customer.PersonalDataConsentStatus"
+              }
+            ],
+            "description": "Customer consent status.\r\n<br>0 - unknown,<br />1 - given,<br />2 - revoked."
+          },
+          "shouldReceiveLoyaltyInfo": {
+            "type": "boolean",
+            "description": "Customer get loyalty messages (email, sms). If the parameter is not specified for new customers, the value 'true' is used.",
+            "nullable": true
+          },
+          "shouldReceivePromoActionsInfo": {
+            "type": "boolean",
+            "description": "Customer get promo messages (email, sms). If the parameter is not specified for new customers, the value 'true' is used.",
+            "nullable": true
+          },
+          "referrerId": {
+            "type": "string",
+            "description": "Id for referrer guest. Null for old integrations, Guid.Empty - for referrer deletion. Can be null."
+          },
+          "userData": {
+            "type": "string",
+            "description": "Customer user data. Can be null."
+          },
+          "isDeleted": {
+            "type": "boolean",
+            "description": "Customer logical deletion flag.",
+            "nullable": true
+          },
+          "employeeId": {
+            "type": "string",
+            "description": "Employee number or id. Can be null."
+          },
+          "comment": {
+            "type": "string",
+            "description": "Customer description and additional data. Can be null."
+          },
+          "nullifyEmptyFields": {
+            "type": "boolean",
+            "description": "If set to true, then empty string values (not null) will overwrite origin guest fields with nulls, otherwise empty fields are ignored."
+          },
+          "organizationId": {
+            "type": "string",
+            "description": "Customer organization id.",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Not empty `phone` or `magnetCardTrack` or `id` is required for successful import."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.CreateOrUpdateCustomerResponse": {
+        "title": " ",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Customer id.",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Create or update customer response."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.ChangeCategoryForCustomerRequest": {
+        "title": " ",
+        "required": [
+          "customerId",
+          "categoryId",
+          "organizationId"
+        ],
+        "type": "object",
+        "properties": {
+          "customerId": {
+            "type": "string",
+            "description": "Customer id.",
+            "format": "uuid"
+          },
+          "categoryId": {
+            "type": "string",
+            "description": "Guest category id.",
+            "format": "uuid"
+          },
+          "organizationId": {
+            "type": "string",
+            "description": "Organization id.",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Change category for customer request."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.ChangeCategoryForCustomerResponse": {
+        "title": " ",
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Change category for customer response."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.DeleteCustomersRequest": {
+        "title": " ",
+        "required": [
+          "customerIds",
+          "organizationId"
+        ],
+        "type": "object",
+        "properties": {
+          "customerIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Customer IDs for logical deletion."
+          },
+          "organizationId": {
+            "type": "string",
+            "description": "Organization id.",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Delete customers request."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.DeleteCustomersResponse": {
+        "title": " ",
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "Number of unique customer IDs.",
+            "format": "int32"
+          },
+          "deleted": {
+            "type": "integer",
+            "description": "Number of deleted customers.",
+            "format": "int32"
+          },
+          "notFound": {
+            "type": "integer",
+            "description": "Number of not found customers.",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Delete customers response."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Customer.ChangeUserBalanceRequest": {
+        "title": " ",
+        "required": [
+          "organizationId"
+        ],
+        "type": "object",
+        "properties": {
+          "customerId": {
+            "type": "string",
+            "description": "Customer id.",
+            "format": "uuid"
+          },
+          "walletId": {
+            "type": "string",
+            "description": "Wallet id.",
+            "format": "uuid"
+          },
+          "sum": {
+            "type": "number",
+            "description": "Sum of balance change. Must be positive.",
+            "format": "double"
+          },
+          "comment": {
+            "type": "string",
+            "description": "Comment. Can be null."
+          },
+          "organizationId": {
+            "type": "string",
+            "description": "Organization id.",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Change user balance request."
+      },
+      "iikoNet.Service.Contracts.Api.iikoTransport.Organization.RefillUserBalanceResponse": {
+        "title": " ",
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Refill user balance response."
+      }
+    }
+  },
+  "allPathNamesAtRetrieval": [
+    "/api/1/regions",
+    "/api/1/cities",
+    "/api/1/streets/by_city",
+    "/api/1/streets/by_id",
+    "/api/1/access_token",
+    "/api/v2/access_token",
+    "/api/1/reserve/available_organizations",
+    "/api/1/reserve/available_terminal_groups",
+    "/api/1/reserve/available_restaurant_sections",
+    "/api/1/reserve/restaurant_sections_workload",
+    "/api/1/reserve/create",
+    "/api/1/reserve/status_by_id",
+    "/api/1/reserve/add_items",
+    "/api/1/reserve/cancel",
+    "/api/1/reserve/add_payments",
+    "/api/1/reserve/change_tables",
+    "/api/1/reserve/change_items",
+    "/api/1/reserve/change_estimated_start_time",
+    "/api/1/deliveries/create",
+    "/api/1/deliveries/change_external_data",
+    "/api/1/deliveries/update_order_problem",
+    "/api/1/deliveries/update_order_payments",
+    "/api/1/deliveries/update_order_delivery_status",
+    "/api/1/deliveries/update_order_courier",
+    "/api/1/deliveries/add_items",
+    "/api/1/deliveries/close",
+    "/api/1/deliveries/cancel",
+    "/api/1/deliveries/change_complete_before",
+    "/api/1/deliveries/change_delivery_point",
+    "/api/1/deliveries/change_service_type",
+    "/api/1/deliveries/change_payments",
+    "/api/1/deliveries/change_comment",
+    "/api/1/deliveries/print_delivery_bill",
+    "/api/1/deliveries/confirm",
+    "/api/1/deliveries/cancel_confirmation",
+    "/api/1/deliveries/change_operator",
+    "/api/1/deliveries/add_payments",
+    "/api/1/deliveries/change_driver_info",
+    "/api/1/deliveries/update_tracking_link",
+    "/api/1/order/print_bill",
+    "/api/1/deliveries/by_id",
+    "/api/1/deliveries/by_delivery_date_and_status",
+    "/api/1/deliveries/by_revision",
+    "/api/1/deliveries/by_delivery_date_and_phone",
+    "/api/1/deliveries/by_delivery_date_and_source_key_and_filter",
+    "/api/1/deliveries/history/by_delivery_date_and_phone",
+    "/api/1/delivery_restrictions",
+    "/api/1/delivery_restrictions/allowed",
+    "/api/1/organizations",
+    "/api/1/cancel_causes",
+    "/api/1/deliveries/order_types",
+    "/api/1/discounts",
+    "/api/1/payment_types",
+    "/api/1/removal_types",
+    "/api/1/tips_types",
+    "/api/1/deliveries/drafts/by_id",
+    "/api/1/deliveries/drafts/by_filter",
+    "/api/1/deliveries/drafts/create",
+    "/api/1/deliveries/drafts/save",
+    "/api/1/deliveries/drafts/commit",
+    "/api/1/deliveries/drafts/delete",
+    "/api/1/deliveries/drafts/lock",
+    "/api/1/deliveries/drafts/unlock",
+    "/api/1/employees/couriers/locations/by_time_offset",
+    "/api/1/employees/couriers",
+    "/api/1/employees/couriers/by_role",
+    "/api/1/employees/couriers/active_location/by_terminal",
+    "/api/1/employees/couriers/active_location",
+    "/api/1/employees/info",
+    "/api/1/employees/shift/clockin",
+    "/api/1/employees/shift/clockout",
+    "/api/1/employees/shift/is_open",
+    "/api/1/employees/shifts/by_courier",
+    "/api/licenses/v2/list",
+    "/api/1/marketing_sources",
+    "/api/1/nomenclature",
+    "/api/2/menu",
+    "/api/2/menu/by_id",
+    "/api/menu/v3/by_id",
+    "/api/1/stop_lists",
+    "/api/1/stop_lists/check",
+    "/api/1/stop_lists/add",
+    "/api/1/stop_lists/remove",
+    "/api/1/stop_lists/clear",
+    "/api/1/notifications/send",
+    "/api/1/commands/status",
+    "/api/1/order/create",
+    "/api/1/order/by_id",
+    "/api/1/order/by_table",
+    "/api/1/order/add_items",
+    "/api/1/order/close",
+    "/api/1/order/cancel",
+    "/api/1/order/change_payments",
+    "/api/1/order/change_external_data",
+    "/api/1/order/init_by_table",
+    "/api/1/order/init_by_posOrder",
+    "/api/1/order/add_customer",
+    "/api/1/order/add_payments",
+    "/api/1/organizations/settings",
+    "/api/1/terminal_groups",
+    "/api/1/terminal_groups/is_alive",
+    "/api/1/terminal_groups/awake",
+    "/api/1/webhooks/settings",
+    "/api/1/webhooks/update_settings",
+    "/api/inventory/v1/disassemble_document/create",
+    "/api/inventory/v1/disassemble_document/cancel",
+    "/api/inventory/v1/counteragents/list",
+    "/api/inventory/v1/costings/calculate",
+    "/api/inventory/v1/conceptions/list",
+    "/api/inventory/v1/conceptions/get",
+    "/api/inventory/v1/accounting_categories/list",
+    "/api/inventory/v1/accounting_categories/get",
+    "/api/1/loyalty/iiko/customer/info",
+    "/api/1/loyalty/iiko/calculate",
+    "/api/1/combo",
+    "/api/1/combo/calculate",
+    "/api/1/loyalty/iiko/manual_condition",
+    "/api/1/loyalty/iiko/customer_category",
+    "/api/1/loyalty/iiko/customer/create_or_update",
+    "/api/1/loyalty/iiko/delete_customers",
+    "/api/1/loyalty/iiko/restore_customers",
+    "/api/1/loyalty/iiko/customer_category/add",
+    "/api/1/loyalty/iiko/customer_category/remove",
+    "/api/1/loyalty/iiko/check_sms_sending_possibility",
+    "/api/1/loyalty/iiko/message/send_sms",
+    "/api/1/loyalty/iiko/check_sms_status",
+    "/api/1/loyalty/iiko/message/send_email",
+    "/api/1/loyalty/iiko/program",
+    "/api/1/loyalty/iiko/customer/program/add",
+    "/api/1/loyalty/iiko/customer/card/add",
+    "/api/1/loyalty/iiko/customer/card/remove",
+    "/api/1/loyalty/iiko/customer/wallet/hold",
+    "/api/1/loyalty/iiko/customer/wallet/cancel_hold",
+    "/api/1/loyalty/iiko/customer/wallet/topup",
+    "/api/1/loyalty/iiko/customer/wallet/chargeoff",
+    "/api/1/loyalty/iiko/get_counters",
+    "/api/1/loyalty/iiko/coupons/info",
+    "/api/1/loyalty/iiko/coupons/series",
+    "/api/1/loyalty/iiko/coupons/by_series",
+    "/api/1/loyalty/iiko/customer/transactions/by_revision",
+    "/api/1/loyalty/iiko/customer/transactions/by_date",
+    "/api/inventory/v1/disassemble_document/get",
+    "/api/inventory/v1/disassemble_document/list",
+    "/api/inventory/v1/disassemble_document/post",
+    "/api/inventory/v1/disassemble_document/unpost",
+    "/api/inventory/v1/disassemble_document/update",
+    "/api/inventory/v1/incoming_invoice/cancel",
+    "/api/inventory/v1/incoming_invoice/create",
+    "/api/inventory/v1/incoming_invoice/get",
+    "/api/inventory/v1/incoming_invoice/list",
+    "/api/inventory/v1/incoming_invoice/modify/add_payment",
+    "/api/inventory/v1/incoming_invoice/patch/set_payment_date",
+    "/api/inventory/v1/incoming_invoice/post",
+    "/api/inventory/v1/incoming_invoice/unpost",
+    "/api/inventory/v1/incoming_invoice/update",
+    "/api/inventory/v1/incoming_returned_invoice/cancel",
+    "/api/inventory/v1/incoming_returned_invoice/create",
+    "/api/inventory/v1/incoming_returned_invoice/get",
+    "/api/inventory/v1/incoming_returned_invoice/list",
+    "/api/inventory/v1/incoming_returned_invoice/post",
+    "/api/inventory/v1/incoming_returned_invoice/unpost",
+    "/api/inventory/v1/incoming_returned_invoice/update",
+    "/api/inventory/v1/internal_transfer/cancel",
+    "/api/inventory/v1/internal_transfer/create",
+    "/api/inventory/v1/internal_transfer/get",
+    "/api/inventory/v1/internal_transfer/list",
+    "/api/inventory/v1/internal_transfer/post",
+    "/api/inventory/v1/internal_transfer/unpost",
+    "/api/inventory/v1/internal_transfer/update",
+    "/api/inventory/v1/measure_units/get",
+    "/api/inventory/v1/measure_units/list",
+    "/api/inventory/v1/organizations/settings/list",
+    "/api/inventory/v1/organizations/tree",
+    "/api/inventory/v1/outgoing_invoice/cancel",
+    "/api/inventory/v1/outgoing_invoice/create",
+    "/api/inventory/v1/outgoing_invoice/get",
+    "/api/inventory/v1/outgoing_invoice/list",
+    "/api/inventory/v1/outgoing_invoice/modify/add_payment",
+    "/api/inventory/v1/outgoing_invoice/patch/set_payment_date",
+    "/api/inventory/v1/outgoing_invoice/post",
+    "/api/inventory/v1/outgoing_invoice/unpost",
+    "/api/inventory/v1/outgoing_invoice/update",
+    "/api/inventory/v1/payment_types/get",
+    "/api/inventory/v1/payment_types/list",
+    "/api/inventory/v1/production_document/cancel",
+    "/api/inventory/v1/production_document/create",
+    "/api/inventory/v1/production_document/get",
+    "/api/inventory/v1/production_document/list",
+    "/api/inventory/v1/production_document/post",
+    "/api/inventory/v1/production_document/unpost",
+    "/api/inventory/v1/production_document/update",
+    "/api/inventory/v1/returned_invoice/cancel",
+    "/api/inventory/v1/returned_invoice/create",
+    "/api/inventory/v1/returned_invoice/get",
+    "/api/inventory/v1/returned_invoice/list",
+    "/api/inventory/v1/returned_invoice/post",
+    "/api/inventory/v1/returned_invoice/unpost",
+    "/api/inventory/v1/returned_invoice/update",
+    "/api/inventory/v1/sales_document/cancel",
+    "/api/inventory/v1/sales_document/create",
+    "/api/inventory/v1/sales_document/get",
+    "/api/inventory/v1/sales_document/list",
+    "/api/inventory/v1/sales_document/post",
+    "/api/inventory/v1/sales_document/unpost",
+    "/api/inventory/v1/sales_document/update",
+    "/api/inventory/v1/stock_balance/list",
+    "/api/inventory/v1/stores/list",
+    "/api/inventory/v1/transformation_document/cancel",
+    "/api/inventory/v1/transformation_document/create",
+    "/api/inventory/v1/transformation_document/get",
+    "/api/inventory/v1/transformation_document/list",
+    "/api/inventory/v1/transformation_document/post",
+    "/api/inventory/v1/transformation_document/unpost",
+    "/api/inventory/v1/transformation_document/update",
+    "/api/inventory/v1/writeoff_document/cancel",
+    "/api/inventory/v1/writeoff_document/create",
+    "/api/inventory/v1/writeoff_document/get",
+    "/api/inventory/v1/writeoff_document/list",
+    "/api/inventory/v1/writeoff_document/post",
+    "/api/inventory/v1/writeoff_document/unpost",
+    "/api/inventory/v1/writeoff_document/update",
+    "/api/finance/v1/account-posting/list",
+    "/api/finance/v1/account-type/list",
+    "/api/finance/v1/account/create",
+    "/api/finance/v1/account/delete",
+    "/api/finance/v1/account/get",
+    "/api/finance/v1/account/list",
+    "/api/finance/v1/account/restore",
+    "/api/finance/v1/account/update",
+    "/api/finance/v1/account_transactions/list",
+    "/api/finance/v1/balance-sheet/list",
+    "/api/finance/v1/cash-flow-category/create",
+    "/api/finance/v1/cash-flow-category/delete",
+    "/api/finance/v1/cash-flow-category/get",
+    "/api/finance/v1/cash-flow-category/list",
+    "/api/finance/v1/cash-flow-category/restore",
+    "/api/finance/v1/cash-flow-category/update",
+    "/api/finance/v1/chart-of-accounts/list",
+    "/api/finance/v1/document_transactions/list",
+    "/api/finance/v1/incoming_service/cancel",
+    "/api/finance/v1/incoming_service/create",
+    "/api/finance/v1/incoming_service/get",
+    "/api/finance/v1/incoming_service/list",
+    "/api/finance/v1/incoming_service/post",
+    "/api/finance/v1/incoming_service/unpost",
+    "/api/finance/v1/incoming_service/update",
+    "/api/finance/v1/item-category/list",
+    "/api/finance/v1/outgoing_service/cancel",
+    "/api/finance/v1/outgoing_service/create",
+    "/api/finance/v1/outgoing_service/get",
+    "/api/finance/v1/outgoing_service/list",
+    "/api/finance/v1/outgoing_service/post",
+    "/api/finance/v1/outgoing_service/unpost",
+    "/api/finance/v1/outgoing_service/update",
+    "/api/finance/v1/tax-category/list",
+    "/api/nomenclature/v1/allergen-group/list",
+    "/api/nomenclature/v1/amount-unit/list",
+    "/api/nomenclature/v1/assembly-chart/create",
+    "/api/nomenclature/v1/assembly-chart/delete",
+    "/api/nomenclature/v1/assembly-chart/get",
+    "/api/nomenclature/v1/assembly-chart/list",
+    "/api/nomenclature/v1/assembly-chart/update",
+    "/api/nomenclature/v1/container/list",
+    "/api/nomenclature/v1/custom-category/list",
+    "/api/nomenclature/v1/group/create",
+    "/api/nomenclature/v1/group/delete",
+    "/api/nomenclature/v1/group/list",
+    "/api/nomenclature/v1/group/restore",
+    "/api/nomenclature/v1/group/update",
+    "/api/nomenclature/v1/menu/list",
+    "/api/nomenclature/v1/modifier-schema/list",
+    "/api/nomenclature/v1/nomenclature/category/create",
+    "/api/nomenclature/v1/nomenclature/category/delete",
+    "/api/nomenclature/v1/nomenclature/category/list",
+    "/api/nomenclature/v1/nomenclature/category/restore",
+    "/api/nomenclature/v1/nomenclature/category/update",
+    "/api/nomenclature/v1/place-type/list",
+    "/api/nomenclature/v1/producer/list",
+    "/api/nomenclature/v1/product-scale/create",
+    "/api/nomenclature/v1/product-scale/delete",
+    "/api/nomenclature/v1/product-scale/get",
+    "/api/nomenclature/v1/product-scale/list",
+    "/api/nomenclature/v1/product-scale/update",
+    "/api/nomenclature/v1/product-size/list",
+    "/api/nomenclature/v1/product-tag/list",
+    "/api/nomenclature/v1/product/create",
+    "/api/nomenclature/v1/product/delete",
+    "/api/nomenclature/v1/product/list",
+    "/api/nomenclature/v1/product/restore",
+    "/api/nomenclature/v1/product/update",
+    "/api/nomenclature/v1/product/update_barcodes",
+    "/api/employees/v1/attendance-type/list",
+    "/api/employees/v1/attendance/create",
+    "/api/employees/v1/attendance/delete",
+    "/api/employees/v1/attendance/list",
+    "/api/employees/v1/attendance/update",
+    "/api/employees/v1/employee/create",
+    "/api/employees/v1/employee/fire",
+    "/api/employees/v1/employee/get",
+    "/api/employees/v1/employee/list",
+    "/api/employees/v1/employee/restore",
+    "/api/employees/v1/employee/update",
+    "/api/employees/v1/positions/get",
+    "/api/employees/v1/positions/list"
+  ],
+  "webhookSchemaNamesAtRetrieval": [
+    "iikoTransport.PublicApi.Contracts.WebHooks.DeliveryOrderUpdateWebHookEventInfo",
+    "iikoTransport.PublicApi.Contracts.WebHooks.DeliveryOrderErrorWebHookEventInfo",
+    "iikoTransport.PublicApi.Contracts.WebHooks.ReserveUpdateWebHookEventInfo",
+    "iikoTransport.PublicApi.Contracts.WebHooks.ReserveErrorWebHookEventInfo",
+    "iikoTransport.PublicApi.Contracts.WebHooks.TableOrderUpdateWebHookEventInfo",
+    "iikoTransport.PublicApi.Contracts.WebHooks.TableOrderErrorWebHookEventInfo",
+    "iikoTransport.PublicApi.Contracts.WebHooks.StopListUpdateWebHookEventInfo",
+    "iikoTransport.PublicApi.Contracts.WebHooks.PersonalShiftWebHookEventInfo"
+  ]
+}

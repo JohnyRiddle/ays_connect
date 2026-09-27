@@ -1,0 +1,38 @@
+.cards-seasons { min-width:0; }
+.cards-season-tabs { display:flex; gap:6px; margin:28px 32px 0; padding:5px; width:fit-content; max-width:calc(100% - 64px); background:#e9eef5; border-radius:12px; }
+.cards-season-tabs button { border:0; padding:11px 22px; border-radius:8px; color:#53647a; background:transparent; font-family:inherit; font-weight:600; font-size:14px; line-height:1.4; cursor:pointer; }
+.cards-season-tabs button[aria-selected=true] { color:#1c61ad; background:#fff; box-shadow:0 2px 6px #17365814; }
+.cards-season-tabs button:focus-visible,.season27-link:focus-visible,.season27-guide summary:focus-visible { outline:3px solid #2f80ed; outline-offset:3px; }
+.season27-heading { display:flex; justify-content:space-between; align-items:center; gap:24px; }
+.season27-link { display:inline-flex; align-items:center; gap:8px; flex-shrink:0; text-decoration:none; color:#fff; background:#246bc1; padding:12px 18px; border-radius:9px; font-weight:600; }
+.cards-2027 .season27-location { margin-top:18px; display:flex; align-items:center; gap:8px; color:#53647a; font-size:14px; }
+.cards-2027 .season27-wallet { font-size:24px; }
+.season27-food { border-top:4px solid #2f80ed; }
+.season27-stock-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr)); gap:20px; margin-top:22px; }
+.season27-stock-card { min-width:0; border:1px solid #e3e9f0; border-radius:12px; overflow:hidden; background:#f7f9fc; }
+.season27-stock-card > a { display:block; }
+.season27-stock-card img { display:block; width:100%; aspect-ratio:1.6; object-fit:contain; }
+.season27-stock-placeholder { aspect-ratio:1.6; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:16px; text-align:center; color:#687b90; }
+.season27-stock-caption { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding:16px; background:#fff; }
+.season27-stock-caption p { color:#236fc7; white-space:nowrap; }
+.season27-stock-caption b { font-size:22px; }
+.season27-stock-card > a:focus-visible { outline:3px solid #2f80ed; outline-offset:-3px; }
+.season27-lead { font-size:18px; }
+.cards-2027 li + li { margin-top:9px; }
+.cards-2027 ul,.cards-2027 ol { padding-left:23px; }
+.cards-2027 .cards-panel > p + p { margin-top:12px; }
+.season27-programs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-top:18px; }
+.cards-2027 .season27-program-amount { font-size:20px; color:#236fc7; font-weight:700; margin:12px 0 8px; }
+.season27-roles { margin:0; }
+.season27-roles > div { display:grid; grid-template-columns:230px 1fr; gap:20px; padding:14px 0; border-bottom:1px solid #e3e9f0; }
+.season27-roles > div:last-child { border-bottom:0; }
+.season27-roles dt { font-weight:700; }
+.season27-roles dd { margin:0; color:#53647a; }
+.cards-2027 .cards-warning { margin-top:18px; }
+.season27-open { background:#fffaf0; border-color:#eddcb9; }
+.season27-guide details { margin-top:12px; }
+.season27-guide summary { cursor:pointer; font-size:17px; font-weight:700; }
+.season27-guide details[open] summary { margin-bottom:16px; }
+.season27-guide a:not(.season27-link) { color:#236fc7; text-decoration:underline; }
+@media(max-width:1100px) { .season27-heading { align-items:flex-start; flex-direction:column; } .season27-programs { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:640px) { .cards-season-tabs { margin:18px 16px 0; max-width:calc(100% - 32px); } .cards-season-tabs button { padding:10px 15px; } .season27-programs { grid-template-columns:1fr; } .season27-roles > div { grid-template-columns:1fr; gap:5px; } .season27-link { flex-shrink:1; } .season27-location { align-items:flex-start!important; } .season27-location svg { flex-shrink:0; margin-top:3px; } }

@@ -1,0 +1,476 @@
+.iiko-page {
+  padding:32px;
+  max-width:1440px;
+  margin:0 auto;
+}
+.iiko-heading {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:20px;
+  margin-bottom:28px;
+}
+.iiko-heading h1 {
+  font-size:28px;
+  letter-spacing:-.7px;
+  margin:7px 0 10px;
+}
+.iiko-heading p:not(.eyebrow) {
+  color:#69788c;
+  font-size:14px;
+  margin:0;
+}
+.iiko-location {
+  display:flex;
+  align-items:center;
+  gap:7px;
+  color:#436184;
+  background:#eaf1fa;
+  border:1px solid #dbe5f1;
+  padding:9px 14px;
+  border-radius:22px;
+  font-size:12px;
+  font-weight:700;
+}
+.iiko-layout {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 280px;
+  gap:24px;
+  align-items:start;
+}
+.iiko-form-card {
+  background:#fff;
+  border:1px solid #e0e7f0;
+  border-radius:16px;
+  overflow:hidden;
+  box-shadow:0 4px 20px #253a5604;
+}
+.iiko-tabs {
+  display:flex;
+  border-bottom:1px solid #e5ebf2;
+  padding:0 26px;
+  gap:26px;
+  background:#fcfdff;
+}
+.iiko-tabs button {
+  border:0;
+  border-bottom:3px solid transparent;
+  background:transparent;
+  padding:21px 0 18px;
+  display:flex;
+  gap:9px;
+  align-items:center;
+  font-weight:700;
+  color:#718096;
+  cursor:pointer;
+  font-size:13px;
+}
+.iiko-tabs button[aria-selected=true] {
+  color:#246ac7;
+  border-bottom-color:#2f80ed;
+}
+.iiko-form {
+  padding:28px;
+}
+.iiko-section-title {
+  display:flex;
+  gap:12px;
+  align-items:center;
+  margin:0 0 22px;
+}
+.iiko-section-title>span {
+  display:grid;
+  place-items:center;
+  background:#eff5fc;
+  color:#4075b8;
+  font-size:12px;
+  font-weight:800;
+  min-width:34px;
+  height:34px;
+  border-radius:10px;
+}
+.iiko-section-title h2 {
+  font-size:16px;
+  margin:0 0 5px;
+}
+.iiko-section-title p {
+  font-size:12px;
+  color:#778397;
+  margin:0;
+  line-height:1.6;
+}
+.iiko-fields {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:20px 18px;
+  margin-bottom:30px;
+}
+.iiko-page label {
+  display:block;
+  font-size:12px;
+  font-weight:700;
+  line-height:1.5;
+  color:#35445b;
+}
+.iiko-page label>span {
+  color:#c83d49;
+}
+.iiko-page label small {
+  font-size:11px;
+  font-weight:400;
+  color:#7e8999;
+}
+.iiko-page input, .iiko-page select, .iiko-page textarea {
+  display:block;
+  min-width:0;
+  width:100%;
+  border:1px solid #dbe3ee;
+  background:#fff;
+  border-radius:9px;
+  padding:12px 13px;
+  margin:8px 0 5px;
+  font-size:13px;
+  color:#172033;
+  font-family:inherit;
+}
+.iiko-page textarea { resize:vertical; min-height:100px; }
+.iiko-comment { white-space:pre-wrap; overflow-wrap:anywhere; }
+.iiko-page input::placeholder, .iiko-page textarea::placeholder {
+  color:#929daf;
+}
+.iiko-page input[readonly] {
+  background:#f6f8fb;
+  color:#56677f;
+}
+.iiko-page input:focus, .iiko-page select:focus, .iiko-page textarea:focus {
+  outline:2px solid #2f80ed;
+  outline-offset:2px;
+}
+.iiko-page button:focus-visible,.iiko-page a:focus-visible {
+  outline:2px solid #2f80ed;
+  outline-offset:3px;
+}
+.iiko-wide {
+  grid-column:1/-1;
+}
+.iiko-result { margin:26px 0; }
+.iiko-card-entities { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin:14px 0 26px; }
+.iiko-card-entities>div { border:1px solid #e1e8f0; border-radius:9px; padding:13px 15px; }
+.iiko-card-entities dt { font-size:11px; color:#74859a; margin-bottom:7px; }
+.iiko-card-entities dd { margin:0; font-size:13px; font-weight:700; overflow-wrap:anywhere; }
+.iiko-card-entities dd small { display:block; color:#9c6523; font-weight:400; margin-top:5px; }
+.iiko-card-entities .iiko-entity-missing { color:#8693a6; font-weight:400; }
+@media(max-width:520px) { .iiko-card-entities { grid-template-columns:1fr; } }
+.iiko-result-heading { display:flex; align-items:center; gap:12px; padding:16px; background:#eff8f2; border-radius:10px; color:#32794e; margin-bottom:24px; }
+.iiko-result-heading p { margin:0; font-size:12px; }
+.iiko-owner-id { overflow-wrap:anywhere; color:#61748d; font-size:12px; margin-bottom:24px; }
+.iiko-result-tags { display:flex; flex-wrap:wrap; gap:8px; list-style:none; padding:0; margin:12px 0 24px; }
+.iiko-result-tags li { background:#eff4fa; padding:8px 12px; border-radius:8px; font-size:12px; overflow-wrap:anywhere; max-width:100%; }
+.iiko-wallet { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; border:1px solid #e1e8f0; border-radius:10px; padding:16px; margin:12px 0; }
+.iiko-wallet b { font-size:13px; }
+.iiko-wallet span { display:block; font-size:11px; color:#74859a; margin-top:5px; }
+.iiko-wallet strong { font-size:24px; }
+.iiko-review-categories {
+  display:grid;
+  gap:8px;
+  margin:14px 0;
+  font-size:12px;
+}
+.iiko-review-categories div {
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px 12px;
+}
+.iiko-review-categories dt {
+  color:#647c70;
+  min-width:140px;
+}
+.iiko-review-categories dd {
+  margin:0;
+  color:#32654c;
+  font-weight:700;
+}
+.iiko-category-note {
+  background:#f7f9fc;
+  border:1px dashed #dce4ee;
+  border-radius:10px;
+  padding:16px;
+}
+.iiko-page h3 {
+  font-size:13px;
+  margin:0 0 7px;
+}
+.iiko-category-note p,.iiko-removal p,.iiko-review p {
+  font-size:12px;
+  color:#718096;
+  line-height:1.7;
+  margin:0;
+}
+.iiko-actions {
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  margin-top:26px;
+  padding-top:22px;
+  border-top:1px solid #e8edf3;
+}
+.iiko-primary,.iiko-secondary,.iiko-danger {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  border:1px solid transparent;
+  border-radius:9px;
+  padding:12px 16px;
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+}
+.iiko-primary {
+  background:#2878df;
+  color:#fff;
+}
+.iiko-primary:hover:not(:disabled) {
+  background:#1c63bd;
+}
+.iiko-secondary {
+  background:#fff;
+  border-color:#dce4ee;
+  color:#52657c;
+}
+.iiko-page button:disabled {
+  opacity:.55;
+  cursor:not-allowed;
+}
+.iiko-card-preview {
+  background:linear-gradient(125deg,#163556,#25578b);
+  color:white;
+  padding:24px;
+  border-radius:15px;
+  box-shadow:0 10px 22px #16355616;
+}
+.iiko-card-preview>div {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:30px;
+}
+.iiko-card-preview>div span {
+  font-weight:800;
+  font-size:23px;
+  letter-spacing:2px;
+}
+.iiko-card-preview p {
+  font-size:12px;
+  color:#c7d9ee;
+  margin:0 0 8px;
+}
+.iiko-card-preview strong {
+  display:block;
+  font-size:35px;
+  letter-spacing:1px;
+  margin-bottom:22px;
+}
+.iiko-card-preview strong small {
+  font-size:23px;
+  font-weight:500;
+}
+.iiko-card-preview>span {
+  font-size:11px;
+  color:#d2e2f2;
+}
+.iiko-help {
+  padding:23px 3px 16px;
+}
+.iiko-help h2 {
+  font-size:14px;
+  margin:0 0 10px;
+}
+.iiko-help p {
+  font-size:12px;
+  color:#738299;
+  line-height:1.8;
+  margin:0 0 10px;
+}
+.iiko-back {
+  display:flex;
+  gap:8px;
+  align-items:center;
+  color:#647892;
+  text-decoration:none;
+  font-size:12px;
+}
+.iiko-search-row {
+  display:flex;
+  align-items:start;
+  gap:12px;
+  margin-top:8px;
+}
+.iiko-search-row input {
+  margin:0;
+  flex:1;
+}
+.iiko-search-row button {
+  white-space:nowrap;
+}
+.iiko-empty {
+  text-align:center;
+  padding:48px 16px;
+  color:#8a9bb0;
+}
+.iiko-empty>svg {
+  margin-bottom:15px;
+}
+.iiko-empty h3 {
+  font-size:16px;
+  color:#4e6179;
+}
+.iiko-empty p {
+  max-width:340px;
+  margin:10px auto;
+  font-size:12px;
+  line-height:1.8;
+}
+.iiko-empty-tags {
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  margin-top:18px;
+}
+.iiko-empty-tags span {
+  background:#f2f5f9;
+  color:#77879b;
+  border-radius:6px;
+  padding:6px 9px;
+  font-size:10px;
+}
+.iiko-removal {
+  border-top:1px solid #e9edf2;
+  padding-top:22px;
+  display:flex;
+  flex-direction:column;
+  align-items:start;
+  gap:16px;
+}
+.iiko-removal h3 {
+  color:#9e3e49;
+}
+.iiko-danger {
+  background:#fff6f6;
+  border-color:#efcfd4;
+  color:#b33a48;
+}
+.iiko-feedback {
+  background:#eff5fc;
+  color:#365c87;
+  border-radius:9px;
+  padding:14px;
+  font-size:12px;
+  line-height:1.7;
+}
+.iiko-review {
+  display:flex;
+  align-items:start;
+  gap:12px;
+  background:#f0f8f4;
+  border:1px solid #d4eadc;
+  border-radius:10px;
+  padding:17px;
+  margin-top:20px;
+  overflow-wrap:anywhere;
+}
+.iiko-review>svg {
+  flex-shrink:0;
+  color:#398a5e;
+}
+.iiko-review p:last-child {
+  margin-top:8px;
+}
+.iiko-review h3 {
+  color:#32654c;
+}
+@media(max-width:1100px) {
+  .iiko-layout {
+    grid-template-columns:minmax(0,1fr) 230px;
+  }
+  .iiko-page {
+    padding:24px;
+  }
+  .iiko-form {
+    padding:22px;
+  }
+}
+@media(max-width:800px) {
+  .iiko-layout {
+    grid-template-columns:1fr;
+  }
+  .iiko-side {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:20px;
+  }
+  .iiko-card-preview {
+    max-width:340px;
+  }
+  .iiko-help {
+    padding:8px 0;
+  }
+  .iiko-back {
+    grid-column:1/-1;
+  }
+}
+@media(max-width:520px) {
+  .iiko-page {
+    padding:20px 14px;
+  }
+  .iiko-heading {
+    align-items:start;
+    flex-direction:column;
+    gap:14px;
+  }
+  .iiko-heading h1 {
+    font-size:24px;
+  }
+  .iiko-tabs {
+    padding:0 16px;
+    gap:20px;
+  }
+  .iiko-tabs button {
+    font-size:12px;
+    gap:6px;
+  }
+  .iiko-form {
+    padding:20px 16px;
+  }
+  .iiko-fields {
+    grid-template-columns:1fr;
+  }
+  .iiko-side {
+    grid-template-columns:1fr;
+  }
+  .iiko-search-row {
+    flex-direction:column;
+  }
+  .iiko-search-row input,.iiko-search-row button {
+    width:100%;
+  }
+  .iiko-actions {
+    flex-wrap:wrap;
+  }
+  .iiko-actions .iiko-primary {
+    flex:1;
+  }
+  .iiko-card-preview {
+    max-width:none;
+  }
+}
+
+.iiko-creation-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: contents; }
+
+.iiko-confirmation { padding: 18px; margin: 14px 0; border: 1px solid #e1b94c; background: #fffaf0; border-radius: 12px; }
+.iiko-confirmation-danger { border-color: #e7a4a4; background: #fff6f6; }
+.iiko-confirmation p { line-height: 1.5; overflow-wrap: anywhere; }
+.iiko-reviewed-guest { padding: 10px 0; border-bottom: 1px solid #ddd; }
+.iiko-form .iiko-confirm-check { display: flex; align-items: flex-start; gap: 10px; margin-top: 16px; }
+.iiko-form .iiko-confirm-check input { width: 18px; min-width: 18px; height: 18px; margin: 2px 0 0; }
+.iiko-actions .iiko-primary { white-space: normal; }

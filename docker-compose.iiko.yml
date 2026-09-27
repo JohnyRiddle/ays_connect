@@ -1,0 +1,25 @@
+services:
+  backend:
+    # Existing production credentials stay in this host-protected file. The
+    # integrated image contains iiko, People and Projects from one source tree.
+    env_file:
+      - /home/ivan/.config/ays-connect/iiko-sheregesh.env
+    environment:
+      IIKO_SHEREGESH_ENV_FILE: ""
+    command:
+      - gunicorn
+      - config.wsgi:application
+      - --bind
+      - 0.0.0.0:8000
+      - --workers
+      - "1"
+      - --threads
+      - "4"
+      - --timeout
+      - "300"
+      - --graceful-timeout
+      - "300"
+      - --access-logfile
+      - "-"
+      - --error-logfile
+      - "-"

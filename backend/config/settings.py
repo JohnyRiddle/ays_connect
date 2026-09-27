@@ -10,6 +10,7 @@ ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,backend,t
 CSRF_TRUSTED_ORIGINS = [value for value in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if value]
 
 INSTALLED_APPS = [
+    "iiko",
     "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",
     "django.contrib.sessions", "django.contrib.messages", "django.contrib.staticfiles", "rest_framework_simplejwt.token_blacklist",
     "corsheaders", "rest_framework", "drf_spectacular", "accounts", "organizations", "employees", "access_control", "audit", "events", "operations", "work_tasks", "projects", "service_requests", "sla", "performance", "tasks", "checklists", "sensors", "incidents", "analytics", "notifications", "knowledge_base", "learning",
@@ -100,3 +101,14 @@ REGISTRATION_REQUEST_TTL_DAYS=int(os.getenv("REGISTRATION_REQUEST_TTL_DAYS", "14
 FRONTEND_BASE_URL=os.getenv("FRONTEND_BASE_URL", os.getenv("AYS_CONNECT_PUBLIC_URL", "http://localhost:3000")).rstrip("/")
 EMAIL_BACKEND=os.getenv("EMAIL_BACKEND","django.core.mail.backends.console.EmailBackend")
 EMAIL_HOST=os.getenv("EMAIL_HOST","");EMAIL_PORT=int(os.getenv("EMAIL_PORT","587"));EMAIL_HOST_USER=os.getenv("EMAIL_HOST_USER","");EMAIL_HOST_PASSWORD=os.getenv("EMAIL_HOST_PASSWORD","");EMAIL_USE_TLS=os.getenv("EMAIL_USE_TLS","1")=="1";DEFAULT_FROM_EMAIL=os.getenv("DEFAULT_FROM_EMAIL","AYS Connect <no-reply@localhost>")
+
+# iiko credentials stay outside Git in the existing server-side env file.
+IIKO_CONNECTIONS = {
+    "sheregesh": {
+        "env_file": os.getenv("IIKO_SHEREGESH_ENV_FILE", ""),
+        "organization_id": os.getenv(
+            "IIKO_SHEREGESH_ORGANIZATION_ID",
+            "07727ae8-4b93-4529-ac85-9232fae45be3",
+        ),
+    }
+}

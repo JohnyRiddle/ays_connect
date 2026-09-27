@@ -1,5 +1,18 @@
 # Текущее состояние AYS Connect
 
+## Integrated People + Projects + iiko + Cards candidate — 27.09.2026
+
+На базе `8d9fc81` в изолированном checkout `AYS Connect integrated release`, ветка
+`codex/integrated-release`, объединены принятые People/Projects и production-exact iiko,
+Cards/seasons и backup hotfix. Production inventory выполнен read-only; секреты, БД,
+media и data logs не копировались. Полный новый gate: backend **546/546**, iiko
+**102/102**, People API/browser **73/73 + 5/5**, Projects **37/37 + 2/2**, Cards/iiko
+browser **1/1**, frontend build, production-cutoff upgrade и synthetic backup/restore —
+PASS. Staging Compose исправлен: workers ждут окончания миграций. Commit/push не
+выполнялись. Deployment заблокирован до immutable checkpoint и проверенного off-host
+restore point. Инвентаризация, SHA-256, gate и runbook:
+[INTEGRATED_RELEASE_2026_09_27.md](INTEGRATED_RELEASE_2026_09_27.md).
+
 ## Финальное ревью People + Projects — 27.09.2026
 
 Полный локальный diff от `f13bfce`, включая новые файлы, проверен в `AYS Connect актуальный` / `codex/projects`. Исправлены lifecycle-валидация ответственных и дат при создании Project stage/milestone, строгий контракт write payload и отзыв Work-уведомлений при потере SQL-доступа к задаче. Финальный PostgreSQL backend **444/444**, Projects **29/29**, затронутый набор **65/65**, API **37/37**, browser **2/2**, оба live notification worker, frontend, check/drift и sensitive scan — PASS. Схема после ранее проверенных clean upgrade/restore не менялась. Подробности: [PEOPLE_PROJECTS_FINAL_REVIEW.md](PEOPLE_PROJECTS_FINAL_REVIEW.md).
