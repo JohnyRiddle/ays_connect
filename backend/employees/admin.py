@@ -1,6 +1,14 @@
 from django.contrib import admin
 from .models import AssignmentTarget, Employee, EmployeeDataChangeRequest, EmployeeFacility, EmployeeInvitation, EmployeeProfile, FirstLoginProgress, FunctionalGroup, FunctionalGroupMembership, OnboardingInstance, OnboardingStepInstance, OnboardingTemplate, OnboardingTemplateStep, OnboardingTemplateVersion, Position, Team, TeamMembership
-admin.site.register(Employee)
+@admin.register(Employee)
+class EmployeeAdmin(admin.ModelAdmin):
+    readonly_fields = ("user", "employee_number", "is_active", "status", "account_access_state", "dismissed_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 admin.site.register(EmployeeFacility)
 admin.site.register(Position)
 admin.site.register(FunctionalGroup)
@@ -39,7 +47,7 @@ class OnboardingTemplateVersionAdmin(ImmutableHistoryAdmin):
 class OnboardingTemplateStepAdmin(ImmutableHistoryAdmin):
     list_display=("title","version","step_type","position","required")
     list_filter=("step_type","required")
-    readonly_fields=tuple(field.name for field in OnboardingTemplateStep._meta.fields)
+    readonly_fields=tuple(field.name for field in OnboardingTemplateStep._meta.fields) + ("dependencies",)
 
 
 @admin.register(OnboardingInstance)

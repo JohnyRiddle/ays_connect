@@ -474,6 +474,14 @@ class OnboardingTemplateVersion(models.Model):
     published_at = models.DateTimeField(default=timezone.now)
     published_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="onboarding_versions_published")
 
+    def save(self, *args, **kwargs):
+        if self.pk and type(self).objects.filter(pk=self.pk).exists():
+            raise ValidationError("Published onboarding versions are immutable.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Published onboarding versions are immutable.")
+
     class Meta:
         constraints = [models.UniqueConstraint(fields=["template", "number"], name="unique_onboarding_template_version")]
         ordering = ["template_id", "number"]
@@ -514,6 +522,14 @@ class OnboardingTemplateStep(models.Model):
     explicit_employee = models.ForeignKey(Employee, on_delete=models.PROTECT, null=True, blank=True, related_name="explicit_onboarding_steps")
     team_role = models.CharField(max_length=24, blank=True)
     dependencies = models.ManyToManyField("self", symmetrical=False, blank=True, related_name="dependents")
+
+    def save(self, *args, **kwargs):
+        if self.pk and type(self).objects.filter(pk=self.pk).exists():
+            raise ValidationError("Published onboarding steps are immutable.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Published onboarding steps are immutable.")
 
     class Meta:
         ordering = ["position", "id"]

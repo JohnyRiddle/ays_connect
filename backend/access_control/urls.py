@@ -11,6 +11,7 @@ from django.urls import path
 from sla.views import CalendarViewSet, PolicyViewSet, AssignmentRuleViewSet, PreviewViewSet, EscalationPolicyViewSet, EscalationPolicyVersionViewSet, EscalationBindingViewSet
 from employees.profile_api import AvatarView, ChangeRequestReviewViewSet, CompletenessView, DirectoryViewSet, MeView, OrganizationView, SelfChangeRequestViewSet, TeamsView, VisibilityView
 from employees.onboarding_phase24_api import AccountAccessView, AccountBlockView, AccountReactivateView, AccountRestoreView, FirstLoginView, InvitationViewSet, OnboardingTemplateViewSet, OnboardingViewSet, SelfOnboardingViewSet
+from projects.views import ProjectViewSet
 
 router = DefaultRouter()
 router.register("employees", EmployeeViewSet, basename="internal-employees")
@@ -33,6 +34,7 @@ router.register("roles", RoleViewSet, basename="internal-roles")
 router.register("permissions", PermissionViewSet, basename="internal-permissions")
 router.register("role-permissions", RolePermissionViewSet, basename="internal-role-permissions")
 router.register("tasks", ProductionTaskViewSet, basename="internal-tasks")
+router.register("projects", ProjectViewSet, basename="internal-projects")
 router.register("checklist-templates", ChecklistTemplateViewSet, basename="internal-checklist-templates")
 router.register("task-templates", TaskTemplateViewSet, basename="internal-task-templates")
 router.register("task-recurrences", RecurrenceViewSet, basename="internal-task-recurrences")

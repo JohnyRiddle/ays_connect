@@ -11,6 +11,18 @@ from .models import Notification,NotificationDelivery,NotificationDeliveryAttemp
 ALLOWED_EVENTS={"notification.requested"};MANDATORY_IN_APP={"SLA_ESCALATION"};MAX_ATTEMPTS=5
 DEFAULT_TEMPLATE={"title":"SLA: заявка {request_id}","body":"Нарушение SLA, уровень {level}. Событие: {event_type}.","allowed":["request_id","level","event_type"]}
 PEOPLE_TEMPLATES={
+    "WORK_TASK_REOPENED":{"title":"Задача возвращена в работу","body":"{task_number}. Инициатор: {actor_name}. Причина: {reason_text}","allowed":["task_number","actor_name","reason_text"]},
+    "WORK_TASK_REJECTED":{"title":"Результат задачи отклонён","body":"{task_number}. Инициатор: {actor_name}. Причина: {reason_text}","allowed":["task_number","actor_name","reason_text"]},
+    "PEOPLE_INVITATION_EXPIRED":{"title":"Истёк срок приглашения","body":"Приглашение {invitation_id} больше не действует.","allowed":["invitation_id"]},
+    "PEOPLE_STEP_OVERDUE":{"title":"Просрочен шаг адаптации","body":"Не завершён шаг: {step_title}.","allowed":["step_title"]},
+    "PEOPLE_ONBOARDING_REOPEN_BLOCKED":{"title":"Возврат адаптации требует решения","body":"Завершённая адаптация {onboarding_id} не открыта: сначала явно отмените текущую адаптацию.","allowed":["onboarding_id"]},
+    "PROJECT_TASK_REOPENED":{"title":"Проект открыт повторно","body":"Проект {project_number} открыт повторно после возврата задачи.","allowed":["project_number"]},
+    "PROJECT_LIFECYCLE":{"title":"Изменён статус проекта","body":"Проект {project_number}: действие {lifecycle_action}.","allowed":["project_number","lifecycle_action"]},
+    "PROJECT_MEMBER_ADDED":{"title":"Вы добавлены в проект","body":"Вы добавлены в проект {project_number}.","allowed":["project_number"]},
+    "PROJECT_MANAGER_CHANGED":{"title":"Назначен руководитель проекта","body":"Вы назначены руководителем проекта {project_number}.","allowed":["project_number"]},
+    "PROJECT_MILESTONE_ASSIGNED":{"title":"Назначена контрольная точка","body":"Проект {project_number}: контрольная точка {milestone_name}.","allowed":["project_number","milestone_name"]},
+    "PROJECT_MILESTONE_DUE":{"title":"Наступил срок контрольной точки","body":"Проект {project_number}: срок контрольной точки {milestone_name} наступил.","allowed":["project_number","milestone_name"]},
+    "PROJECT_COMMENT_MENTIONED":{"title":"Упоминание в проекте","body":"Вы упомянуты в обсуждении проекта {project_number}.","allowed":["project_number"]},
     "PEOPLE_CHANGE_APPROVED":{"title":"Изменение данных одобрено","body":"Запрос на изменение поля {field_type} одобрен.","allowed":["field_type"]},
     "PEOPLE_CHANGE_REJECTED":{"title":"Изменение данных отклонено","body":"Запрос на изменение поля {field_type} отклонён.","allowed":["field_type"]},
     "PEOPLE_CHANGE_APPLIED":{"title":"Данные профиля изменены","body":"Изменение поля {field_type} применено.","allowed":["field_type"]},
@@ -34,6 +46,7 @@ class NotificationChannelRouter:
     def route(notification,reason):
         from django.conf import settings
         employee=notification.recipient_employee;channels=["in_app"]
+        if reason in {"WORK_TASK_REOPENED","WORK_TASK_REJECTED","PEOPLE_INVITATION_EXPIRED","PEOPLE_STEP_OVERDUE","PEOPLE_ONBOARDING_REOPEN_BLOCKED","PROJECT_LIFECYCLE","PROJECT_MEMBER_ADDED","PROJECT_MANAGER_CHANGED","PROJECT_MILESTONE_ASSIGNED","PROJECT_MILESTONE_DUE","PROJECT_TASK_REOPENED","PROJECT_COMMENT_MENTIONED"}: channels.append("email")
         if notification.priority in {"warning","critical"}:channels.append("telegram")
         if notification.priority=="critical":channels.append("email")
         for channel in channels:
@@ -54,13 +67,36 @@ def ingest_event(event):
     payload=event.payload or {};reason=payload.get("reason","");intent,created=NotificationIntent.objects.get_or_create(source_event_id=event.event_id,defaults={"event_type":event.event_type,"reason":reason,"payload":payload})
     if not created and intent.status==NotificationIntent.Status.MATERIALIZED:return intent
     try:
-        employee=Employee.objects.select_related("user").get(pk=payload.get("recipient_employee_id"),is_active=True,user__isnull=False);template=NotificationTemplate.objects.filter(code=reason,is_active=True).first();fallback=PEOPLE_TEMPLATES.get(reason,DEFAULT_TEMPLATE);title_source=template.title_template if template else fallback["title"];body_source=template.body_template if template else fallback["body"];allowed=template.allowed_variables if template else fallback["allowed"]
+        employee=Employee.objects.select_related("user").get(pk=payload.get("recipient_employee_id"),is_active=True,user__isnull=False)
+        if reason.startswith('PROJECT_'):
+            from projects.policies import ProjectAccessPolicy
+            if not ProjectAccessPolicy.visible_to(employee).filter(pk=payload.get('project_id')).exists():
+                intent.status="materialized";intent.processed_at=timezone.now();intent.last_error="";intent.save(update_fields=["status","processed_at","last_error"])
+                return intent
+        if reason in {'WORK_TASK_REOPENED','WORK_TASK_REJECTED'}:
+            from work_tasks.selectors import TaskSelector
+            if not TaskSelector.visible_to(employee).filter(pk=payload.get('task_id')).exists():
+                intent.status="materialized";intent.processed_at=timezone.now();intent.last_error="";intent.save(update_fields=["status","processed_at","last_error"])
+                return intent
+        template=NotificationTemplate.objects.filter(code=reason,is_active=True).first();fallback=PEOPLE_TEMPLATES.get(reason,DEFAULT_TEMPLATE);title_source=template.title_template if template else fallback["title"];body_source=template.body_template if template else fallback["body"];allowed=template.allowed_variables if template else fallback["allowed"]
         item,_=Notification.objects.get_or_create(intent=intent,recipient_employee=employee,defaults={"recipient":employee.user,"template":template,"notification_type":"sla_escalation" if reason=="SLA_ESCALATION" else "system","priority":"critical" if reason=="SLA_ESCALATION" else "info","title":render_template(title_source,payload,allowed),"message":render_template(body_source,payload,allowed),"entity_type":"ServiceRequest","entity_id":str(payload.get("request_id") or ""),"action_url":f"/#requests/{payload.get('request_id')}" if payload.get("request_id") else ""})
+        if reason in {'WORK_TASK_REOPENED','WORK_TASK_REJECTED'}:
+            item.entity_type='Task';item.entity_id=str(payload.get('task_id',''));item.action_url=f'/tasks/{item.entity_id}'
+            item.save(update_fields=['entity_type','entity_id','action_url'])
+        elif reason in {'PEOPLE_INVITATION_EXPIRED','PEOPLE_STEP_OVERDUE','PEOPLE_ONBOARDING_REOPEN_BLOCKED'}:
+            item.entity_type='EmployeeInvitation' if reason=='PEOPLE_INVITATION_EXPIRED' else 'OnboardingInstance'
+            item.entity_id=str(payload.get('invitation_id') or payload.get('onboarding_id') or '')
+            item.action_url=''
+            item.save(update_fields=['entity_type','entity_id','action_url'])
+        elif reason in {'PROJECT_TASK_REOPENED','PROJECT_LIFECYCLE','PROJECT_MEMBER_ADDED','PROJECT_MANAGER_CHANGED','PROJECT_MILESTONE_ASSIGNED','PROJECT_MILESTONE_DUE','PROJECT_COMMENT_MENTIONED'}:
+            item.entity_type='Project';item.entity_id=str(payload.get('project_id') or '')
+            item.action_url=f'/projects/{item.entity_id}' if item.entity_id else ''
+            item.save(update_fields=['entity_type','entity_id','action_url'])
         NotificationChannelRouter.route(item,reason)
         intent.status="materialized";intent.processed_at=timezone.now();intent.last_error="";intent.save(update_fields=["status","processed_at","last_error"]);return intent
     except Exception as exc:intent.status="failed";intent.last_error=str(exc)[:2000];intent.save(update_fields=["status","last_error"]);raise
 def ingest_pending(batch_size=100,reconcile=False):
-    statuses=["pending"]+(["processed"] if reconcile else []);events=list(OutboxEvent.objects.filter(event_type__in=ALLOWED_EVENTS,status__in=statuses).order_by("created_at")[:batch_size]);done=0
+    statuses=["pending"]+(["processed"] if reconcile else []);events=list(OutboxEvent.objects.filter(event_type__in=ALLOWED_EVENTS,status__in=statuses).exclude(event_id__in=NotificationIntent.objects.filter(status='materialized').values('source_event_id')).order_by("created_at")[:batch_size]);done=0
     for event in events:
         try:
             ingest_event(event);done+=1
@@ -70,6 +106,22 @@ def ingest_pending(batch_size=100,reconcile=False):
     return done
 def deliver_one(delivery,handler=None):
     from .channels import CHANNEL_HANDLERS,ProviderFailure
+    if not Employee.objects.filter(pk=delivery.notification.recipient_employee_id,is_active=True,user__is_active=True).exclude(status='terminated').exists():
+        delivery.status='suppressed';delivery.last_error_code='RECIPIENT_INACTIVE';delivery.processing_started_at=None
+        delivery.save(update_fields=['status','last_error_code','processing_started_at','updated_at'])
+        return
+    if delivery.notification.entity_type == 'Project':
+        from projects.policies import ProjectAccessPolicy
+        if not ProjectAccessPolicy.visible_to(delivery.notification.recipient_employee).filter(pk=delivery.notification.entity_id).exists():
+            delivery.status='suppressed';delivery.last_error_code='PROJECT_ACCESS_REVOKED';delivery.processing_started_at=None
+            delivery.save(update_fields=['status','last_error_code','processing_started_at','updated_at'])
+            return
+    if delivery.notification.entity_type == 'Task':
+        from work_tasks.selectors import TaskSelector
+        if not TaskSelector.visible_to(delivery.notification.recipient_employee).filter(pk=delivery.notification.entity_id).exists():
+            delivery.status='suppressed';delivery.last_error_code='TASK_ACCESS_REVOKED';delivery.processing_started_at=None
+            delivery.save(update_fields=['status','last_error_code','processing_started_at','updated_at'])
+            return
     now=timezone.now();delivery.attempts+=1;delivery.provider_started_at=now;delivery.save(update_fields=["attempts","provider_started_at","updated_at"])
     try:
         result=(handler or CHANNEL_HANDLERS[delivery.channel]()).send(delivery);delivery.status="delivered";delivery.delivered_at=timezone.now();delivery.last_error="";delivery.last_error_code="";delivery.provider_message_id=result.message_id;delivery.provider_metadata=result.metadata;delivery.notification.delivered_at=delivery.delivered_at if delivery.channel=="in_app" else delivery.notification.delivered_at;delivery.notification.save(update_fields=["delivered_at"]);NotificationDeliveryAttempt.objects.create(delivery=delivery,attempt_number=delivery.attempts,successful=True,outcome="delivered",provider_metadata=result.metadata)

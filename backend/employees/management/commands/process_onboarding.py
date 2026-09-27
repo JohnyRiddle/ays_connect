@@ -2,9 +2,11 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from employees.models import EmployeeInvitation, OnboardingInstance, OnboardingStepInstance
+from employees.models import Employee, EmployeeInvitation, OnboardingInstance
 from employees.onboarding import _event
-from employees.onboarding_lifecycle import OnboardingService, ResponsibleResolver
+from employees.onboarding_lifecycle import OnboardingService
+from employees.onboarding_events import process_events, notify_overdue
+from operations.heartbeat import record_worker_cycle
 
 
 class Command(BaseCommand):
@@ -15,25 +17,32 @@ class Command(BaseCommand):
         parser.add_argument("--dry-run", action="store_true")
 
     def handle(self, *args, **options):
-        size = max(1, min(options["batch_size"], 1000)); dry_run = options["dry_run"]
-        expired = reconciled = resolved = 0
-        with transaction.atomic():
-            invitations = list(EmployeeInvitation.objects.select_for_update(skip_locked=True).filter(used_at__isnull=True, revoked_at__isnull=True, expires_at__lte=timezone.now())[:size])
-            for invitation in invitations:
-                expired += 1
-                if not dry_run:
-                    invitation.status = "expired"; invitation.version += 1; invitation.save(update_fields=["status", "version"])
-                    _event("people.invitation.expired", invitation, new={"employee_id": str(invitation.employee_id)})
-            instances = list(OnboardingInstance.objects.select_for_update(skip_locked=True).filter(status__in=["pending", "active", "paused"])[:size])
-            for instance in instances:
-                reconciled += 1
-                if not dry_run: OnboardingService.reconcile(instance)
-            blocked = list(OnboardingStepInstance.objects.select_for_update(skip_locked=True).select_related("template_step", "onboarding__employee").filter(status="blocked", responsible_employee__isnull=True)[:size])
-            for step in blocked:
-                try: employee, detail = ResponsibleResolver.resolve(step.template_step, step.onboarding.employee)
-                except Exception: continue
-                resolved += 1
-                if not dry_run:
-                    step.responsible_employee=employee; step.resolution_detail=detail; step.status="pending"; step.version+=1; step.save(update_fields=["responsible_employee","resolution_detail","status","version","updated_at"])
-            if dry_run: transaction.set_rollback(True)
-        self.stdout.write(f"expired={expired} reconciled={reconciled} resolved={resolved} dry_run={dry_run}")
+        size=max(1,min(options['batch_size'],1000));dry=options['dry_run']
+        expired=reconciled=0
+        candidates=EmployeeInvitation.objects.filter(used_at__isnull=True,revoked_at__isnull=True,
+            expires_at__lte=timezone.now()).exclude(status='expired').order_by('expires_at','pk')
+        for pk,owner in list(candidates.values_list('pk','employee_id')[:size]):
+            with transaction.atomic():
+                if not Employee.objects.select_for_update(skip_locked=True).filter(pk=owner).exists():continue
+                invitation=candidates.select_for_update().filter(pk=pk).first()
+                if not invitation:continue
+                expired+=1
+                if not dry:
+                    invitation.status='expired';invitation.version+=1
+                    invitation.save(update_fields=['status','version'])
+                    _event('people.invitation.expired',invitation,new={'employee_id':str(owner)})
+        if not dry: process_events(size)
+        candidates=OnboardingInstance.objects.filter(status__in=['pending','active','paused']).order_by('updated_at','pk')
+        for pk,owner in list(candidates.values_list('pk','employee_id')[:size]):
+            with transaction.atomic():
+                if not Employee.objects.select_for_update(skip_locked=True).filter(pk=owner).exists():continue
+                instance=candidates.select_for_update().filter(pk=pk).first()
+                if not instance:continue
+                reconciled+=1
+                if not dry:
+                    OnboardingService.reconcile(instance)
+                    notify_overdue(instance)
+                    instance.updated_at=timezone.now()
+                    instance.save(update_fields=['updated_at'])
+        if not dry:record_worker_cycle('onboarding',processed=expired+reconciled)
+        self.stdout.write(f'expired={expired} reconciled={reconciled} dry_run={dry}')

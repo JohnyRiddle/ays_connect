@@ -38,8 +38,12 @@ class ChangeRequestSerializer(serializers.ModelSerializer):
         fields=("id","employee","field_type","requested_value","current_value_snapshot","reason","status","submitted_at","reviewed_at","reviewed_by","review_comment","applied_at","version")
         read_only_fields=fields
     def _safe(self,obj,value):
-        own=self.context["request"].user.pk==obj.employee.user_id
-        return value if own or self.context["request"].user.is_superuser else {"masked":True}
+        user=self.context["request"].user
+        own=user.pk==obj.employee.user_id
+        reviewer=getattr(user,"employee",None)
+        permitted=all(PermissionService.has_permission(employee=reviewer,permission=code,obj=obj.employee)
+                      for code in ("people.change_request.review","people.profile.view_sensitive"))
+        return value if own or user.is_superuser or permitted else {"masked":True}
     def get_requested_value(self,obj):return self._safe(obj,obj.requested_value)
     def get_current_value_snapshot(self,obj):return self._safe(obj,obj.current_value_snapshot)
 
@@ -109,6 +113,9 @@ class SelfChangeRequestViewSet(viewsets.ReadOnlyModelViewSet):
 
 class ChangeRequestReviewViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class=ChangeRequestSerializer;queryset=EmployeeDataChangeRequest.objects.select_related("employee__user","reviewed_by")
+    def get_queryset(self):
+        code = "people.change_request.apply" if self.action == "apply" else "people.change_request.review"
+        return super().get_queryset().filter(employee__in=visible_employees(self.request.user, code))
     def initial(self,request,*args,**kwargs):
         super().initial(request,*args,**kwargs)
         actor=getattr(request.user,"employee",None)

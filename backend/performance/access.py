@@ -25,6 +25,10 @@ def visible_employees(user):
             if grant.permission.code not in PERMISSION_CODES: continue
             if grant.scope == Scope.GLOBAL: return Employee.objects.all()
             if grant.scope == Scope.TEAM: query |= Q(manager=actor)
-            elif grant.scope == Scope.ORG_UNIT: query |= Q(org_unit=assignment.org_unit or actor.org_unit)
-            elif grant.scope == Scope.LEGAL_ENTITY: query |= Q(legal_entity=assignment.legal_entity or actor.legal_entity)
+            elif grant.scope == Scope.ORG_UNIT:
+                context=assignment.org_unit_id or actor.org_unit_id
+                if context: query |= Q(org_unit_id=context)
+            elif grant.scope == Scope.LEGAL_ENTITY:
+                context=assignment.legal_entity_id or actor.legal_entity_id
+                if context: query |= Q(legal_entity_id=context)
     return Employee.objects.filter(query).distinct()

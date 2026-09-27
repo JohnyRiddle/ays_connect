@@ -12,7 +12,7 @@ CSRF_TRUSTED_ORIGINS = [value for value in os.getenv("CSRF_TRUSTED_ORIGINS", "")
 INSTALLED_APPS = [
     "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",
     "django.contrib.sessions", "django.contrib.messages", "django.contrib.staticfiles", "rest_framework_simplejwt.token_blacklist",
-    "corsheaders", "rest_framework", "drf_spectacular", "accounts", "organizations", "employees", "access_control", "audit", "events", "operations", "work_tasks", "service_requests", "sla", "performance", "tasks", "checklists", "sensors", "incidents", "analytics", "notifications", "knowledge_base", "learning",
+    "corsheaders", "rest_framework", "drf_spectacular", "accounts", "organizations", "employees", "access_control", "audit", "events", "operations", "work_tasks", "projects", "service_requests", "sla", "performance", "tasks", "checklists", "sensors", "incidents", "analytics", "notifications", "knowledge_base", "learning",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware", "config.middleware.RequestContextMiddleware", "corsheaders.middleware.CorsMiddleware",
@@ -95,6 +95,7 @@ AYS_CONNECT_PUBLIC_URL=os.getenv("AYS_CONNECT_PUBLIC_URL","")
 NOTIFICATIONS_TELEGRAM_ENABLED=os.getenv("NOTIFICATIONS_TELEGRAM_ENABLED","0")=="1"
 NOTIFICATIONS_EMAIL_ENABLED=os.getenv("NOTIFICATIONS_EMAIL_ENABLED","0")=="1"
 EMPLOYEE_INVITATION_TTL_HOURS=int(os.getenv("EMPLOYEE_INVITATION_TTL_HOURS", "48"))
+PEOPLE_OVERDUE_REPEAT_HOURS=max(1,int(os.getenv("PEOPLE_OVERDUE_REPEAT_HOURS", "24")))
 REGISTRATION_REQUEST_TTL_DAYS=int(os.getenv("REGISTRATION_REQUEST_TTL_DAYS", "14"))
 FRONTEND_BASE_URL=os.getenv("FRONTEND_BASE_URL", os.getenv("AYS_CONNECT_PUBLIC_URL", "http://localhost:3000")).rstrip("/")
 EMAIL_BACKEND=os.getenv("EMAIL_BACKEND","django.core.mail.backends.console.EmailBackend")

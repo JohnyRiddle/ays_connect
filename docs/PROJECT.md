@@ -1,5 +1,7 @@
 # AYS Connect — проект
 
+Текущий roadmap: [MASTER_ROADMAP.md](MASTER_ROADMAP.md). People local staging Acceptance PASS; Projects first release реализован в изолированной ветке `codex/projects`, локальный Quality Gate PASS. Production release не выполнялся. Актуальный checkpoint и evidence: [CURRENT_STATE.md](CURRENT_STATE.md), [PROJECTS_ACCEPTANCE.md](PROJECTS_ACCEPTANCE.md).
+
 ## Назначение
 
 AYS Connect объединяет сотрудников, оргструктуру и ежедневные корпоративные процессы в одной платформе: задачи, чек-листы, датчики, инциденты, знания, обучение и каталог внутренних услуг.

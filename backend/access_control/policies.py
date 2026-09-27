@@ -15,7 +15,7 @@ class EmployeeAccessPolicy:
             context = grant.org_unit_id or actor.org_unit_id
             return bool(context and target.org_unit_id == context)
         if scope == Scope.TEAM:
-            return target.manager_id == actor.pk or actor.manager_id == target.manager_id
+            return target.manager_id == actor.pk or bool(actor.manager_id and actor.manager_id == target.manager_id)
         return False
 
 

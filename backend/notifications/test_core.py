@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 from unittest import skipUnless
 from unittest.mock import patch
 from django.db import close_old_connections,connection,connections
-from django.test import TestCase,TransactionTestCase
+from django.test import TestCase,TransactionTestCase,override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 from accounts.models import User
@@ -15,6 +15,7 @@ from .services import ingest_event,preference_enabled,process_deliveries,render_
 def fixture(s="1"):
     u=User.objects.create_user(username=f"notify{s}",email=f"n{s}@test.local",password="pass12345");return u,Employee.objects.create(user=u,employee_number=f"N-{s}",first_name="Notify")
 def event(e,event_id=None):return OutboxEvent.objects.create(event_id=event_id or uuid.uuid4(),event_type="notification.requested",entity_type="EscalationExecution",entity_id="1",occurred_at=timezone.now(),payload={"reason":"SLA_ESCALATION","recipient_employee_id":str(e.pk),"request_id":"42","level":2,"event_type":"breach"})
+@override_settings(NOTIFICATIONS_EMAIL_ENABLED=False, NOTIFICATIONS_TELEGRAM_ENABLED=False)
 class NotificationCoreTests(TestCase):
     def test_ingestion_is_idempotent_and_creates_delivery(self):
         _,e=fixture();source=event(e);ingest_event(source);ingest_event(source);self.assertEqual(NotificationIntent.objects.count(),1);self.assertEqual(Notification.objects.count(),1);self.assertEqual(NotificationDelivery.objects.count(),3)
@@ -38,6 +39,7 @@ class NotificationCoreTests(TestCase):
         with patch("notifications.views.DomainEventService.publish",side_effect=RuntimeError("outbox unavailable")):
             with self.assertRaises(RuntimeError):client.post("/api/v1/notifications/templates/",{"code":"ROLLBACK","name":"Rollback","title_template":"Title","body_template":"Body","allowed_variables":[]},format="json")
         self.assertFalse(NotificationTemplate.objects.filter(code="ROLLBACK").exists());self.assertFalse(AuditEvent.objects.filter(action="notification_template.created").exists())
+@override_settings(NOTIFICATIONS_EMAIL_ENABLED=False, NOTIFICATIONS_TELEGRAM_ENABLED=False)
 class NotificationConcurrencyTests(TransactionTestCase):
     @skipUnless(connection.vendor=="postgresql","PostgreSQL concurrency test")
     def test_eight_concurrent_ingestions_create_one(self):

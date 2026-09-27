@@ -1,0 +1,9 @@
+# Projects API
+
+База: `/api/internal/v1/projects/`, с действующей аутентификацией, RBAC и SQL scope. Списки и детали фильтруются по Project-доступу; задачи и их счётчики дополнительно по Work-доступу. Запрещённые ссылки на задачи в истории скрываются. Все команды изменения принимают текущую `version` или `project_version`; устаревшая версия возвращает 409. Неизвестные поля записи возвращают 400. Project create и project task create требуют UUID `Idempotency-Key`; повтор того же payload возвращает исходный результат без новых событий, повтор с иным payload — 409.
+
+`GET/POST /projects/`, `GET/PATCH /projects/{id}/` — список, создание, детали и редактирование. Project lifecycle: `POST /{id}/start|hold|complete|cancel|reopen|restore|archive|unarchive/`. Управление людьми: `GET/POST /{id}/members/`, `POST /{id}/members/{member_id}/remove/`. Структура: `GET/POST /{id}/stages/`, `PATCH /{id}/stages/{stage_id}/`, `POST /{id}/stages/{stage_id}/delete/`; `GET/POST /{id}/milestones/`, `PATCH /{id}/milestones/{milestone_id}/`, `POST /{id}/milestones/{milestone_id}/confirm|reopen/`.
+
+Work-интеграция: `GET /{id}/tasks|counters|history/`, `POST /{id}/create-task|link-task|unlink-task|move-stage|move-project/`. Work task list поддерживает фильтры `project` и `stage`; сериализатор Work показывает Project-ссылку лишь когда Project доступен пользователю. Совместная работа: `GET/POST /{id}/comments|attachments/`, удаление и защищённая загрузка вложений через соответствующие вложенные маршруты. Ответы и ошибки используют обычный контракт DRF/AYS; Audit и Outbox записываются атомарно в доменных сервисах.
+
+Новые permission codes перечислены в `backend/access_control/management/commands/seed_permissions.py`; они не выдаются автоматически production-ролям. Для проверки используется синтетический `docker-compose.projects-staging.yml`.

@@ -1,6 +1,6 @@
 @import url("./work.css") layer(feature-pages);
 @import url("./people.css") layer(feature-pages);
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
+/* Offline-safe: use the existing font stack, without a remote stylesheet. */
 :root {
   font-family: Manrope, Arial, sans-serif;
   color: #172033;

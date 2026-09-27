@@ -172,7 +172,7 @@ def can_see(profile, field, viewer, subject):
     level=getattr(profile,f"{field}_visibility")
     actor=getattr(viewer,"employee",None)
     if not actor or not actor.is_active: return False
-    if level=="organization": return actor.legal_entity_id == subject.legal_entity_id
+    if level=="organization": return bool(actor.legal_entity_id and actor.legal_entity_id == subject.legal_entity_id)
     if level=="managers":
         cursor=subject.manager
         while cursor:

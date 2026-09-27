@@ -16,8 +16,8 @@ class ServiceRequestAccessPolicy:
                 participating=employee.pk in {request.requester_id,request.responsible_employee_id,request.assigned_employee_id} or request.created_by_id==getattr(employee,"user_id",None) or request.watcher_records.filter(employee=employee,employee__is_active=True,removed_at__isnull=True).exists()
                 if scope==Scope.PARTICIPATING and participating:return True
                 if scope==Scope.OWN and request.requester_id==employee.pk:return True
-                if scope==Scope.ORG_UNIT and request.org_unit_id==(grant.org_unit_id or employee.org_unit_id):return True
-                if scope==Scope.LEGAL_ENTITY and request.legal_entity_id==(grant.legal_entity_id or employee.legal_entity_id):return True
+                if scope==Scope.ORG_UNIT and (grant.org_unit_id or employee.org_unit_id) and request.org_unit_id==(grant.org_unit_id or employee.org_unit_id):return True
+                if scope==Scope.LEGAL_ENTITY and (grant.legal_entity_id or employee.legal_entity_id) and request.legal_entity_id==(grant.legal_entity_id or employee.legal_entity_id):return True
                 if scope==Scope.TEAM and request.assigned_employee and request.assigned_employee.manager_id==employee.pk:return True
         return False
     @classmethod
@@ -28,8 +28,12 @@ class ServiceRequestAccessPolicy:
                 if scope==Scope.GLOBAL:return Q()
                 if scope==Scope.PARTICIPATING:q|=Q(requester=employee)|Q(responsible_employee=employee)|Q(assigned_employee=employee)|Q(created_by_id=getattr(employee,"user_id",None))|Q(watcher_records__employee=employee,watcher_records__employee__is_active=True,watcher_records__removed_at__isnull=True)
                 elif scope==Scope.OWN:q|=Q(requester=employee)
-                elif scope==Scope.ORG_UNIT:q|=Q(org_unit_id=grant.org_unit_id or employee.org_unit_id)
-                elif scope==Scope.LEGAL_ENTITY:q|=Q(legal_entity_id=grant.legal_entity_id or employee.legal_entity_id)
+                elif scope==Scope.ORG_UNIT:
+                    context=grant.org_unit_id or employee.org_unit_id
+                    if context:q|=Q(org_unit_id=context)
+                elif scope==Scope.LEGAL_ENTITY:
+                    context=grant.legal_entity_id or employee.legal_entity_id
+                    if context:q|=Q(legal_entity_id=context)
                 elif scope==Scope.TEAM:q|=Q(assigned_employee__manager=employee)
         return q
 

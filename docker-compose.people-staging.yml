@@ -1,0 +1,103 @@
+name: ays-people-acceptance
+
+# Standalone, never merge with pilot/production Compose or load their env files.
+services:
+  db:
+    image: postgres:17.11-alpine
+    environment:
+      POSTGRES_DB: people_acceptance
+      POSTGRES_USER: people_acceptance
+      # No published DB port; trust is confined to this isolated synthetic network.
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes: [people_database:/var/lib/postgresql/data]
+    networks: [acceptance]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U people_acceptance -d people_acceptance']
+      interval: 3s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    networks: [acceptance]
+    volumes: [people_redis:/data]
+    command: [redis-server, --appendonly, 'yes']
+  backend: &backend
+    image: aysconnect-backend:latest
+    user: '0:0'
+    entrypoint: [python, /acceptance/runtime.py]
+    command: [gunicorn, config.wsgi:application, --bind, '0.0.0.0:8000', --workers, '2']
+    environment:
+      DJANGO_DEBUG: '0'
+      PEOPLE_ACCEPTANCE_MODE: '1'
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,backend,testserver
+      DATABASE_URL: postgresql://people_acceptance@db:5432/people_acceptance
+      REDIS_URL: redis://redis:6379/0
+      DJANGO_SECURE_SSL_REDIRECT: '0'
+      DJANGO_SECURE_COOKIES: '0'
+      CSRF_TRUSTED_ORIGINS: http://127.0.0.1:18080
+      CORS_ALLOWED_ORIGINS: http://127.0.0.1:18080
+      AYS_CONNECT_PUBLIC_URL: http://127.0.0.1:18080
+      NOTIFICATIONS_TELEGRAM_ENABLED: '0'
+      NOTIFICATIONS_EMAIL_ENABLED: '1'
+      EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
+      TELEGRAM_BOT_TOKEN: ''
+      EMAIL_HOST: mailpit
+      EMAIL_PORT: '1025'
+      EMAIL_USE_TLS: '0'
+      DEFAULT_FROM_EMAIL: acceptance@example.test
+      EMAIL_HOST_PASSWORD: ''
+    volumes:
+      - ./backend:/app:ro
+      - ./deployment/people-staging:/acceptance:ro
+      - people_media:/app/media
+      - people_static:/app/staticfiles
+      - people_private:/staging-private
+    networks: [acceptance]
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_started}
+  frontend_assets:
+    image: ays-connect-frontend-phase16a:latest
+    entrypoint: [sh, -ec]
+    command: ['npm run build && cp -R /app/dist/. /output/']
+    environment:
+      VITE_API_URL: /api/v1
+    volumes:
+      - ./frontend/src:/app/src:ro
+      - ./frontend/tsconfig.json:/app/tsconfig.json:ro
+      - people_frontend:/output
+    networks: [acceptance]
+  proxy:
+    image: caddy:2.8-alpine
+    ports: ['127.0.0.1:18080:80']
+    volumes:
+      - ./deployment/people-staging/Caddyfile:/etc/caddy/Caddyfile:ro
+      - people_frontend:/srv/frontend:ro
+      - people_static:/srv/static:ro
+    networks: [acceptance]
+    depends_on:
+      backend: {condition: service_started}
+      frontend_assets: {condition: service_completed_successfully}
+  mailpit:
+    image: axllent/mailpit@sha256:98b916bd3c8d61f7633a52d3ea2f58d00620cb01ca57ab59edde68c347a95365
+    networks: [acceptance]
+    ports: ['127.0.0.1:18025:8025']
+    environment:
+      MP_DATABASE: /data/mailpit.db
+    volumes: [people_mail:/data]
+  onboarding_worker:
+    <<: *backend
+    command: [sh, -ec, 'while true; do python manage.py process_onboarding --batch-size 10; sleep 3; done']
+  notification_worker:
+    <<: *backend
+    command: [sh, -ec, 'while true; do python manage.py process_notifications --batch-size 10 --reconcile; sleep 3; done']
+networks:
+  acceptance:
+    internal: true
+volumes:
+  people_database:
+  people_redis:
+  people_media:
+  people_static:
+  people_private:
+  people_frontend:
+  people_mail:

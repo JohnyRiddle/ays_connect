@@ -13,6 +13,10 @@ from .services import EmployeeAssignmentService, EmployeeManagerService, Employe
 
 class EmployeeInternalSerializer(serializers.ModelSerializer):
     display_name = serializers.CharField(read_only=True)
+    def validate(self, attrs):
+        if self.instance is not None and set(attrs).intersection({'user','is_active','status','account_access_state'}):
+            raise serializers.ValidationError('Account lifecycle fields require the lifecycle commands.')
+        return attrs
     class Meta:
         model = Employee
         fields = "__all__"
@@ -77,6 +81,9 @@ class EmployeeViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.instance = EmployeeService.create(actor_user=self.request.user, **serializer.validated_data)
+
+    def perform_destroy(self, instance):
+        raise serializers.ValidationError('Employees are never deleted; use terminate.')
 
     @action(detail=True, methods=["post"])
     def deactivate(self, request, pk=None):

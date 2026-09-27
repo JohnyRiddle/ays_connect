@@ -22,6 +22,10 @@ class TaskSelector:
         for field in direct:
             if params.get(field):
                 queryset = queryset.filter(**{field: params[field]})
+        if params.get("project"):
+            queryset = queryset.filter(project_link__project_id=params["project"],project_link__is_active=True)
+        if params.get("stage"):
+            queryset = queryset.filter(project_link__stage_id=params["stage"],project_link__is_active=True)
         if str(params.get("overdue", "")).lower() == "true":
             queryset = queryset.filter(due_at__lt=timezone.now()).exclude(status__in=(TaskStatus.COMPLETED, TaskStatus.CANCELLED))
         if params.get("search"):

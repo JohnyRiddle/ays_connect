@@ -1,5 +1,84 @@
 # Текущее состояние AYS Connect
 
+## Финальное ревью People + Projects — 27.09.2026
+
+Полный локальный diff от `f13bfce`, включая новые файлы, проверен в `AYS Connect актуальный` / `codex/projects`. Исправлены lifecycle-валидация ответственных и дат при создании Project stage/milestone, строгий контракт write payload и отзыв Work-уведомлений при потере SQL-доступа к задаче. Финальный PostgreSQL backend **444/444**, Projects **29/29**, затронутый набор **65/65**, API **37/37**, browser **2/2**, оба live notification worker, frontend, check/drift и sensitive scan — PASS. Схема после ранее проверенных clean upgrade/restore не менялась. Подробности: [PEOPLE_PROJECTS_FINAL_REVIEW.md](PEOPLE_PROJECTS_FINAL_REVIEW.md).
+
+## Projects — локальная реализация, 15.09.2026
+
+Ветка `codex/projects` в checkout `C:\Users\riddl\OneDrive\Документы\AYS Connect актуальный`, HEAD `f13bfce` плюс сохранённые незакоммиченные People-изменения. People Acceptance **PASS** на базе до начала Projects; evidence и отдельный product gap forgotten-password приведены ниже. Реализованы Project/PRJ lifecycle, участники, этапы, контрольные точки, связь с единой Work Task, создание из Work/template, SQL scope, Audit/transactional Outbox, Notification Core, API, UI и защищённые документы. Канонических зависимостей Work Task нет; метрика блокирующих зависимостей остаётся отдельным продолжением согласно ТЗ.
+
+Projects локальный Quality Gate на окончательном коде **PASS**: PostgreSQL backend 444/444, Projects staging API 37/37, браузер 2/2, живой Notification worker и repeat без дубля, frontend build, check/drift/migrate, synthetic clean upgrade/restore, diff и sensitive scan. Требование → проверка → результат → конкретный blocker: [PROJECTS_ACCEPTANCE.md](PROJECTS_ACCEPTANCE.md). В первом релизе blocker отсутствует; Work dependency engine и метрика зависимых блокировок остаются отдельным product-продолжением. Production, реальные аккаунты/credentials, commit/push/deployment не затрагивались.
+
+## People Local Staging Acceptance — 15.09.2026
+
+**PASS** на `main`/HEAD `f13bfce` с незакоммиченными People-изменениями в этом checkout. Утверждено и реализовано правило A/B: новый `pending/active/paused` B сохраняется, завершённый A не открывается, Audit/Outbox фиксируют `reopen_blocked`, Notification Core уведомляет ответственного; уполномоченный сотрудник явно отменяет B и повторяет событие для A. Повторы и конкуренция проверены. Полная таблица «требование → проверка → результат → blocker» — в [PEOPLE_STAGING_ACCEPTANCE.md](PEOPLE_STAGING_ACCEPTANCE.md).
+
+Финальный PostgreSQL 17.11 backend **414/414**, targeted conflict **17/17**, role **163/163**, API **73/73**, browser **5/5**, frontend build, check/drift, новый business upgrade (24 объекта), synthetic restore (179 таблиц/14333 строки/66 media), Notification worker пять причин и sensitive scan — PASS. Forgotten-password остаётся отдельным product gap вне приёмки. Следующая работа — Projects в изолированной ветке на базе этого checkout, с сохранением всех People-изменений. Production, реальные аккаунты/credentials, commit/push/deployment не затрагивались.
+
+## Актуальный People Staging Acceptance — 08.09.2026
+
+PostgreSQL 17.11: 410/410 PASS (handoff v13, skipped 0), API gate25 73/73, полная
+синтетическая роль 95 permissions — 163/163, browser gate24 — 5/5, frontend build PASS.
+Матрица 95 разрешённых / 26 запрещённых / 30 условных = 151; реальные права не выдавались.
+После work_tasks0004: upgrade 24 связанных объекта PASS; restore 179 таблиц/11730 строк/
+55 media PASS, ORM/SQL acceptance guard сохранён после restore.
+Исправлены mixed view/write и NULL scopes, Admin/legacy lifecycle write paths;
+проверены reviewer vs responsible, overdue concurrency и четыре People Email/In-App причины.
+Текущий sign-off BLOCKED бизнес-конфликтом возврата старого onboarding при активном новом.
+Единая таблица: docs/PEOPLE_STAGING_ACCEPTANCE.md; 95 consumer rows:
+docs/OPERATIONS_DIRECTOR_CONSUMER_AUDIT.md. Forgotten-password — отдельный product gap.
+Production/аккаунт Юлии/commit/push/deployment не затрагивались.
+
+Дополнительно проверен отказ фактических pre-revocation tokens после restore-c.
+Исправлены preflight/exit codes API harness и ожидания worker/Retry-After в browser harness.
+
+## Исторические срезы (не текущий статус)
+
+> Последнее исправление 08.09.2026: task.edit больше не меняет политику приёмки после
+> первой публикации. Domain + DB trigger, ORM/bulk/Admin, sticky marker work_tasks0004;
+> staging migration PASS, 7 focused tests PASS, live HTTP PASS, full backend 397/397 PASS.
+> Прежний тест успешного обхода заменён проверкой запрета. Матрица 95/26/30=151.
+> Полный consumer audit, целевая staging-роль и People Acceptance ещё INCOMPLETE.
+> Production/аккаунт Юлии/commit/push/deployment не затрагивались.
+
+> Последний срез 08.09.2026: **People Acceptance INCOMPLETE**, access gate BLOCKED.
+> Backend 391/391 выполнены, skipped 0 (один тест воспроизводит существующий обход
+> обязательной приёмки через task.edit — это не security PASS). API gate13 73/73;
+> browser gate12 4/4 уже без Google Fonts interception. Business upgrade 21 связанных
+> объектов PASS; restore 179 таблиц/5792 строк/23 media PASS. Матрица: 95 Да/26 Нет/30
+> Условно, 151 код. Полная целевая роль не назначалась; task.edit удержан как BLOCKED.
+> Реализован локальный Work-event reopen и expiry/overdue notification consumer.
+> Production/реальные права/credentials/commit/push/deployment не затронуты.
+> Канонический текущий отчёт: docs/PEOPLE_STAGING_ACCEPTANCE.md. Далее исторические срезы.
+
+> Актуальный локальный срез 08.09.2026: PostgreSQL 17.11 **375/375 PASS**, skipped 0,
+> Email включён; staging HTTP **73/73**, browser **4/4** (Google Fonts CSS изолирован).
+> Два Notification Core падения устранены явным контрактом каналов + новыми тестами.
+> HR-review старых/новых значений требует дополнительного scoped sensitive permission.
+> Полный People Acceptance **INCOMPLETE/BLOCKED**, матрица доступа ещё DRAFT.
+> Ниже исторические срезы; актуальные ограничения и evidence — в
+> `docs/PEOPLE_STAGING_ACCEPTANCE.md`, раздел Authoritative checkpoint.
+> Production не подключался; commit/push/deployment не выполнялись.
+
+> Последняя перепроверка JWT staging, 08.09.2026: **362/362 PASS**, skipped 0,
+> PostgreSQL 17.11, baseline Email off только в test-контейнере. При staging Email on
+> два Notification Core теста падают из-за ожидания одной попытки вместо двух каналов;
+> это ограничение общего acceptance пока не устранено. Live HTTP suspend → restore:
+> старые access/refresh отклонены, новый login/refresh работает. Production в этом
+> задании не подключался и не обновлялся; аккаунт Юлии оставлен заблокированным.
+> Согласован будущий scope: все подразделения и бизнес-права, без управления
+> аккаунтами/ролями/оргструктурой; точный allowlist ещё требует проверки косвенных прав.
+> Полный People Staging Acceptance остаётся INCOMPLETE. Ниже — предыдущие срезы.
+
+> 08.09.2026: People LOCAL STAGING ACCEPTANCE поверх `f13bfce` ещё не завершена.
+> После согласованного исправления отзыва JWT/Django-сессий: **358/358 PASS**, skipped 0.
+> Локально исправлены nullable FOR UPDATE при suspend/restore, повторный expiry-event
+> и прямое завершение TASK-шагов без завершённой Task. Изменения не закоммичены.
+> Append-only `accounts.0003_user_auth_version`, отдельный synthetic auth-upgrade и
+> HTTP smoke PASS. Полные browser A–I/worker/общие upgrade gates ещё не выполнены.
+> Production не затронут. Подробности: `docs/PEOPLE_STAGING_ACCEPTANCE.md`.
+
 > 03.09.2026: Phase 2.3 зафиксирована checkpoint `067c60d`; Phase 2.4 Onboarding & Account Lifecycle реализуется локально поверх чистой границы.
 
 **Обновлено:** 03.09.2026

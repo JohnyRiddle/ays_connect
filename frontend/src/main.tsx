@@ -44,6 +44,7 @@ import "./learning.css";
 import "./work-theme.css";
 import "./people-theme.css";
 import { ProductionWorkRouter } from "./work";
+import { ProjectsRouter } from "./projects";
 import { ActivationPage, PeopleRouter, RegistrationPage } from "./people";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
@@ -720,6 +721,7 @@ function App() {
             <Wrench size={19} />
             Заявки
           </a>
+          <a href="/projects" className={path.startsWith("/projects") ? "active" : ""} onClick={(event) => { event.preventDefault(); navigate("/projects"); }}><CalendarDays size={19} />Проекты</a>
           <a href="/people/employees" className={path.startsWith("/people") ? "active" : ""} onClick={(event) => { event.preventDefault(); navigate("/people/employees"); }}><Users size={19} />Сотрудники</a>
           <a href="/people/me" className={path === "/people/me" ? "active" : ""} onClick={(event) => { event.preventDefault(); navigate("/people/me"); }}><ShieldCheck size={19} />Мой профиль</a>
           <a href="/people/me/onboarding" className={path === "/people/me/onboarding" ? "active" : ""} onClick={(event) => { event.preventDefault(); navigate("/people/me/onboarding"); }}><ClipboardCheck size={19} />Мой онбординг</a>
@@ -827,6 +829,8 @@ function App() {
         </header>
         {path.startsWith("/people") ? (
           <PeopleRouter path={path} navigate={navigate} />
+        ) : path.startsWith("/projects") ? (
+          <ProjectsRouter path={path} navigate={navigate} />
         ) : path.startsWith("/tasks") || path.startsWith("/requests") ? (
           <ProductionWorkRouter path={path} navigate={navigate} />
         ) : view === "notifications" ? (

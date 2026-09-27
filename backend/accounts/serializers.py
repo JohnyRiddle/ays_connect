@@ -4,9 +4,15 @@ from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.exceptions import AuthenticationFailed
 from rest_framework.exceptions import AuthenticationFailed as DRFAuthenticationFailed
 from .models import User
+from .revocation import require_current_credentials
 
 class EmailTokenSerializer(TokenObtainPairSerializer):
     username_field = User.USERNAME_FIELD
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token["auth_version"] = user.auth_version
+        return token
     def validate(self, attrs):
         try: data = super().validate(attrs)
         except (AuthenticationFailed, DRFAuthenticationFailed) as exc: raise DRFAuthenticationFailed("Authentication failed.", code="no_active_account") from exc
@@ -36,6 +42,7 @@ class ActiveTokenRefreshSerializer(TokenRefreshSerializer):
         refresh = self.token_class(attrs["refresh"])
         try: user = User.objects.select_related("employee").get(pk=refresh["user_id"], is_active=True)
         except User.DoesNotExist as exc: raise AuthenticationFailed("Account is unavailable.", code="account_unavailable") from exc
+        require_current_credentials(user, refresh)
         employee = getattr(user, "employee", None)
         if employee and (not employee.is_active or employee.status in {"archived", "suspended", "dismissed", "terminated"}):
             raise AuthenticationFailed("Account is unavailable.", code="account_unavailable")

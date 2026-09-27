@@ -6,6 +6,7 @@ import {
   requestsApi,
   tasksApi,
   WorkApiError,
+  workRequest,
 } from "./workApi";
 type Navigate = (path: string) => void;
 const labels: Record<string, string> = {
@@ -188,6 +189,10 @@ function TaskList({ navigate }: { navigate: Navigate }) {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [priority, setPriority] = useState("");
+  const [project, setProject] = useState("");
+  const [stage, setStage] = useState("");
+  const [projects, setProjects] = useState<{ id: string; number: string; name: string }[]>([]);
+  const [stages, setStages] = useState<{ id: string; name: string }[]>([]);
   const [ordering, setOrdering] = useState("-updated_at");
   const [pageNo, setPageNo] = useState(1);
   const load = () => {
@@ -199,13 +204,17 @@ function TaskList({ navigate }: { navigate: Navigate }) {
     if (search) q.set("search", search);
     if (status) q.set("status", status);
     if (priority) q.set("priority", priority);
+    if (project) q.set("project", project);
+    if (stage) q.set("stage", stage);
     setError(undefined);
     tasksApi.list(q.toString()).then(setPage).catch(setError);
   };
   useEffect(() => {
     const timer = setTimeout(load, 300);
     return () => clearTimeout(timer);
-  }, [search, status, priority, ordering, pageNo]);
+  }, [search, status, priority, project, stage, ordering, pageNo]);
+  useEffect(() => { workRequest<Page<{ id: string; number: string; name: string }>>("/projects/").then(x => setProjects(x.results)).catch(() => {}); }, []);
+  useEffect(() => { setStage(""); if (project) workRequest<{ id: string; name: string }[]>(`/projects/${project}/stages/`).then(setStages).catch(() => setStages([])); else setStages([]); }, [project]);
   return (
     <main className="work-page">
       <header className="work-title">
@@ -260,6 +269,8 @@ function TaskList({ navigate }: { navigate: Navigate }) {
             </option>
           ))}
         </select>
+        <select aria-label="Проект" value={project} onChange={e => { setProject(e.target.value); setPageNo(1); }}><option value="">Все проекты</option>{projects.map(x => <option key={x.id} value={x.id}>{x.number} · {x.name}</option>)}</select>
+        <select aria-label="Этап проекта" value={stage} onChange={e => { setStage(e.target.value); setPageNo(1); }} disabled={!project}><option value="">Все этапы</option>{stages.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select>
         <select
           aria-label="Сортировка"
           value={ordering}
@@ -657,6 +668,7 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
         <div>
           <p>{task.number}</p>
           <h1>{task.title}</h1>
+          {task.project && <button className="back" onClick={() => navigate(`/projects/${task.project.id}`)}>Проект {task.project.number}</button>}
           <div>
             <span className={`work-status ${task.status}`}>
               {labels[task.status] || task.status}

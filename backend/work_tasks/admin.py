@@ -5,6 +5,23 @@ from .models import ChecklistTemplate, ChecklistTemplateItem, Task, TaskAssignme
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
+    def get_readonly_fields(self, request, obj=None):
+        fields=super().get_readonly_fields(request,obj)+('acceptance_policy_locked',)
+        if obj and (obj.acceptance_policy_locked or obj.status!='draft'):
+            fields+=('acceptance_policy',)
+        return fields
+
+    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+        from .exceptions import TaskValidationError
+        from django.http import JsonResponse
+        try:
+            if request.method=='POST' and request.user.is_active and request.user.is_staff and 'acceptance_policy' in request.POST:
+                from .acceptance import validate_policy_change
+                obj=self.get_object(request,object_id)
+                if obj: validate_policy_change(obj,request.POST['acceptance_policy'])
+            return super().changeform_view(request,object_id,form_url,extra_context)
+        except TaskValidationError as exc:
+            return JsonResponse({'error':{'code':exc.code}},status=400)
     list_display = ("number", "title", "status", "priority", "author", "responsible_employee", "executor_employee", "due_at", "created_at")
     list_filter = ("status", "priority", "legal_entity", "org_unit")
     search_fields = ("number", "title")

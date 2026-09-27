@@ -13,7 +13,7 @@ from access_control.models import EmployeeRole, Scope
 from access_control.services import PermissionService
 from .models import Employee, EmployeeAssignment, EmployeeInvitation, EmployeeManagerAssignment, RegistrationRequest
 from .onboarding import InvitationService, RegistrationService, account_status as lifecycle_account_status
-from .services import EmployeeAssignmentService, EmployeeManagerService, EmployeeService
+from .services import AccountAccessService, EmployeeAssignmentService, EmployeeManagerService, EmployeeService
 
 
 class PublicScopedThrottle(ScopedRateThrottle):
@@ -68,17 +68,27 @@ def visible_employees(user, permission):
     if user.is_superuser:
         return qs
     actor = getattr(user, "employee", None)
-    if not actor:
+    if not actor or not actor.is_active:
         return qs.none()
-    grants = EmployeeRole.objects.filter(employee=actor, is_active=True, role__is_active=True, role__permission_grants__permission__code=permission).values("role__permission_grants__scope", "org_unit_id", "legal_entity_id")
+    now = timezone.now()
+    grants = EmployeeRole.objects.filter(employee=actor, is_active=True, role__is_active=True, role__permission_grants__permission__code=permission).filter(
+        Q(active_from__isnull=True) | Q(active_from__lte=now),
+        Q(active_until__isnull=True) | Q(active_until__gte=now),
+    ).values("role__permission_grants__scope", "org_unit_id", "legal_entity_id")
     predicate = Q(pk__in=[])
     for grant in grants:
         scope = grant["role__permission_grants__scope"]
         if scope == Scope.GLOBAL: return qs
         if scope == Scope.OWN: predicate |= Q(pk=actor.pk)
-        elif scope == Scope.ORG_UNIT: predicate |= Q(org_unit_id=grant["org_unit_id"] or actor.org_unit_id)
-        elif scope == Scope.LEGAL_ENTITY: predicate |= Q(legal_entity_id=grant["legal_entity_id"] or actor.legal_entity_id)
-        elif scope == Scope.TEAM: predicate |= Q(manager=actor) | Q(manager_id=actor.manager_id)
+        elif scope == Scope.ORG_UNIT:
+            context = grant["org_unit_id"] or actor.org_unit_id
+            if context: predicate |= Q(org_unit_id=context)
+        elif scope == Scope.LEGAL_ENTITY:
+            context = grant["legal_entity_id"] or actor.legal_entity_id
+            if context: predicate |= Q(legal_entity_id=context)
+        elif scope == Scope.TEAM:
+            predicate |= Q(manager=actor)
+            if actor.manager_id: predicate |= Q(manager_id=actor.manager_id)
     return qs.filter(predicate).distinct()
 
 
@@ -212,9 +222,7 @@ class EmployeeDirectoryViewSet(viewsets.ModelViewSet):
     def block(self, request, pk=None):
         employee = self.get_object(); self._require("people.account.manage", employee)
         if not employee.user_id: raise serializers.ValidationError("Employee has no account.")
-        employee.user.is_active = False; employee.user.save(update_fields=["is_active"])
-        from .onboarding import _event
-        _event("employee.account.blocked", employee, request.user, new={"user_id": employee.user_id})
+        employee = AccountAccessService.set_access(employee=employee, actor_user=request.user, enabled=False, action="blocked")
         return Response(self.get_serializer(employee).data)
 
     @action(detail=True, methods=["post"], url_path="account/unblock")
@@ -222,9 +230,7 @@ class EmployeeDirectoryViewSet(viewsets.ModelViewSet):
         employee = self.get_object(); self._require("people.account.manage", employee)
         if not employee.is_active or employee.status in {"archived", "suspended", "dismissed", "terminated"}: raise serializers.ValidationError("Inactive employee cannot be unblocked.")
         if not employee.user_id: raise serializers.ValidationError("Employee has no account.")
-        employee.user.is_active = True; employee.user.save(update_fields=["is_active"])
-        from .onboarding import _event
-        _event("employee.account.unblocked", employee, request.user, new={"user_id": employee.user_id})
+        employee = AccountAccessService.set_access(employee=employee, actor_user=request.user, enabled=True, action="restored")
         return Response(self.get_serializer(employee).data)
 
 

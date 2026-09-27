@@ -15,9 +15,14 @@ export function RegistrationPage() {
 }
 
 export function ActivationPage({ token }: { token: string }) {
+  const [activationToken] = useState(() => new URLSearchParams(window.location.hash.slice(1)).get("token") || token);
   const [context, setContext] = useState<any>(); const [password, setPassword] = useState(""); const [confirmation, setConfirmation] = useState(""); const [state, setState] = useState<"loading"|"valid"|"invalid"|"success">("loading"); const [error, setError] = useState("");
-  useEffect(() => { request(`/api/public/v1/activate/${encodeURIComponent(token)}/`).then(x => {setContext(x);setState("valid")}).catch(() => setState("invalid")); }, [token]);
-  async function submit(e: React.FormEvent) { e.preventDefault(); setError(""); if(password!==confirmation){setError("Пароли не совпадают.");return;} try { await request(`/api/public/v1/activate/${encodeURIComponent(token)}/`, {method:"POST", body:JSON.stringify({password,password_confirmation:confirmation})}); setState("success"); } catch(e){setError((e as Error).message);} }
+  useEffect(() => {
+    window.history.replaceState(null, "", "/activate/continue");
+    request("/api/public/v1/auth/invitations/validate/", {method:"POST", body:JSON.stringify({token:activationToken})})
+      .then(x => {setContext({employee_name:"Активация аккаунта"});setState(x.valid?"valid":"invalid")}).catch(() => setState("invalid"));
+  }, [activationToken]);
+  async function submit(e: React.FormEvent) { e.preventDefault(); setError(""); if(password!==confirmation){setError("Пароли не совпадают.");return;} try { await request("/api/public/v1/auth/invitations/accept/", {method:"POST", body:JSON.stringify({token:activationToken,password,password_confirmation:confirmation})}); setState("success"); } catch(e){setError((e as Error).message);} }
   return <main className="public-people"><section className="people-card"><a href="/" className="logo"><span>A</span> AYS Connect</a>{state==="loading"&&<p>Проверяем приглашение…</p>}{state==="invalid"&&<><h1>Ссылка недоступна</h1><p className="muted">Она могла истечь, быть использована или отозвана.</p></>}{state==="success"&&<><h1>Аккаунт активирован</h1><a className="primary link-button" href="/">Войти в AYS Connect</a></>}{state==="valid"&&<form onSubmit={submit}><p className="eyebrow blue">Вас пригласили в AYS Connect</p><h1>{context.employee_name}</h1><p>{context.position}{context.organization ? ` · ${context.organization}`:""}</p><label>Пароль<input type="password" minLength={8} required value={password} onChange={e=>setPassword(e.target.value)}/></label><label>Повторите пароль<input type="password" required value={confirmation} onChange={e=>setConfirmation(e.target.value)}/></label><small className="muted">Используйте длинный пароль, не похожий на имя или почту.</small>{error&&<div className="error">{error}</div>}<button className="primary">Активировать аккаунт</button></form>}</section></main>;
 }
 

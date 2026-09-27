@@ -1,5 +1,36 @@
 # Phase 2.4 — Onboarding & Account Lifecycle
 
+Current evidence is maintained in `PEOPLE_STAGING_ACCEPTANCE.md`: 410-test PostgreSQL
+regression (handoff v13), API gate25 73, browser gate24 5, exact95 synthetic role163, upgraded/restored acceptance DB guard.
+Restored pre-revocation access/refresh/session hashes are rejected; fresh generation accepted. API harness now fails fast before mutations on an unactivated fixture and exits nonzero for failed checks. Browser polling allows worker cycles and respects Retry-After without relaxing success assertions.
+Source inventory: `OPERATIONS_DIRECTOR_CONSUMER_AUDIT.md` (95/26/30 = 151).
+Production unchanged. Sign-off still BLOCKED by competing-active-onboarding business policy.
+The earlier snapshots below are historical, not the current gate.
+
+Latest authoritative local evidence (2026-09-08): PostgreSQL 17.11 **375/375 PASS**,
+zero skips, Email enabled; real HTTP 73/73, browser 4/4 with external font CSS isolated.
+Prior notification failures are resolved with explicit channel contracts and regression tests.
+HR request value disclosure requires review AND scoped sensitive permission, as approved.
+Full acceptance remains INCOMPLETE/BLOCKED; see the authoritative checkpoint at the top
+of `PEOPLE_STAGING_ACCEPTANCE.md`. The following older snapshots are historical only.
+No production deployment, account restoration, commit or push in this task.
+
+## Acceptance follow-up — 2026-09-08
+
+Latest JWT recheck: 362/362 PostgreSQL tests pass with baseline Email disabled only
+for the test container; actual staging HTTP old access/refresh remain denied after restore,
+fresh login/refresh succeed. Staging Email-enabled run has two Notification Core attempt-count
+failures; full acceptance remains incomplete. See the latest section of the acceptance report.
+No production deployment or access restoration is authorized by this result.
+
+After explicit authorization, `accounts.0003_user_auth_version` adds durable credential
+revocation. JWT access/refresh and Django sessions are invalidated by account lifecycle
+revocation; restore/rehire require fresh authentication and never reset the generation.
+Final auth-fix regression is 358/358 on PostgreSQL 17.11, plus a synthetic forward upgrade
+and actual local HTTP smoke. No production migration was performed. This does not complete
+the full People staging acceptance; see `PEOPLE_STAGING_ACCEPTANCE.md` for outstanding gates
+and corrections to the earlier blanket completion claims below.
+
 ## Architecture audit
 
 Phase 2.4 reuses the canonical `accounts.User`, `employees.Employee`, `EmployeeInvitation`, `EmployeeProfile`, Organization/Team, `AssignmentTarget`/`AssignmentResolver`, production `work_tasks.TaskTemplate`/`Task`, Permission, Audit and transactional Outbox domains. No parallel Person, account, task, notification or organization models were introduced. The pre-phase public self-registration request remains generic and never creates an Employee.

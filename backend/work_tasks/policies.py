@@ -32,9 +32,9 @@ class TaskAccessPolicy:
                     return True
                 if scope == Scope.OWN and employee.pk in {task.responsible_employee_id, task.executor_employee_id}:
                     return True
-                if scope == Scope.ORG_UNIT and task.org_unit_id == (grant.org_unit_id or employee.org_unit_id):
+                if scope == Scope.ORG_UNIT and (grant.org_unit_id or employee.org_unit_id) and task.org_unit_id == (grant.org_unit_id or employee.org_unit_id):
                     return True
-                if scope == Scope.LEGAL_ENTITY and task.legal_entity_id == (grant.legal_entity_id or employee.legal_entity_id):
+                if scope == Scope.LEGAL_ENTITY and (grant.legal_entity_id or employee.legal_entity_id) and task.legal_entity_id == (grant.legal_entity_id or employee.legal_entity_id):
                     return True
                 if scope == Scope.TEAM and task.executor_employee and task.executor_employee.manager_id == employee.pk:
                     return True
@@ -52,9 +52,11 @@ class TaskAccessPolicy:
                 elif scope == Scope.OWN:
                     query |= Q(responsible_employee=employee) | Q(executor_employee=employee)
                 elif scope == Scope.ORG_UNIT:
-                    query |= Q(org_unit_id=grant.org_unit_id or employee.org_unit_id)
+                    context=grant.org_unit_id or employee.org_unit_id
+                    if context: query |= Q(org_unit_id=context)
                 elif scope == Scope.LEGAL_ENTITY:
-                    query |= Q(legal_entity_id=grant.legal_entity_id or employee.legal_entity_id)
+                    context=grant.legal_entity_id or employee.legal_entity_id
+                    if context: query |= Q(legal_entity_id=context)
                 elif scope == Scope.TEAM:
                     query |= Q(executor_employee__manager=employee)
         return query

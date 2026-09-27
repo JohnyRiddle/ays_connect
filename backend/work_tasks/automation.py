@@ -18,17 +18,31 @@ from .models import (
 )
 from .policies import TaskAccessPolicy
 from .services import TaskService
+from access_control.models import Scope
 
 logger = logging.getLogger(__name__)
 
 
 class TemplatePermissionMixin:
     @staticmethod
-    def authorize(actor, actor_user, permission):
+    def authorize(actor, actor_user, permission, template=None):
         if actor_user and actor_user.is_superuser:
             return
         if not TaskAccessPolicy.allows(employee=actor, permission=permission):
             raise TaskBusinessError("Недостаточно прав.", code="task_permission_denied")
+        if template is None:
+            raise TaskBusinessError("Не задан контекст шаблона.", code="task_permission_denied")
+        for grant in TaskAccessPolicy._grants(actor, permission):
+            for scope in grant.role.permission_grants.filter(permission__code=permission).values_list('scope',flat=True):
+                if scope == Scope.GLOBAL: return
+                if scope in {Scope.OWN,Scope.PARTICIPATING} and template.created_by_id == actor.pk: return
+                if scope == Scope.ORG_UNIT:
+                    context=grant.org_unit_id or actor.org_unit_id
+                    if context and template.org_unit_id == context: return
+                if scope == Scope.LEGAL_ENTITY:
+                    context=grant.legal_entity_id or actor.legal_entity_id
+                    if context and template.legal_entity_id == context: return
+        raise TaskBusinessError("Шаблон вне области доступа.", code="task_permission_denied")
 
 
 class TaskTemplateService(TemplatePermissionMixin):
@@ -47,7 +61,7 @@ class TaskTemplateService(TemplatePermissionMixin):
     @classmethod
     @transaction.atomic
     def create(cls, *, actor, actor_user, checklist_templates=(), correlation_id=None, **data):
-        cls.authorize(actor, actor_user, "task_template.manage")
+        cls.authorize(actor, actor_user, "task_template.manage", TaskTemplate(created_by=actor, **data))
         cls._validate_rule(data.get("deadline_rule", DeadlineRule.NONE), data.get("deadline_offset"))
         template = TaskTemplate.objects.create(created_by=actor, **data)
         for index, checklist in enumerate(checklist_templates, start=1):
@@ -58,11 +72,13 @@ class TaskTemplateService(TemplatePermissionMixin):
     @classmethod
     @transaction.atomic
     def update(cls, *, template, actor, actor_user, checklist_templates=None, correlation_id=None, **changes):
-        cls.authorize(actor, actor_user, "task_template.manage")
+        template = TaskTemplate.objects.select_for_update().get(pk=template.pk)
+        cls.authorize(actor, actor_user, "task_template.manage", template)
         rule = changes.get("deadline_rule", template.deadline_rule)
         offset = changes.get("deadline_offset", template.deadline_offset)
         cls._validate_rule(rule, offset)
         for field, value in changes.items(): setattr(template, field, value)
+        cls.authorize(actor, actor_user, "task_template.manage", template)
         template.save()
         if checklist_templates is not None:
             template.checklist_links.all().delete()
@@ -74,7 +90,8 @@ class TaskTemplateService(TemplatePermissionMixin):
     @classmethod
     @transaction.atomic
     def deactivate(cls, *, template, actor, actor_user, correlation_id=None):
-        cls.authorize(actor, actor_user, "task_template.manage")
+        template = TaskTemplate.objects.select_for_update().get(pk=template.pk)
+        cls.authorize(actor, actor_user, "task_template.manage", template)
         template.is_active = False
         template.save(update_fields=["is_active", "updated_at"])
         template.recurrence_rules.filter(is_active=True).update(is_active=False, next_occurrence_at=None)
@@ -101,8 +118,8 @@ class TaskTemplateService(TemplatePermissionMixin):
     @classmethod
     @transaction.atomic
     def create_task(cls, *, template, actor, actor_user, create_and_publish=False, occurrence_at=None, recurrence_rule=None, correlation_id=None):
-        cls.authorize(actor, actor_user, "task_template.use")
         template = TaskTemplate.objects.select_for_update().get(pk=template.pk)
+        cls.authorize(actor, actor_user, "task_template.use", template)
         if not template.is_active:
             raise TaskValidationError("Шаблон деактивирован.", code="task_template_inactive")
         responsible = TaskService._resolve_one(template.responsible_target)
@@ -159,7 +176,7 @@ class RecurrenceService(TemplatePermissionMixin):
     @classmethod
     @transaction.atomic
     def create(cls, *, actor, actor_user, name, task_template, rrule, timezone_name, starts_at, ends_at=None, correlation_id=None):
-        cls.authorize(actor, actor_user, "task_recurrence.manage")
+        cls.authorize(actor, actor_user, "task_recurrence.manage", task_template)
         normalized, parsed, zone = cls.parse(rrule, starts_at, timezone_name)
         if ends_at and ends_at < starts_at:
             raise TaskValidationError("ends_at раньше starts_at.", code="task_recurrence_range_invalid")
@@ -177,7 +194,9 @@ class RecurrenceService(TemplatePermissionMixin):
     @classmethod
     @transaction.atomic
     def update(cls, *, rule, actor, actor_user, correlation_id=None, **changes):
-        cls.authorize(actor, actor_user, "task_recurrence.manage")
+        rule = TaskRecurrenceRule.objects.select_for_update().get(pk=rule.pk)
+        cls.authorize(actor, actor_user, "task_recurrence.manage", rule.task_template)
+        cls.authorize(actor, actor_user, "task_recurrence.manage", changes.get('task_template',rule.task_template))
         candidate_rrule = changes.get("rrule", rule.rrule)
         candidate_tz = changes.get("timezone", rule.timezone)
         candidate_start = changes.get("starts_at", rule.starts_at)
@@ -192,7 +211,7 @@ class RecurrenceService(TemplatePermissionMixin):
     @classmethod
     @transaction.atomic
     def pause(cls, *, rule, actor, actor_user, correlation_id=None):
-        cls.authorize(actor, actor_user, "task_recurrence.manage")
+        cls.authorize(actor, actor_user, "task_recurrence.manage", rule.task_template)
         rule.is_active, rule.next_occurrence_at = False, None
         rule.save(update_fields=["is_active", "next_occurrence_at", "updated_at"])
         cls._record(rule, actor, actor_user, "task_recurrence.paused", correlation_id)
@@ -201,7 +220,7 @@ class RecurrenceService(TemplatePermissionMixin):
     @classmethod
     @transaction.atomic
     def resume(cls, *, rule, actor, actor_user, correlation_id=None):
-        cls.authorize(actor, actor_user, "task_recurrence.manage")
+        cls.authorize(actor, actor_user, "task_recurrence.manage", rule.task_template)
         _, parsed, zone = cls.parse(rule.rrule, rule.starts_at, rule.timezone)
         rule.is_active = True
         rule.next_occurrence_at = parsed.after(timezone.now().astimezone(zone), inc=True)
@@ -277,7 +296,7 @@ class RecurrenceService(TemplatePermissionMixin):
 
     @classmethod
     def retry_occurrence(cls, *, occurrence, actor, actor_user):
-        cls.authorize(actor, actor_user, "task_recurrence.run")
+        cls.authorize(actor, actor_user, "task_recurrence.run", occurrence.recurrence_rule.task_template)
         if occurrence.status != TaskOccurrence.Status.FAILED:
             raise TaskValidationError("Повторить можно только FAILED occurrence.", code="task_occurrence_retry_invalid")
         AuditService.record(action="task_occurrence.retried", entity=occurrence, actor_user=actor_user, actor_employee=actor)
@@ -286,7 +305,7 @@ class RecurrenceService(TemplatePermissionMixin):
     @classmethod
     @transaction.atomic
     def skip_occurrence(cls, *, occurrence, actor, actor_user, reason):
-        cls.authorize(actor, actor_user, "task_recurrence.manage")
+        cls.authorize(actor, actor_user, "task_recurrence.manage", occurrence.recurrence_rule.task_template)
         occurrence = TaskOccurrence.objects.select_for_update().get(pk=occurrence.pk)
         if occurrence.status == TaskOccurrence.Status.GENERATED:
             raise TaskValidationError("Созданный occurrence пропустить нельзя.", code="task_occurrence_skip_invalid")

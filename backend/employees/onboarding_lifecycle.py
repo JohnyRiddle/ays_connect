@@ -205,6 +205,8 @@ class OnboardingService:
 
     @staticmethod
     def _locked(instance, expected_version):
+        owner_id = OnboardingInstance.objects.values_list("employee_id", flat=True).get(pk=instance.pk)
+        Employee.objects.select_for_update().get(pk=owner_id)
         locked = OnboardingInstance.objects.select_for_update().get(pk=instance.pk)
         if locked.version != expected_version:
             raise OnboardingConflict("Onboarding instance version conflict.")
@@ -236,7 +238,7 @@ class OnboardingService:
     def _refresh_dependency_states(cls, instance):
         all_steps = {x.template_step_id: x for x in instance.steps.select_related("template_step").all()}
         for item in all_steps.values():
-            if item.status in cls.FINAL_STEP_STATES or item.status == "in_progress" or item.responsible_employee_id is None:
+            if item.status in cls.FINAL_STEP_STATES or item.status in {"in_progress", "cancelled", "failed"} or item.responsible_employee_id is None:
                 continue
             dependencies = item.template_step.dependencies.values_list("pk", flat=True)
             ready = all(all_steps[pk].status in cls.FINAL_STEP_STATES for pk in dependencies)
@@ -247,12 +249,15 @@ class OnboardingService:
     @classmethod
     @transaction.atomic
     def step_action(cls, *, step, actor_employee, actor_user, expected_version, action, reason="", allow_skip=False):
-        actor_employee = Employee.objects.select_for_update().get(pk=actor_employee.pk)
         onboarding_id = OnboardingStepInstance.objects.values_list("onboarding_id", flat=True).get(pk=step.pk)
+        owner_id = OnboardingInstance.objects.values_list("employee_id", flat=True).get(pk=onboarding_id)
+        owner = Employee.objects.select_for_update().get(pk=owner_id)
         # Global lock order is Employee -> Onboarding -> Step. Termination takes
         # the same order, preventing completion/termination deadlocks.
         OnboardingInstance.objects.select_for_update().get(pk=onboarding_id)
         step = OnboardingStepInstance.objects.select_for_update().select_related("onboarding", "template_step").get(pk=step.pk)
+        if not owner.is_active or owner.status == Employee.Status.TERMINATED or step.onboarding.status not in {"pending", "active"}:
+            raise ValidationError("Onboarding does not accept step actions.")
         if step.version != expected_version:
             raise OnboardingConflict("Onboarding step version conflict.")
         if action != "skip" and step.responsible_employee_id != actor_employee.pk and step.onboarding.employee_id != actor_employee.pk:
@@ -261,6 +266,10 @@ class OnboardingService:
         if action == "start" and step.status == "pending":
             step.status = "in_progress"; step.started_at = now
         elif action == "complete" and step.status in {"pending", "in_progress"}:
+            if step.template_step.step_type == "task":
+                from work_tasks.models import Task, TaskStatus
+                if not step.task_id or not Task.objects.filter(pk=step.task_id, status=TaskStatus.COMPLETED).exists():
+                    raise ValidationError("Complete the linked Work task before completing this step.")
             step.status = "completed"; step.completed_at = now; step.completed_by = actor_employee
         elif action == "skip" and allow_skip and step.status in {"pending", "in_progress", "blocked"} and reason.strip():
             step.status = "skipped"; step.skipped_at = now; step.skipped_by = actor_employee; step.skip_reason = reason[:500]
@@ -272,8 +281,32 @@ class OnboardingService:
         return step
 
     @classmethod
+    @transaction.atomic
     def reconcile(cls, instance):
+        owner_id = OnboardingInstance.objects.values_list("employee_id", flat=True).get(pk=instance.pk)
+        owner = Employee.objects.select_for_update().get(pk=owner_id)
         instance = OnboardingInstance.objects.select_for_update().get(pk=instance.pk)
+        if not owner.is_active or instance.status not in {"pending", "active"}:
+            return instance
+        from work_tasks.models import Task, TaskStatus
+        for step in instance.steps.select_for_update(of=("self",)).select_related("template_step").order_by("pk"):
+            if step.status == "blocked" and step.responsible_employee_id is None:
+                try:
+                    responsible, detail = ResponsibleResolver.resolve(step.template_step, owner)
+                except AssignmentTargetUnresolved:
+                    continue
+                step.responsible_employee = responsible
+                step.resolution_detail = detail
+                step.version += 1
+                step.save(update_fields=["responsible_employee", "resolution_detail", "version", "updated_at"])
+                emit("people.onboarding.step_resolved", step, payload={"onboarding_id":str(instance.pk)})
+        cls._refresh_dependency_states(instance)
+        for step in instance.steps.select_for_update().filter(status__in=["pending", "in_progress"], task__isnull=False):
+            task = Task.objects.select_for_update().get(pk=step.task_id)
+            if task.status == TaskStatus.COMPLETED:
+                step.status = "completed"; step.completed_at = task.completed_at; step.version += 1
+                step.save(update_fields=["status", "completed_at", "version", "updated_at"])
+                emit("people.onboarding.step_completed", step, payload={"onboarding_id":str(instance.pk),"task_id":str(task.pk)})
         cls._refresh_dependency_states(instance)
         steps = list(instance.steps.all())
         required = [x for x in steps if x.required]
@@ -294,9 +327,15 @@ class OnboardingService:
         from work_tasks.automation import TaskTemplateService
         # Lock only the step row. PostgreSQL rejects FOR UPDATE on the nullable
         # side introduced by the optional task_template outer join.
+        onboarding_id = OnboardingStepInstance.objects.values_list("onboarding_id", flat=True).get(pk=step.pk)
+        owner_id = OnboardingInstance.objects.values_list("employee_id", flat=True).get(pk=onboarding_id)
+        owner = Employee.objects.select_for_update().get(pk=owner_id)
+        instance = OnboardingInstance.objects.select_for_update().get(pk=onboarding_id)
         step = OnboardingStepInstance.objects.select_for_update().get(pk=step.pk)
         if step.task_id:
             return step.task
+        if not owner.is_active or instance.status not in {"pending", "active"} or step.status not in {"pending", "in_progress"}:
+            raise ValidationError("Onboarding step is not ready for a task.")
         if step.template_step.step_type != "task" or not step.template_step.task_template_id:
             raise ValidationError("Onboarding step has no task template.")
         task = TaskTemplateService.create_task(template=step.template_step.task_template, actor=actor_employee, actor_user=actor_user)

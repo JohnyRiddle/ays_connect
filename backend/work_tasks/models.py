@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from .acceptance import atomic_policy_write
 
 
 class TaskStatus(models.TextChoices):
@@ -58,7 +59,22 @@ class TaskNumberSequence(models.Model):
     value = models.PositiveBigIntegerField(default=0)
 
 
+class TaskQuerySet(models.QuerySet):
+    @atomic_policy_write
+    def update(self, **kwargs):
+        return super().update(**kwargs)
+
+    @atomic_policy_write
+    def bulk_update(self, objs, fields, batch_size=None):
+        return super().bulk_update(objs, fields, batch_size=batch_size)
+
+    @atomic_policy_write
+    def bulk_create(self, *args, **kwargs):
+        return super().bulk_create(*args, **kwargs)
+
+
 class Task(models.Model):
+    objects = TaskQuerySet.as_manager()
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     number = models.CharField(max_length=32, unique=True, editable=False)
     title = models.CharField(max_length=240)
@@ -87,6 +103,7 @@ class Task(models.Model):
     location = models.ForeignKey("organizations.Location", on_delete=models.PROTECT, null=True, blank=True, related_name="work_tasks")
     completion_policy = models.CharField(max_length=32, choices=CompletionPolicy.choices, default=CompletionPolicy.MANUAL)
     acceptance_policy = models.CharField(max_length=24, choices=AcceptancePolicy.choices, default=AcceptancePolicy.NONE)
+    acceptance_policy_locked = models.BooleanField(default=False, editable=False)
     source_type = models.CharField(max_length=24, choices=SourceType.choices, default=SourceType.MANUAL)
     source_id = models.CharField(max_length=64, blank=True)
     source_template = models.ForeignKey("TaskTemplate", on_delete=models.PROTECT, null=True, blank=True, related_name="created_tasks")
@@ -123,6 +140,7 @@ class Task(models.Model):
     def delete(self, *args, **kwargs):
         raise TypeError("Production Task cannot be hard deleted")
 
+    @atomic_policy_write
     def save(self, *args, **kwargs):
         if self.pk:
             original = Task.objects.filter(pk=self.pk).values_list("number", flat=True).first()

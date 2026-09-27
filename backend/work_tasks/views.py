@@ -58,7 +58,7 @@ class ProductionTaskViewSet(viewsets.GenericViewSet):
 
     def list(self, request):
         page = self.paginate_queryset(self.get_queryset())
-        serializer = TaskSerializer(page, many=True)
+        serializer = TaskSerializer(page, many=True, context={"request": request})
         return self.get_paginated_response(serializer.data)
 
     def retrieve(self, request, pk=None):

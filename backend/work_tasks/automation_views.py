@@ -35,8 +35,12 @@ class EmployeeContextMixin:
         for grant in TaskAccessPolicy._grants(self.actor(), permission):
             for scope in grant.role.permission_grants.filter(permission__code=permission).values_list("scope", flat=True):
                 if scope == Scope.GLOBAL: return queryset
-                if scope == Scope.ORG_UNIT: query |= Q(org_unit_id=grant.org_unit_id or self.actor().org_unit_id)
-                elif scope == Scope.LEGAL_ENTITY: query |= Q(legal_entity_id=grant.legal_entity_id or self.actor().legal_entity_id)
+                if scope == Scope.ORG_UNIT:
+                    context=grant.org_unit_id or self.actor().org_unit_id
+                    if context: query |= Q(org_unit_id=context)
+                elif scope == Scope.LEGAL_ENTITY:
+                    context=grant.legal_entity_id or self.actor().legal_entity_id
+                    if context: query |= Q(legal_entity_id=context)
                 elif scope in {Scope.OWN, Scope.PARTICIPATING}: query |= Q(created_by=self.actor())
         return queryset.filter(query).distinct()
 
@@ -44,7 +48,9 @@ class EmployeeContextMixin:
 class TaskTemplateViewSet(EmployeeContextMixin, viewsets.GenericViewSet):
     serializer_class = TaskTemplateSerializer
 
-    def get_queryset(self): return self.scoped_templates("task_template.view")
+    def get_queryset(self):
+        operation='use' if self.action=='create_task' else ('view' if self.request.method in {'GET','HEAD','OPTIONS'} else 'manage')
+        return self.scoped_templates('task_template.'+operation)
     def list(self, request):
         self.require("task_template.view")
         page = self.paginate_queryset(self.get_queryset())
@@ -77,7 +83,8 @@ class RecurrenceViewSet(EmployeeContextMixin, viewsets.GenericViewSet):
     serializer_class = RecurrenceSerializer
 
     def get_queryset(self):
-        template_ids = self.scoped_templates("task_recurrence.view").values("pk")
+        permission='task_recurrence.view' if self.request.method in {'GET','HEAD','OPTIONS'} else 'task_recurrence.manage'
+        template_ids = self.scoped_templates(permission).values("pk")
         return TaskRecurrenceRule.objects.select_related("task_template", "created_by").filter(task_template_id__in=template_ids).annotate(failed_occurrences_count_value=Count("occurrences", filter=Q(occurrences__status=TaskOccurrence.Status.FAILED)))
     def list(self, request):
         self.require("task_recurrence.view")
@@ -115,7 +122,8 @@ class OccurrenceViewSet(EmployeeContextMixin, viewsets.GenericViewSet):
     serializer_class = OccurrenceSerializer
 
     def get_queryset(self):
-        template_ids = self.scoped_templates("task_recurrence.view").values("pk")
+        permission='task_recurrence.run' if self.action=='retry' else 'task_recurrence.manage'
+        template_ids = self.scoped_templates(permission).values("pk")
         return TaskOccurrence.objects.select_related("recurrence_rule", "task").filter(recurrence_rule__task_template_id__in=template_ids)
     @action(detail=True, methods=["post"])
     def retry(self, request, pk=None):

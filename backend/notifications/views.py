@@ -1,5 +1,7 @@
 from django.utils import timezone
 from django.db import transaction
+from django.db.models import Q, Subquery, CharField
+from django.db.models.functions import Cast
 from rest_framework import mixins,status,viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied,ValidationError
@@ -17,6 +19,13 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class=NotificationSerializer
     def get_queryset(self):
         qs=Notification.objects.filter(recipient=self.request.user);unread=self.request.query_params.get("unread")
+        if not self.request.user.is_superuser:
+            from projects.policies import ProjectAccessPolicy
+            from work_tasks.selectors import TaskSelector
+            accessible=ProjectAccessPolicy.visible_to(employee(self.request)).annotate(text_id=Cast("id",output_field=CharField())).values("text_id")
+            accessible_tasks=TaskSelector.visible_to(employee(self.request)).annotate(text_id=Cast("id",output_field=CharField())).values("text_id")
+            qs=qs.filter(~Q(entity_type="Project") | Q(entity_id__in=Subquery(accessible)))
+            qs=qs.filter(~Q(entity_type="Task") | Q(entity_id__in=Subquery(accessible_tasks)))
         if unread in {"true","1"}:qs=qs.filter(is_read=False)
         if unread in {"false","0"}:qs=qs.filter(is_read=True)
         for f in ("notification_type","priority"):
@@ -30,9 +39,9 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True,methods=["post"])
     def unread(self,r,pk=None):x=self.get_object();x.is_read=False;x.read_at=None;x.save(update_fields=["is_read","read_at"]);return Response(self.get_serializer(x).data)
     @action(detail=False,methods=["post"],url_path="read-all")
-    def read_all(self,r):return Response({"status":"ok","updated":Notification.objects.filter(recipient=r.user,is_read=False).update(is_read=True,read_at=timezone.now())})
+    def read_all(self,r):return Response({"status":"ok","updated":self.get_queryset().filter(is_read=False).update(is_read=True,read_at=timezone.now())})
     @action(detail=False,methods=["get"],url_path="unread-count")
-    def unread_count(self,r):return Response({"count":Notification.objects.filter(recipient=r.user,is_read=False).count()})
+    def unread_count(self,r):return Response({"count":self.get_queryset().filter(is_read=False).count()})
 class TemplateViewSet(viewsets.ModelViewSet):
     queryset=NotificationTemplate.objects.all().order_by("code");serializer_class=TemplateSerializer
     def initial(self,r,*a,**kw):super().initial(r,*a,**kw);require(r,"notification.template.view" if r.method in {"GET","HEAD","OPTIONS"} else "notification.template.manage")

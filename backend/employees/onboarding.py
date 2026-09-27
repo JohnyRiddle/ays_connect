@@ -86,11 +86,14 @@ class InvitationService:
         if password != password_confirmation:
             raise ValidationError({"password_confirmation": "Passwords do not match."})
         hashed = token_hash(token)
+        owner_id = EmployeeInvitation.objects.filter(token_hash=hashed).values_list("employee_id", flat=True).first()
+        if owner_id is None:
+            raise ValidationError("Activation link is unavailable.")
+        employee = Employee.objects.select_for_update().get(pk=owner_id)
         invitation = EmployeeInvitation.objects.select_for_update().filter(token_hash=hashed).first()
         now = timezone.now()
         if not invitation or invitation.used_at or invitation.revoked_at or invitation.expires_at <= now:
             raise ValidationError("Activation link is unavailable.")
-        employee = Employee.objects.select_for_update().get(pk=invitation.employee_id)
         if not employee.is_active or employee.status in {"archived", "suspended", "dismissed", "terminated"}:
             raise ValidationError("Activation link is unavailable.")
         email = invitation.delivery_address.lower().strip()
@@ -104,6 +107,9 @@ class InvitationService:
         elif User.objects.filter(email__iexact=email).exists() or User.objects.filter(username__iexact=email).exists():
             raise ValidationError("Activation link is unavailable.")
         validate_password(password, user=candidate)
+        if employee.user_id:
+            from accounts.revocation import revoke_credentials
+            revoke_credentials(candidate)
         candidate.set_password(password)
         candidate.is_active = True
         candidate.save()

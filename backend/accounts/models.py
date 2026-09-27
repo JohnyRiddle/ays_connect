@@ -6,8 +6,31 @@ class User(AbstractUser):
     phone = models.CharField("телефон", max_length=32, blank=True, unique=True, null=True)
     middle_name = models.CharField("отчество", max_length=150, blank=True)
     is_demo = models.BooleanField(default=False)
+    auth_version = models.PositiveBigIntegerField(default=0, editable=False)
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username"]
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            fields = kwargs.get("update_fields")
+            if fields is None:
+                fields = {field.attname for field in self._meta.concrete_fields
+                          if not field.primary_key and field.attname not in self.get_deferred_fields()}
+            # Only the atomic revocation update may change this generation.
+            # Saving a stale User instance must never undo another transaction's revoke.
+            kwargs["update_fields"] = set(fields) - {"auth_version"}
+        return super().save(*args, **kwargs)
+
+    def _get_session_auth_hash(self, secret=None):
+        # Preserve pre-migration sessions until the first revocation. Django also
+        # calls this method for SECRET_KEY_FALLBACKS validation.
+        if self.auth_version == 0:
+            return super()._get_session_auth_hash(secret=secret)
+        from django.utils.crypto import salted_hmac
+        return salted_hmac(
+            "accounts.User.session_auth_version",
+            f"{self.password}:{self.auth_version}", secret=secret, algorithm="sha256",
+        ).hexdigest()
 
 class Role(models.Model):
     class Code(models.TextChoices):

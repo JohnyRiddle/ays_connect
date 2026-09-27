@@ -41,6 +41,20 @@ class TaskSerializer(serializers.ModelSerializer):
     responsible_employee_display = serializers.CharField(source="responsible_employee.display_name", read_only=True, allow_null=True)
     executor_employee_display = serializers.CharField(source="executor_employee.display_name", read_only=True, allow_null=True)
     author_display = serializers.CharField(source="author.display_name", read_only=True, allow_null=True)
+    project = serializers.SerializerMethodField()
+
+    def get_project(self, obj):
+        from projects.models import ProjectTaskLink
+        from projects.policies import ProjectAccessPolicy
+        request = self.context.get("request")
+        if request is None:
+            return None
+        link = ProjectTaskLink.objects.select_related("project").filter(task=obj,is_active=True).first()
+        if not link:
+            return None
+        if not request.user.is_superuser and not ProjectAccessPolicy.visible_to(getattr(request.user,"employee",None)).filter(pk=link.project_id).exists():
+            return None
+        return {"id":str(link.project_id),"number":link.project.number,"stage_id":str(link.stage_id) if link.stage_id else None}
 
     @staticmethod
     def _target_display(target):

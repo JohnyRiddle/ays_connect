@@ -150,6 +150,16 @@ PERMISSIONS = {
     "performance.view": "Просмотр собственных показателей эффективности",
     "performance.view_management": "Просмотр управленческой аналитики эффективности",
     "system.status.view": "Просмотр состояния системы и очередей",
+    "project.view": "Просмотр проектов",
+    "project.create": "Создание проектов",
+    "project.edit": "Редактирование проектов",
+    "project.members_manage": "Управление участниками проектов",
+    "project.structure_manage": "Управление этапами и контрольными точками",
+    "project.task_link_manage": "Управление связями задач и проектов",
+    "project.lifecycle": "Управление жизненным циклом проектов",
+    "project.comment": "Обсуждение проектов",
+    "project.attachment_add": "Добавление вложений проектов",
+    "project.attachment_delete": "Удаление вложений проектов",
 }
 
 

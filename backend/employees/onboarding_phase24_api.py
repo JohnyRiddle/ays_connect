@@ -1,6 +1,8 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q
+from django.db import transaction
 from django.utils import timezone
+from django.shortcuts import get_object_or_404
 from rest_framework import serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
@@ -37,19 +39,30 @@ def visible_templates(user, permission):
     qs = OnboardingTemplate.objects.select_related("published_version")
     if user.is_superuser: return qs
     employee = getattr(user, "employee", None)
-    if not employee: return qs.none()
-    grants = EmployeeRole.objects.filter(employee=employee, is_active=True, role__is_active=True, role__permission_grants__permission__code=permission).values("role__permission_grants__scope", "org_unit_id", "legal_entity_id", "location_id")
+    if not employee or not employee.is_active: return qs.none()
+    now = timezone.now()
+    grants = EmployeeRole.objects.filter(employee=employee, is_active=True, role__is_active=True, role__permission_grants__permission__code=permission).filter(
+        Q(active_from__isnull=True) | Q(active_from__lte=now),
+        Q(active_until__isnull=True) | Q(active_until__gte=now),
+    ).values("role__permission_grants__scope", "org_unit_id", "legal_entity_id", "location_id")
     predicate = Q(pk__in=[])
+    shared_read = Q(scope="global") if permission.endswith(('.view','.assign')) else Q(pk__in=[])
     for grant in grants:
         scope = grant["role__permission_grants__scope"]
         if scope == Scope.GLOBAL: return qs
-        if scope == Scope.OWN: predicate |= Q(scope="global")
+        if scope == Scope.OWN: predicate |= shared_read
         elif scope == Scope.ORG_UNIT:
-            value=grant["org_unit_id"] or employee.org_unit_id; predicate |= Q(scope="global") | Q(org_unit_id=value) | Q(position__org_unit_id=value)
+            value=grant["org_unit_id"] or employee.org_unit_id
+            predicate |= shared_read
+            if value: predicate |= Q(org_unit_id=value) | Q(position__org_unit_id=value)
         elif scope == Scope.LEGAL_ENTITY:
-            value=grant["legal_entity_id"] or employee.legal_entity_id; predicate |= Q(scope="global") | Q(legal_entity_id=value) | Q(position__legal_entity_id=value)
+            value=grant["legal_entity_id"] or employee.legal_entity_id
+            predicate |= shared_read
+            if value: predicate |= Q(legal_entity_id=value) | Q(position__legal_entity_id=value)
         elif scope == Scope.TEAM:
-            predicate |= Q(scope="global") | Q(location_id=grant["location_id"] or employee.primary_location_id) | Q(team__memberships__employee=employee, team__memberships__valid_to__isnull=True)
+            predicate |= shared_read | Q(team__memberships__employee=employee, team__memberships__valid_to__isnull=True)
+            value=grant["location_id"] or employee.primary_location_id
+            if value: predicate |= Q(location_id=value)
     return qs.filter(predicate).distinct()
 
 
@@ -155,7 +168,8 @@ class OnboardingTemplateViewSet(viewsets.ModelViewSet):
     serializer_class = TemplateSerializer
     http_method_names = ["get", "post", "patch", "head", "options"]
     def get_queryset(self):
-        method_permission = "people.onboarding_template.view" if self.request.method in {"GET","HEAD","OPTIONS"} else "people.onboarding_template.update"
+        operation = {"publish":"publish", "archive":"archive", "preview_resolution":"view"}.get(self.action)
+        method_permission = "people.onboarding_template." + (operation or ("view" if self.request.method in {"GET","HEAD","OPTIONS"} else "update"))
         qs = visible_templates(self.request.user, method_permission).order_by("-updated_at")
         p = self.request.query_params
         for key in ("status", "scope", "legal_entity", "org_unit", "location", "position", "team"):
@@ -163,14 +177,25 @@ class OnboardingTemplateViewSet(viewsets.ModelViewSet):
         return qs
     def list(self, request, *args, **kwargs): require(request, "people.onboarding_template.view"); return super().list(request, *args, **kwargs)
     def retrieve(self, request, *args, **kwargs): require(request, "people.onboarding_template.view"); return super().retrieve(request, *args, **kwargs)
+    @transaction.atomic
     def perform_create(self, serializer):
         require(self.request, "people.onboarding_template.create")
         serializer.instance = OnboardingTemplateService.create(actor_user=self.request.user, **serializer.validated_data)
+        if not visible_templates(self.request.user,'people.onboarding_template.create').filter(pk=serializer.instance.pk).exists():
+            raise PermissionDenied()
+    @transaction.atomic
     def perform_update(self, serializer):
         require(self.request, "people.onboarding_template.update")
         obj = self.get_object()
         if obj.status != "draft" or self.request.data.get("version") != obj.version: raise serializers.ValidationError("Only current draft templates may be edited.")
+        scope=serializer.validated_data.get('scope',obj.scope)
+        populated={key for key in ('legal_entity','org_unit','location','position','team')
+                   if serializer.validated_data.get(key,getattr(obj,key)) is not None}
+        if populated != (set() if scope=='global' else {scope}):
+            raise serializers.ValidationError('Template scope requires exactly its matching reference.')
         serializer.save(version=obj.version + 1)
+        if not visible_templates(self.request.user,'people.onboarding_template.update').filter(pk=obj.pk).exists():
+            raise PermissionDenied()
     @action(detail=True, methods=["post"])
     def publish(self, request, pk=None):
         require(request, "people.onboarding_template.publish")
@@ -209,7 +234,9 @@ class OnboardingSerializer(serializers.ModelSerializer):
 class OnboardingViewSet(viewsets.GenericViewSet):
     serializer_class = OnboardingSerializer
     def get_queryset(self):
-        qs = OnboardingInstance.objects.select_related("employee", "template_version__template").prefetch_related("steps").filter(employee__in=visible_employees(self.request.user, "people.onboarding.view"))
+        permission = "people.onboarding.view" if self.request.method in {"GET","HEAD","OPTIONS"} else "people.onboarding.manage"
+        if self.action == "skip_step": permission = "people.onboarding.step_skip"
+        qs = OnboardingInstance.objects.select_related("employee", "template_version__template").prefetch_related("steps").filter(employee__in=visible_employees(self.request.user, permission))
         p = self.request.query_params
         for key, field in (("status", "status"), ("employee", "employee_id"), ("template", "template_version__template_id"), ("legal_entity", "employee__legal_entity_id"), ("org_unit", "employee__org_unit_id"), ("location", "employee__primary_location_id"), ("position", "employee__position_ref_id"), ("manager", "employee__manager_id")):
             if p.get(key): qs = qs.filter(**{field: p[key]})
@@ -219,8 +246,8 @@ class OnboardingViewSet(viewsets.GenericViewSet):
     def retrieve(self, request, pk=None): require(request, "people.onboarding.view"); return Response(self.get_serializer(self.get_object()).data)
     def create(self, request):
         require(request, "people.onboarding.assign")
-        employee = visible_employees(request.user, "people.onboarding.assign").get(pk=request.data.get("employee"))
-        template = OnboardingTemplate.objects.get(pk=request.data["template"]) if request.data.get("template") else None
+        employee = get_object_or_404(visible_employees(request.user, "people.onboarding.assign"),pk=request.data.get("employee"))
+        template = get_object_or_404(visible_templates(request.user,"people.onboarding.assign"),pk=request.data["template"]) if request.data.get("template") else None
         try: obj = OnboardingService.assign(employee=employee, actor_user=request.user, template=template)
         except DjangoValidationError as exc: raise validation_response(exc)
         return Response(self.get_serializer(obj).data, status=201)
@@ -253,14 +280,20 @@ class OnboardingViewSet(viewsets.GenericViewSet):
         except DjangoValidationError as exc:raise validation_response(exc)
         return Response(StepSerializer(item).data)
     @action(detail=True,methods=["post"],url_path=r"steps/(?P<step_id>[^/.]+)/resolve")
+    @transaction.atomic
     def resolve_step(self,request,pk=None,step_id=None):
-        from .onboarding_lifecycle import ResponsibleResolver
         require(request,"people.onboarding.manage")
-        step=self.get_object().steps.select_related("template_step").get(pk=step_id)
+        instance=self.get_object()
+        Employee.objects.select_for_update().get(pk=instance.employee_id)
+        instance=OnboardingInstance.objects.select_for_update().get(pk=instance.pk)
+        step=get_object_or_404(instance.steps.select_for_update(),pk=step_id)
         if request.data.get("version")!=step.version:raise serializers.ValidationError("Onboarding step version conflict.")
-        try:responsible,detail=ResponsibleResolver.resolve(step.template_step,step.onboarding.employee)
-        except Exception as exc:raise serializers.ValidationError(str(exc))
-        step.responsible_employee=responsible;step.resolution_detail=detail;step.status="pending";step.version+=1;step.save()
+        if instance.status not in {"pending","active"} or step.status not in {"blocked","pending","in_progress"}:
+            raise serializers.ValidationError("Only active onboarding steps can be resolved.")
+        OnboardingService.reconcile(instance)
+        step.refresh_from_db()
+        if not step.responsible_employee_id:
+            raise serializers.ValidationError("Onboarding responsible employee cannot be resolved.")
         return Response(StepSerializer(step).data)
     @action(detail=True,methods=["post"],url_path=r"steps/(?P<step_id>[^/.]+)/create-task")
     def create_task(self,request,pk=None,step_id=None):
@@ -299,7 +332,7 @@ class SelfOnboardingViewSet(viewsets.GenericViewSet):
 class AccountAccessView(APIView):
     action_name = "suspended"; enabled = False; permission = "people.account_access.suspend"
     def post(self, request, employee_id):
-        employee=visible_employees(request.user,self.permission).get(pk=employee_id); require(request,self.permission,employee)
+        employee=get_object_or_404(visible_employees(request.user,self.permission),pk=employee_id); require(request,self.permission,employee)
         try:item=AccountAccessService.set_access(employee=employee,actor_user=request.user,enabled=self.enabled,action=self.action_name)
         except DjangoValidationError as exc:raise validation_response(exc)
         return Response({"employee_id":item.pk,"user_active":item.user.is_active})

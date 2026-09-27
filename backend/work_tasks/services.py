@@ -70,7 +70,7 @@ class TaskService:
     @staticmethod
     def _payload(task, actor, **extra):
         data = {
-            "task_id": str(task.pk), "task_number": task.number, "actor_id": str(actor.pk),
+            "task_id": str(task.pk), "task_number": task.number, "actor_id": str(actor.pk), "task_version": task.version,
             "status": task.status, "priority": task.priority, "author_id": str(task.author_id),
             "responsible_employee_id": str(task.responsible_employee_id) if task.responsible_employee_id else None,
             "executor_employee_id": str(task.executor_employee_id) if task.executor_employee_id else None,
@@ -120,6 +120,13 @@ class TaskService:
     def update(cls, *, task, actor, actor_user, version, correlation_id=None, **changes):
         task = cls._locked(task, version)
         cls._authorize(actor=actor, actor_user=actor_user, permission="task.edit", task=task)
+        from .acceptance import validate_policy_change
+        if 'acceptance_policy' in changes:
+            validate_policy_change(task, changes['acceptance_policy'])
+            if changes['acceptance_policy'] == task.acceptance_policy:
+                changes.pop('acceptance_policy')
+        if not changes:
+            return task
         allowed = {"title", "description", "priority", "planned_start_at", "parent", "org_unit", "legal_entity", "location", "acceptance_policy", "completion_policy"}
         if set(changes) - allowed:
             raise TaskValidationError("Попытка изменить защищённые поля задачи.", code="task_field_read_only")
@@ -264,14 +271,41 @@ class TaskService:
     def reopen(cls, *, task, actor, actor_user, version, reason, correlation_id=None):
         if not reason.strip():
             raise TaskValidationError("Укажите причину повторного открытия.", code="task_reopen_reason_required")
+        from projects.models import Project, ProjectStatus, ProjectTaskLink
+        from projects.services import ProjectService, project_lock
+        original_project_id = ProjectTaskLink.objects.filter(task_id=task.pk,is_active=True).values_list("project_id", flat=True).first()
+        if original_project_id:
+            project_lock(original_project_id)
         task = cls._locked(task, version)
         cls._authorize(actor=actor, actor_user=actor_user, permission="task.reopen", task=task)
+        current_project_id = ProjectTaskLink.objects.filter(task_id=task.pk,is_active=True).values_list("project_id", flat=True).first()
+        if current_project_id != original_project_id:
+            raise TaskValidationError("Связь задачи с проектом изменилась; повторите операцию.", code="task_project_link_changed")
+        project = Project.objects.select_for_update().get(pk=current_project_id) if current_project_id else None
+        if project and (project.is_archived or project.status == ProjectStatus.CANCELLED):
+            raise TaskValidationError("Архивный или отменённый проект сначала нужно явно восстановить.", code="task_project_reopen_blocked")
         old = cls._transition(task, TaskStatus.IN_PROGRESS, actor, reason)
         previous_completed_at = task.completed_at
         task.completed_at = None
         task.updated_by = actor_user
         task.save(update_fields=["status", "completed_at", "version", "updated_by", "updated_at"])
         cls._record(task, actor, actor_user, "task.reopened", old={"status": old, "completed_at": previous_completed_at}, new={"status": task.status}, correlation_id=correlation_id, reason=reason)
+        if project and project.status == ProjectStatus.COMPLETED:
+            previous_project_end = project.actual_end_at
+            project.status = ProjectStatus.ACTIVE
+            project.actual_end_at = None
+            project.version += 1
+            project.updated_by = actor_user
+            project.save(update_fields=["status", "actual_end_at", "version", "updated_by", "updated_at"])
+            AuditService.record(action="project.reopened_by_task", entity=project, actor_user=actor_user,
+                actor_employee=actor, old_value={"status":ProjectStatus.COMPLETED,"actual_end_at":previous_project_end},
+                new_value={"status":project.status,"reason":reason[:500]}, correlation_id=correlation_id)
+            DomainEventService.publish(event_type="project.reopened_by_task", entity=project, actor=actor_user,
+                payload={"project_id":str(project.pk),"task_id":str(task.pk)}, correlation_id=correlation_id)
+            if project.manager_id:
+                DomainEventService.publish(event_type="notification.requested", entity=project, actor=actor_user,
+                    payload={"reason":"PROJECT_TASK_REOPENED","recipient_employee_id":str(project.manager_id),
+                             "project_id":str(project.pk),"project_number":project.number}, correlation_id=correlation_id)
         return task
 
     @classmethod

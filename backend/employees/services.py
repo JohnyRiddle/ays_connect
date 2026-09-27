@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from audit.services import AuditService
 from events.services import DomainEventService
+from accounts.revocation import revoke_credentials
 from .models import (
     Employee,
     EmployeeAssignment,
@@ -54,6 +55,8 @@ class EmployeeService:
         old = {"is_active": locked.is_active, "status": locked.status}
         locked.is_active = False
         locked.status = Employee.Status.DISMISSED
+        if locked.user_id:
+            revoke_credentials(locked.user)
         locked.dismissed_at = locked.dismissed_at or timezone.localdate()
         locked.updated_at = timezone.now()
         locked.save(update_fields=["is_active", "status", "dismissed_at", "updated_at"])
@@ -85,6 +88,10 @@ class EmployeeService:
             return locked
         now = timezone.now()
         old = {"status": locked.status, "is_active": locked.is_active, "dismissed_at": locked.dismissed_at}
+        from access_control.models import EmployeeRole
+        from access_control.services import RoleService
+        for assignment in EmployeeRole.objects.filter(employee=locked, is_active=True).order_by("pk"):
+            RoleService.revoke_role(assignment=assignment, actor_user=actor_user)
         EmployeeAssignment.objects.select_for_update().filter(employee=locked, status=EmployeeAssignment.Status.ACTIVE).update(status=EmployeeAssignment.Status.ENDED, valid_to=now)
         EmployeeManagerAssignment.objects.select_for_update().filter(
             Q(employee=locked) | Q(manager=locked), status=EmployeeManagerAssignment.Status.ACTIVE
@@ -110,6 +117,7 @@ class EmployeeService:
             onboarding.save(update_fields=["status", "cancelled_at", "cancellation_reason", "version", "updated_at"])
             onboarding.steps.exclude(status__in=["completed", "skipped"]).update(status="cancelled")
         if locked.user_id:
+            revoke_credentials(locked.user)
             locked.user.is_active = False
             locked.user.save(update_fields=["is_active"])
             from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
@@ -137,6 +145,7 @@ class EmployeeService:
         locked.dismissed_at = None
         locked.save(update_fields=["status", "account_access_state", "is_active", "dismissed_at", "updated_at"])
         if locked.user_id:
+            revoke_credentials(locked.user)
             locked.user.is_active = False
             locked.user.save(update_fields=["is_active"])
         new = {"status": locked.status, "is_active": True}
@@ -149,12 +158,17 @@ class AccountAccessService:
     @staticmethod
     @transaction.atomic
     def set_access(*, employee, actor_user, enabled, action):
-        locked = Employee.objects.select_for_update().select_related("user").get(pk=employee.pk)
+        # Lock the canonical Employee first; the optional User join cannot be
+        # included in PostgreSQL FOR UPDATE. Load it only after acquiring the lock.
+        locked = Employee.objects.select_for_update().get(pk=employee.pk)
         if not locked.user_id:
             raise ValidationError("Employee has no account.")
         if enabled and (not locked.is_active or locked.status == Employee.Status.TERMINATED):
             raise ValidationError("Terminated employee access cannot be restored.")
         locked.user.is_active = enabled
+        # Restore also invalidates credentials from accounts suspended before
+        # the auth-version migration. A restore always requires a fresh login.
+        revoke_credentials(locked.user)
         locked.user.save(update_fields=["is_active"])
         locked.account_access_state = Employee.AccountAccessState.NORMAL if enabled else (Employee.AccountAccessState.SUSPENDED if action == "suspended" else Employee.AccountAccessState.BLOCKED)
         locked.save(update_fields=["account_access_state", "updated_at"])
