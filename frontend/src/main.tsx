@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Activity,
@@ -54,6 +54,7 @@ import { isCardsDashboard } from "./cardsDashboardData";
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
 const APP_VERSION = import.meta.env.VITE_APP_VERSION || "1.0.0-rc1";
 const INTERNAL_API = API.replace(/\/api\/v1\/?$/, "/api/internal/v1");
+const API_ROOT = API.replace(/\/api\/v1\/?$/, "");
 type Profile = {
   id: number;
   full_name: string;
@@ -553,11 +554,41 @@ function initials(name: string) {
     .map((x) => x[0])
     .join("");
 }
+
+function AccountMenu({profile,navigate,logout}:{profile:Profile;navigate:(path:string)=>void;logout:()=>void}) {
+  const [open,setOpen]=useState(false); const [avatar,setAvatar]=useState(""); const root=useRef<HTMLDivElement>(null); const trigger=useRef<HTMLButtonElement>(null);
+  useEffect(()=>{const token=sessionStorage.getItem("access");if(!token)return;let objectUrl="";fetch(`${INTERNAL_API}/people/me/`,{headers:{Authorization:`Bearer ${token}`}}).then(r=>r.ok?r.json():Promise.reject()).then(async data=>{if(!data.avatar_url)return;const response=await fetch(`${API_ROOT}${data.avatar_url}`,{headers:{Authorization:`Bearer ${token}`}});if(response.ok){objectUrl=URL.createObjectURL(await response.blob());setAvatar(objectUrl)}}).catch(()=>{});return()=>{if(objectUrl)URL.revokeObjectURL(objectUrl)}},[profile.id]);
+  useEffect(()=>{if(!open)return;const close=(event:MouseEvent)=>{if(!root.current?.contains(event.target as Node)){setOpen(false);trigger.current?.focus()}};const key=(event:KeyboardEvent)=>{if(event.key==="Escape"){setOpen(false);trigger.current?.focus()}};document.addEventListener("mousedown",close);document.addEventListener("keydown",key);return()=>{document.removeEventListener("mousedown",close);document.removeEventListener("keydown",key)}},[open]);
+  const go=(path:string)=>{setOpen(false);navigate(path);setTimeout(()=>trigger.current?.focus(),0)};
+  return <div className="account-menu" ref={root}><button ref={trigger} className="account-trigger" aria-label="Меню аккаунта" aria-haspopup="menu" aria-expanded={open} onClick={()=>setOpen(x=>!x)}>{avatar?<img src={avatar} alt=""/>:<span className="avatar small">{initials(profile.full_name)}</span>}</button>{open&&<div className="account-popover" role="menu"><header><strong>{profile.full_name}</strong><small>{profile.employee?.position||profile.email}</small></header><button role="menuitem" onClick={()=>go("/people/me")}>Мой профиль</button><button role="menuitem" onClick={()=>go("/people/me/edit")}>Редактировать профиль</button><hr/><button role="menuitem" onClick={()=>{setOpen(false);logout()}}><LogOut size={17}/>Выйти</button></div>}</div>;
+}
+
+type LegacyView = "dashboard"|"tasks"|"checklists"|"sensors"|"incidents"|"objects"|"analytics"|"knowledge"|"learning"|"notifications"|"notification-settings";
+function SidebarNav({profileId,path,view,navigate,openLegacy}:{profileId:number;path:string;view:string;navigate:(path:string)=>void;openLegacy:(view:LegacyView,hash:string)=>void}) {
+  const route=`${path}|${view}`;
+  const definitions=[
+    {id:"work",label:"Работа",items:[{label:"Задачи",href:"/tasks",icon:CheckCircle2,active:path.startsWith("/tasks")},{label:"Заявки",href:"/requests",icon:Wrench,active:path.startsWith("/requests")},{label:"Проекты",href:"/projects",icon:CalendarDays,active:path.startsWith("/projects")},{label:"Чек-листы",href:"/#checklists",icon:ClipboardCheck,legacy:["checklists","#checklists"],active:path==="/"&&view==="checklists"}]},
+    {id:"team",label:"Команда",items:[{label:"Сотрудники",href:"/people/employees",icon:Users,active:path.startsWith("/people/")&&!path.startsWith("/people/me")},{label:"Мой онбординг",href:"/people/me/onboarding",icon:ClipboardCheck,active:path==="/people/me/onboarding"}]},
+    {id:"knowledge",label:"Знания",items:[{label:"Обучение",href:"/#learning",icon:GraduationCap,legacy:["learning","#learning"],active:path==="/"&&view==="learning"},{label:"Рабочие материалы",href:"/#knowledge",icon:BookOpen,legacy:["knowledge","#knowledge"],active:path==="/"&&view==="knowledge"}]},
+    {id:"control",label:"Объекты и контроль",items:[{label:"Объекты",href:"/#objects",icon:Building2,legacy:["objects","#objects"],active:path==="/"&&view==="objects"},{label:"Датчики",href:"/#sensors",icon:Activity,legacy:["sensors","#sensors"],active:path==="/"&&view==="sensors"},{label:"Инциденты",href:"/#incidents",icon:Bell,legacy:["incidents","#incidents"],active:path==="/"&&view==="incidents"}]},
+    {id:"analytics",label:"Аналитика",items:[{label:"Эффективность",href:"/#analytics",icon:Gauge,legacy:["analytics","#analytics"],active:path==="/"&&view==="analytics"}]},
+    {id:"cards",label:"Карты питания",items:[{label:"Оформление iikoCard",href:"/iiko-cards",icon:CreditCard,active:path==="/iiko-cards"},{label:"Карты",href:"/cards-dashboard",icon:CreditCard,active:isCardsDashboard({pathname:path,hash:window.location.hash})}]},
+  ];
+  const activeGroup=definitions.find(group=>group.items.some(item=>item.active))?.id||((path==="/"&&view==="dashboard")?"work":"");
+  const storageKey=`ays-sidebar-groups:${profileId}`;
+  const [expanded,setExpanded]=useState<Record<string,boolean>>(()=>{try{return JSON.parse(localStorage.getItem(storageKey)||"{}")}catch{return {}}});
+  const previousRoute=useRef("");
+  useEffect(()=>{if(previousRoute.current!==route){previousRoute.current=route;setExpanded(current=>({...current,[activeGroup||"work"]:true}))}},[route,activeGroup]);
+  useEffect(()=>{localStorage.setItem(storageKey,JSON.stringify(expanded))},[expanded,storageKey]);
+  const go=(event:React.MouseEvent<HTMLAnchorElement>,item:any)=>{if(event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;event.preventDefault();if(item.legacy)openLegacy(item.legacy[0],item.legacy[1]);else navigate(item.href)};
+  return <nav aria-label="Основная навигация"><a href="#dashboard" className={path==="/"&&view==="dashboard"?"active":""} onClick={e=>{e.preventDefault();navigate("/")}}><LayoutDashboard size={19}/>Главная</a><a href="/#notifications" className={path==="/"&&view==="notifications"?"active":""} onClick={e=>{e.preventDefault();openLegacy("notifications","#notifications")}}><Bell size={19}/>Уведомления</a>{definitions.map(group=><section className={`nav-group${activeGroup===group.id?" active-section":""}`} key={group.id}><button aria-expanded={Boolean(expanded[group.id])} onClick={()=>setExpanded(x=>({...x,[group.id]:!x[group.id]}))}><ChevronRight size={16}/>{group.label}</button>{expanded[group.id]&&<div>{group.items.map(item=>{const Icon=item.icon;return <a key={item.label} href={item.href} className={item.active?"active":""} aria-current={item.active?"page":undefined} onClick={e=>go(e,item)}><Icon size={18}/>{item.label}</a>})}</div>}</section>)}</nav>;
+}
 function App() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [mobile, setMobile] = useState(false);
+  const mobileTrigger=useRef<HTMLButtonElement>(null);
   const [path, setPath] = useState(window.location.pathname);
   const navigate = (next: string) => {
     window.history.pushState({}, "", next);
@@ -570,6 +601,7 @@ function App() {
     window.addEventListener("popstate", syncPath);
     return () => window.removeEventListener("popstate", syncPath);
   }, []);
+  useEffect(()=>{if(!mobile)return;const close=(event:KeyboardEvent)=>{if(event.key==="Escape"){setMobile(false);mobileTrigger.current?.focus()}};document.addEventListener("keydown",close);return()=>document.removeEventListener("keydown",close)},[mobile]);
   if (path === "/register") return <RegistrationPage />;
   if (path.startsWith("/activate/")) return <ActivationPage token={decodeURIComponent(path.slice("/activate/".length))} />;
   const [view, setView] = useState<
@@ -690,123 +722,14 @@ function App() {
             <span>Рабочее пространство</span>
           </div>
         </div>
-        <nav>
-          <a
-            href="#dashboard"
-            className={path === "/" && view === "dashboard" ? "active" : ""}
-            onClick={(event) => {
-              event.preventDefault();
-              navigate("/");
-              setView("dashboard");
-            }}
-          >
-            <LayoutDashboard size={19} />
-            Главная
-          </a>
-          <a
-            href="/tasks"
-            className={path.startsWith("/tasks") ? "active" : ""}
-            onClick={(event) => {
-              event.preventDefault();
-              navigate("/tasks");
-            }}
-          >
-            <CheckCircle2 size={19} />
-            Задачи
-          </a>
-          <a
-            href="/requests"
-            className={path.startsWith("/requests") && path !== "/requests/new" ? "active" : ""}
-            onClick={(event) => {
-              event.preventDefault();
-              navigate("/requests");
-            }}
-          >
-            <Wrench size={19} />
-            Заявки
-          </a>
-          <a href="/projects" className={path.startsWith("/projects") ? "active" : ""} onClick={(event) => { event.preventDefault(); navigate("/projects"); }}><CalendarDays size={19} />Проекты</a>
-          <a href="/people/employees" className={path.startsWith("/people") ? "active" : ""} onClick={(event) => { event.preventDefault(); navigate("/people/employees"); }}><Users size={19} />Сотрудники</a>
-          <a href="/people/me" className={path === "/people/me" ? "active" : ""} onClick={(event) => { event.preventDefault(); navigate("/people/me"); }}><ShieldCheck size={19} />Мой профиль</a>
-          <a href="/people/me/onboarding" className={path === "/people/me/onboarding" ? "active" : ""} onClick={(event) => { event.preventDefault(); navigate("/people/me/onboarding"); }}><ClipboardCheck size={19} />Мой онбординг</a>
-          <a
-            href="/#checklists"
-            className={path === "/" && view === "checklists" ? "active" : ""}
-            onClick={(event) => { event.preventDefault(); openLegacyView("checklists", "#checklists"); }}
-          >
-            <ClipboardCheck size={19} />
-            Чек-листы
-          </a>
-          <a
-            href="/#sensors"
-            className={path === "/" && view === "sensors" ? "active" : ""}
-            onClick={(event) => { event.preventDefault(); openLegacyView("sensors", "#sensors"); }}
-          >
-            <Activity size={19} />
-            Датчики
-          </a>
-          <a
-            href="/#incidents"
-            className={path === "/" && view === "incidents" ? "active" : ""}
-            onClick={(event) => { event.preventDefault(); openLegacyView("incidents", "#incidents"); }}
-          >
-            <Bell size={19} />
-            Инциденты
-          </a>
-          <a
-            href="/#learning"
-            className={path === "/" && view === "learning" ? "active" : ""}
-            onClick={(event) => { event.preventDefault(); openLegacyView("learning", "#learning"); }}
-          >
-            <GraduationCap size={19} />
-            Обучение
-          </a>
-          <a
-            href="/#knowledge"
-            className={path === "/" && view === "knowledge" ? "active" : ""}
-            onClick={(event) => { event.preventDefault(); openLegacyView("knowledge", "#knowledge"); }}
-          >
-            <BookOpen size={19} />
-            Рабочие материалы
-          </a>
-          <a
-            href="/#analytics"
-            className={path === "/" && view === "analytics" ? "active" : ""}
-            onClick={(event) => { event.preventDefault(); openLegacyView("analytics", "#analytics"); }}
-          >
-            <Gauge size={19} />
-            Эффективность
-          </a>
-          <a
-            href="/#objects"
-            className={path === "/" && view === "objects" ? "active" : ""}
-            onClick={(event) => { event.preventDefault(); openLegacyView("objects", "#objects"); }}
-          >
-            <Building2 size={19} />
-            Объекты
-          </a>
-          <a
-            href="/#notifications"
-            className={path === "/" && view === "notifications" ? "active" : ""}
-            onClick={(event) => { event.preventDefault(); openLegacyView("notifications", "#notifications"); }}
-          >
-            <Bell size={19} />
-            Уведомления<i>3</i>
-          </a>
-        </nav>
+        <SidebarNav profileId={profile.id} path={path} view={view} navigate={navigate} openLegacy={openLegacyView}/>
         <div className="sidebar-bottom">
-          <a href="/iiko-cards" className={path === "/iiko-cards" ? "active" : ""} onClick={(event) => { if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return; event.preventDefault(); navigate("/iiko-cards"); }}><CreditCard size={19} />Оформление iikoCard</a>
-          <a href="/cards-dashboard" className={isCardsDashboard({ pathname: path, hash: window.location.hash }) ? "active" : ""} aria-current={isCardsDashboard({ pathname: path, hash: window.location.hash }) ? "page" : undefined} onClick={(event) => { if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return; event.preventDefault(); navigate("/cards-dashboard"); }}><CreditCard size={19} />Карты</a>
           <small className="build-version">Work Core {APP_VERSION}</small>
           <button
             onClick={() => openLegacyView("notification-settings", "#notification-settings")}
           >
             <Settings size={19} />
             Настройки
-          </button>
-          <button onClick={logout}>
-            <LogOut size={19} />
-            Выйти
           </button>
           <div className="user-mini">
             <div className="avatar">{initials(profile.full_name)}</div>
@@ -820,7 +743,7 @@ function App() {
       {mobile && <div className="scrim" onClick={() => setMobile(false)} />}
       <div className="workspace">
         <header>
-          <button className="hamb" onClick={() => setMobile(true)}>
+          <button ref={mobileTrigger} className="hamb" aria-label="Открыть основное меню" aria-expanded={mobile} onClick={() => setMobile(true)}>
             <Menu />
           </button>
           <div className="search">
@@ -830,7 +753,7 @@ function App() {
           </div>
           <div className="header-actions">
             <NotificationBell />
-            <div className="avatar small">{initials(profile.full_name)}</div>
+            <AccountMenu profile={profile} navigate={navigate} logout={logout}/>
           </div>
         </header>
         {path === "/iiko-cards" || window.location.hash === "#iiko-cards" ? (

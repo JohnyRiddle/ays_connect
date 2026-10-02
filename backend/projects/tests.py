@@ -25,6 +25,7 @@ from events.models import OutboxEvent
 
 from .models import Project, ProjectComment, ProjectCreateRequest, ProjectMember, ProjectMilestone, ProjectMilestoneDueNotice, ProjectMilestoneHistory, ProjectStage, ProjectTaskLink, ProjectTaskLinkHistory
 from .services import ProjectBusinessError, ProjectService, ProjectTaskService
+from .policies import ProjectAccessPolicy
 from .collaboration import ProjectCollaborationService
 from .management.commands.process_milestone_due import process_due_milestones
 
@@ -78,6 +79,28 @@ class ProjectsCoreTests(TestCase):
         response=client.patch(f"/api/internal/v1/projects/{self.project.pk}/milestones/{milestone.pk}/",
                               {"version":self.project.version,"name":"Forbidden"},format="json")
         self.assertEqual(response.status_code,400,response.data)
+
+    def test_project_task_filters_apply_before_pagination_with_stage_totals(self):
+        self.assertTrue(ProjectAccessPolicy.visible_to(self.actor).filter(pk=self.project.pk).exists())
+        client=APIClient();client.force_authenticate(get_user_model().objects.get(pk=self.user.pk))
+        stage=ProjectStage.objects.create(project=self.project,name="Filtered stage",position=1)
+        target=AssignmentTarget.objects.create(target_type="employee",employee=self.actor)
+        for index in range(30):
+            task=Task.objects.create(number=f"TASK-FILTER-{index:03d}",title=f"Paged task {index}",author=self.actor,
+                responsible_target=target,responsible_employee=self.actor,status="open" if index%2 else "draft",
+                created_by=self.user,updated_by=self.user)
+            ProjectTaskLink.objects.create(project=self.project,task=task,stage=stage,linked_by=self.user)
+        response=client.get(f"/api/internal/v1/projects/{self.project.pk}/tasks/?search=Paged%20task%200")
+        self.assertEqual(response.status_code,200,response.data)
+        self.assertEqual(response.data["count"],1)
+        self.assertEqual(response.data["stage_counts"],{str(stage.pk):1})
+        response=client.get(f"/api/internal/v1/projects/{self.project.pk}/tasks/?status=open&responsible={target.pk}")
+        self.assertEqual(response.status_code,200,response.data)
+        self.assertEqual(response.data["count"],15)
+        self.assertEqual(response.data["stage_counts"],{str(stage.pk):15})
+        self.assertEqual(response.data["responsible_options"],[{"id":str(target.pk),"display_name":self.actor.display_name}])
+        first=[row["id"] for row in response.data["results"]]
+        self.assertEqual(len(first),len(set(first)))
 
     def test_stage_and_milestone_creation_reject_unavailable_responsible_and_bad_dates(self):
         unavailable_user=get_user_model().objects.create_user(username="project-unavailable",email="project-unavailable@example.test")

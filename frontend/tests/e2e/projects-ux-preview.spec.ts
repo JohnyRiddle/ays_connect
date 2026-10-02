@@ -1,0 +1,115 @@
+import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+
+const fixture = JSON.parse(readFileSync('/private/projects-fixture.json','utf8'));
+const key=()=>randomUUID();
+
+test('Projects UX preview preserves navigation state on desktop and mobile', async ({page,request}) => {
+  const errors:string[]=[];
+  page.on('pageerror',()=>errors.push('page_error'));
+  page.on('request',r=>{if(/fonts\.(googleapis|gstatic)\.com/.test(r.url()))errors.push('external_font');});
+  const manager=fixture.actors.manager;
+  const login=await request.post('/api/v1/auth/login/',{data:{email:manager.email,password:manager.password}});
+  expect(login.status()).toBe(200);
+  const auth=await login.json();
+  const headers={Authorization:`Bearer ${auth.access}`};
+  const created=await request.post('/api/internal/v1/projects/',{headers:{...headers,'Idempotency-Key':key()},data:{name:'Запуск сезона',goal:'Подготовить рестораны к началу сезона',expected_result:'Команды, меню и площадки готовы',manager:manager.employee,customer:null,org_unit:null,planned_start_at:null,planned_end_at:null}});
+  expect(created.status()).toBe(201);
+  let project=await created.json();
+  const stages:any[]=[];
+  for(const [position,name] of ['Подготовка','Запуск','Стабилизация'].entries()){
+    const response=await request.post(`/api/internal/v1/projects/${project.id}/stages/`,{headers,data:{version:project.version,name,position:position+1}});
+    expect(response.status()).toBe(201); stages.push(await response.json());
+    project=await (await request.get(`/api/internal/v1/projects/${project.id}/`,{headers})).json();
+  }
+  for(const [title,stage] of [['Согласовать сезонное меню',stages[0]],['Подготовить обучение команды',stages[0]],['Открыть летнюю площадку',stages[1]],['Собрать обратную связь гостей',stages[2]]]){
+    const response=await request.post(`/api/internal/v1/projects/${project.id}/create-task/`,{headers:{...headers,'Idempotency-Key':key()},data:{project_version:project.version,title,description:'',stage:stage.id,due_at:null,priority:'normal',acceptance_policy:'author',responsible_target:fixture.executor_target,executor_target:fixture.executor_target}});
+    expect(response.status()).toBe(201);
+    project=await (await request.get(`/api/internal/v1/projects/${project.id}/`,{headers})).json();
+  }
+  for(let index=1;index<=27;index++){
+    const response=await request.post(`/api/internal/v1/projects/${project.id}/create-task/`,{headers:{...headers,'Idempotency-Key':key()},data:{project_version:project.version,title:`Техническая подготовка ${String(index).padStart(2,'0')}`,description:'Синтетическая задача для проверки пагинации.',stage:stages[2].id,due_at:null,priority:'normal',acceptance_policy:'none',responsible_target:fixture.executor_target,executor_target:fixture.executor_target}});
+    expect(response.status()).toBe(201);
+    project=await (await request.get(`/api/internal/v1/projects/${project.id}/`,{headers})).json();
+  }
+  await page.addInitScript(({access,refresh})=>{sessionStorage.setItem('access',access);sessionStorage.setItem('refresh',refresh)},auth);
+  await page.goto('/projects');
+  await expect(page.getByRole('link',{name:'Проекты'})).toBeVisible();
+  await page.setViewportSize({width:1440,height:1000});
+  await page.goto(`/projects/${project.id}`);
+  await expect(page.getByRole('heading',{name:'Запуск сезона'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Задачи',exact:true})).toHaveAttribute('aria-current','page');
+  await expect(page.getByText('Согласовать сезонное меню')).toHaveCount(0);
+  await page.getByLabel('Поиск задач проекта').fill('Согласовать сезонное меню');
+  await expect(page.getByText('Согласовать сезонное меню')).toBeVisible();
+  await expect(page.getByText(/всего доступно 1/)).toBeVisible();
+  await expect(page).toHaveURL(/search=/);
+  await page.reload();
+  await expect(page.getByLabel('Поиск задач проекта')).toHaveValue('Согласовать сезонное меню');
+  await page.getByLabel('Поиск задач проекта').fill('сезон');
+  await page.getByLabel('Другие способы добавления задачи').click();
+  await page.getByRole('button',{name:'Из шаблона'}).click();
+  const templateDialog=page.getByRole('dialog');
+  await templateDialog.getByLabel('Шаблон').selectOption(fixture.project_template);
+  await templateDialog.locator('label').filter({hasText:'Этап'}).locator('select').selectOption(stages[1].id);
+  const createRequestPromise=page.waitForRequest(request=>request.url().endsWith(`/projects/${project.id}/create-task/`)&&request.method()==='POST');
+  await templateDialog.getByRole('button',{name:'Создать',exact:true}).click();
+  const templateRequest=await createRequestPromise;
+  await expect(page.getByRole('status').getByText('Задача создана из шаблона.')).toBeVisible();
+  const repeated=await request.post(templateRequest.url(),{headers:{...headers,'Idempotency-Key':templateRequest.headers()['idempotency-key']},data:templateRequest.postDataJSON()});
+  expect(repeated.status()).toBe(200);
+  const linked=await (await request.get(`/api/internal/v1/projects/${project.id}/tasks/`,{headers})).json();
+  const generated=linked.results.filter((task:any)=>task.source_template===fixture.project_template);
+  expect(generated).toHaveLength(1);
+  const generatedDetail=await (await request.get(`/api/internal/v1/tasks/${generated[0].id}/`,{headers})).json();
+  expect(generatedDetail.source_template).toBe(fixture.project_template);
+  expect(generatedDetail.priority).toBe('high');
+  expect(generatedDetail.acceptance_policy).toBe('author');
+  expect(generatedDetail.completion_policy).toBe('manual');
+  expect(generatedDetail.project.stage_id).toBe(stages[1].id);
+  await page.getByRole('button',{name:'Доска'}).click();
+  await expect(page).toHaveURL(/view=board/);
+  await page.reload();
+  await expect(page.getByRole('button',{name:'Доска'})).toHaveClass(/selected/);
+  await page.getByRole('button',{name:'Список'}).click();
+  await page.screenshot({path:'/artifacts/projects-ux-desktop.png',fullPage:true});
+  await page.getByRole('button',{name:'Обзор',exact:true}).click();
+  await expect(page).toHaveURL(/tab=overview/);
+  await page.goBack();
+  await expect(page.getByRole('button',{name:'Задачи',exact:true})).toHaveAttribute('aria-current','page');
+  await page.setViewportSize({width:390,height:844});
+  await page.waitForTimeout(400);
+  await page.screenshot({path:'/artifacts/projects-ux-mobile.png',fullPage:true});
+  await page.setViewportSize({width:1440,height:1000});
+  await page.locator('.project-stage > header').filter({hasText:/^.*Подготовка/}).getByRole('button',{name:'+ Добавить задачу'}).click();
+  const taskDialog=page.getByRole('dialog');
+  await expect(taskDialog.locator('label').filter({hasText:'Этап'}).locator('select')).toHaveValue(stages[0].id);
+  await taskDialog.getByLabel('Название задачи').fill('Черновик с ошибкой API');
+  await page.route('**/api/internal/v1/projects/*/create-task/',route=>route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({detail:'Синтетическая ошибка API'})}),{times:1});
+  await taskDialog.getByRole('button',{name:'Создать задачу'}).click();
+  await expect(taskDialog.getByLabel('Название задачи')).toHaveValue('Черновик с ошибкой API');
+  page.once('dialog',dialog=>dialog.accept());
+  await taskDialog.getByRole('button',{name:'Закрыть'}).click();
+  await page.getByRole('main').getByRole('button',{name:'Настройки',exact:true}).click();
+  await expect(page.getByRole('dialog',{name:'Настройки проекта'})).toBeVisible();
+  await page.getByRole('dialog').getByRole('button',{name:'Отмена'}).click();
+  await page.getByLabel('Дополнительные действия').click();
+  await page.getByRole('button',{name:'История'}).click();
+  await expect(page.getByRole('dialog').getByText('Проект создан')).toBeVisible();
+  await page.getByRole('dialog').getByRole('button',{name:'Закрыть'}).click();
+  const projectTabs=page.getByRole('navigation',{name:'Разделы проекта'});
+  for(const tab of ['Команда','Файлы','Обсуждение'] as const){await projectTabs.getByRole('button',{name:tab,exact:true}).click();await expect(page).toHaveURL(new RegExp(`tab=${tab==='Команда'?'team':tab==='Файлы'?'files':'discussion'}`));}
+  await page.getByLabel('Сообщение').fill('Текст сохраняется при переходе между вкладками');
+  await page.getByRole('button',{name:'Задачи',exact:true}).click();
+  await page.getByRole('button',{name:'Обсуждение',exact:true}).click();
+  await expect(page.getByLabel('Сообщение')).toHaveValue('Текст сохраняется при переходе между вкладками');
+  await page.getByRole('button',{name:'Задачи',exact:true}).click();
+  await page.getByRole('button',{name:'Сроки'}).click();
+  await expect(page).toHaveURL(/view=timeline/);
+  await page.getByRole('button',{name:'Список'}).click();
+  await page.getByLabel('Поиск задач проекта').fill('сезонное меню');
+  await expect(page.getByText('Согласовать сезонное меню')).toBeVisible();
+  await expect(page.getByText('Подготовить обучение команды')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});

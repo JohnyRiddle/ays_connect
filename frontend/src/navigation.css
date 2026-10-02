@@ -16,6 +16,7 @@
   color: white;
   background: #ffffff10;
 }
+.sidebar nav{overflow-y:auto;min-height:0;padding-right:3px}.nav-group{margin-top:5px}.nav-group>button{padding:8px 10px;color:#8fa4ba;font-size:11px;text-transform:uppercase;letter-spacing:.05em}.nav-group>button svg{transition:transform .18s}.nav-group>button[aria-expanded=true] svg{transform:rotate(90deg)}.nav-group.active-section>button{color:#dceafa}.nav-group>div{display:grid;gap:2px}.nav-group>div a{padding-left:25px}.sidebar nav a:focus-visible,.nav-group>button:focus-visible{outline:2px solid #7db7ed;outline-offset:-2px}
 .empty-dashboard {
   padding: 48px 12px;
   text-align: center;

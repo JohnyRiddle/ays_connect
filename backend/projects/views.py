@@ -1,7 +1,6 @@
 import uuid
 import hashlib
 import json
-
 from django.db import transaction
 from django.db.models import Count, Q
 from django.http import FileResponse
@@ -87,6 +86,10 @@ class ProjectViewSet(viewsets.GenericViewSet):
 
     def get_queryset(self):
         qs = Project.objects.all() if self.request.user.is_superuser else ProjectAccessPolicy.visible_to(self.actor())
+        # The tasks detail action owns search/status/responsible query parameters.
+        # Applying them to Project first can hide an otherwise visible project.
+        if getattr(self, "action", None) == "tasks":
+            return qs.select_related("manager", "customer", "org_unit", "location").order_by("-created_at")
         p = self.request.query_params
         for key in ("status", "org_unit", "location", "manager"):
             if p.get(key):
@@ -273,8 +276,30 @@ class ProjectViewSet(viewsets.GenericViewSet):
 
     @action(detail=True,methods=["get"])
     def tasks(self,request,pk=None):
-        page=self.paginate_queryset(self.visible_tasks(self.get_object()).order_by("-created_at"))
-        return self.get_paginated_response(TaskSerializer(page,many=True,context={"request":request}).data)
+        project=self.get_object();base=self.visible_tasks(project)
+        search=request.query_params.get("search","").strip()
+        if search: base=base.filter(Q(title__icontains=search)|Q(number__icontains=search))
+        status_value=request.query_params.get("status","")
+        if status_value:
+            if status_value not in TaskStatus.values: raise ValidationError("Некорректный статус задачи.")
+            base=base.filter(status=status_value)
+        responsible=request.query_params.get("responsible","")
+        if responsible:
+            try: responsible_id=uuid.UUID(responsible)
+            except ValueError as exc: raise ValidationError("Некорректный ответственный.") from exc
+            base=base.filter(responsible_target_id=responsible_id)
+        stage_counts={str(row["project_link__stage_id"]) if row["project_link__stage_id"] else "none":row["count"] for row in base.order_by().values("project_link__stage_id").annotate(count=Count("pk"))}
+        scoped_targets=AssignmentTarget.objects.filter(pk__in=self.visible_tasks(project).exclude(responsible_target_id=None).values("responsible_target_id")).select_related("employee","position","org_unit","functional_group","team","explicit_employee").order_by("id")
+        page=self.paginate_queryset(base.order_by("-created_at","-id"))
+        response=self.get_paginated_response(TaskSerializer(page,many=True,context={"request":request}).data)
+        response.data["stage_counts"]=stage_counts
+        response.data["responsible_options"]=[{"id":str(target.pk),"display_name":(
+            getattr(target.employee or target.position or target.org_unit or target.functional_group or target.team,
+                    "display_name",None)
+            or getattr(target.employee or target.position or target.org_unit or target.functional_group or target.team,
+                       "name",None)
+            or str(target.pk))} for target in scoped_targets]
+        return response
 
     @action(detail=True,methods=["get"])
     def counters(self,request,pk=None):

@@ -298,7 +298,7 @@ input {
   font-size: 10px;
 }
 .sidebar-bottom {
-  margin-top: auto;
+  flex-shrink: 0;
   border-top: 1px solid #ffffff12;
   padding-top: 10px;
 }
@@ -357,6 +357,7 @@ input {
   gap: 16px;
   align-items: center;
 }
+.account-menu{position:relative}.account-trigger{padding:0!important;cursor:pointer;border-radius:50%!important}.account-trigger:focus-visible{outline:3px solid #8ab9e8;outline-offset:3px}.account-trigger img{width:34px;height:34px;border-radius:50%;object-fit:cover;display:block}.account-popover{position:absolute;right:0;top:46px;width:240px;background:white;border:1px solid #dfe6ee;border-radius:12px;box-shadow:0 18px 55px #17203326;padding:8px;z-index:50;display:grid;gap:3px}.account-popover header{display:grid;gap:3px;padding:10px 11px}.account-popover header small{color:#718096}.account-popover button{position:static!important;display:flex;align-items:center;gap:9px;width:100%;padding:10px 11px;border-radius:8px!important;text-align:left;color:#243746!important;cursor:pointer}.account-popover button:hover,.account-popover button:focus-visible{background:#eef4f8;outline:2px solid #4b8bc4}.account-popover hr{border:0;border-top:1px solid #e6ebf1;width:100%;margin:5px 0}
 .header-actions button {
   border: 0;
   background: none;

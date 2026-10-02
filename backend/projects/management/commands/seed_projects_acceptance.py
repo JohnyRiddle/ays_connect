@@ -11,6 +11,7 @@ from django.db import transaction
 
 from access_control.models import EmployeeRole, Permission, Role, RolePermission
 from employees.models import AssignmentTarget, Employee
+from work_tasks.models import TaskTemplate
 from work_tasks.services import TaskService
 
 
@@ -32,6 +33,36 @@ def ensure_executor(fixture):
     return fixture
 
 
+def ensure_project_template(fixture):
+    manager = Employee.objects.get(pk=fixture["actors"]["manager"]["employee"])
+    target = AssignmentTarget.objects.get(pk=fixture["executor_target"])
+    template = TaskTemplate.objects.filter(
+        name="Synthetic project season template", created_by=manager,
+    ).first()
+    values = {
+        "task_title": "Проверить готовность сезонного меню",
+        "task_description": "Синтетическая задача из шаблона Projects UX.",
+        "default_priority": "high",
+        "responsible_target": target,
+        "executor_target": target,
+        "acceptance_policy": "author",
+        "completion_policy": "manual",
+        "deadline_rule": "none",
+        "deadline_offset": None,
+        "is_active": True,
+    }
+    if template is None:
+        template = TaskTemplate.objects.create(
+            name="Synthetic project season template", created_by=manager, **values,
+        )
+    else:
+        for field, value in values.items():
+            setattr(template, field, value)
+        template.save(update_fields=[*values, "updated_at"])
+    fixture["project_template"] = str(template.pk)
+    return fixture
+
+
 class Command(BaseCommand):
     help = "Seed local Projects staging with synthetic employees and Work tasks."
 
@@ -41,10 +72,13 @@ class Command(BaseCommand):
         path = Path("/staging-private/projects-fixture.json")
         if path.exists():
             role=Role.objects.get(code="synthetic-projects-acceptance")
-            RolePermission.objects.get_or_create(role=role,permission=Permission.objects.get(code="employee.view"),
-                defaults={"scope":"global"})
+            RolePermission.objects.get_or_create(role=role,permission=Permission.objects.get(code="employee.view"),defaults={"scope":"global"})
+            for code in ("task_template.view", "task_template.use"):
+                RolePermission.objects.get_or_create(role=role,permission=Permission.objects.get(code=code),defaults={"scope":"own"})
             fixture=json.loads(path.read_text(encoding="utf-8"))
-            with transaction.atomic(): fixture=ensure_executor(fixture)
+            with transaction.atomic():
+                fixture=ensure_executor(fixture)
+                fixture=ensure_project_template(fixture)
             path.write_text(json.dumps(fixture),encoding="utf-8")
             path.chmod(0o600)
             self.stdout.write("projects_fixture=EXISTS")
@@ -54,10 +88,11 @@ class Command(BaseCommand):
             codes = ("project.view", "project.create", "project.edit", "project.members_manage",
                 "project.structure_manage", "project.task_link_manage", "project.lifecycle", "project.comment",
                 "project.attachment_add", "project.attachment_delete", "task.view", "task.create", "task.edit",
-                "task.assign", "task.start", "task.complete", "task.accept", "task.reopen", "employee.view")
+                "task.assign", "task.start", "task.complete", "task.accept", "task.reopen", "employee.view",
+                "task_template.view", "task_template.use")
             for code in codes:
                 permission = Permission.objects.get(code=code)
-                RolePermission.objects.create(role=role, permission=permission, scope="global")
+                RolePermission.objects.create(role=role, permission=permission, scope="own" if code.startswith("task_template.") else "global")
             actors = {}
             for label in ("manager", "outsider"):
                 password = secrets.token_urlsafe(32)
@@ -71,6 +106,7 @@ class Command(BaseCommand):
             task = TaskService.create(actor=manager, actor_user=manager.user, title="Synthetic existing Work task",
                                       responsible_target=target, executor_target=target, acceptance_policy="author")
             fixture = ensure_executor({"actors": actors, "existing_task": str(task.pk), "target": str(target.pk)})
+            fixture = ensure_project_template(fixture)
         path.write_text(json.dumps(fixture), encoding="utf-8")
         path.chmod(0o600)
         self.stdout.write("projects_fixture=CREATED synthetic_accounts=3 synthetic_tasks=1")

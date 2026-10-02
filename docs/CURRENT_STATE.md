@@ -1,5 +1,22 @@
 # Текущее состояние AYS Connect
 
+## Projects UX — локальный staging candidate, 02.10.2026
+
+На базе актуального `origin/main` (`d2f91d0`) в отдельной ветке `codex/projects-ux`
+перекомпонована страница проекта: компактная шапка, задачи по умолчанию, URL-состояние
+фильтров/страницы/вкладок/представлений, server-side фильтрация до пагинации с totals,
+этапные группы, split-create, task menus, lazy-loading и адаптивный mobile UI. Боковая
+навигация сгруппирована; профиль разделён на read-only `/people/me` и self-service
+`/people/me/edit`, доступные через клавиатурное меню аккаунта со штатным logout.
+
+Финальные проверки: frontend production build PASS, Projects + TaskTemplate PostgreSQL **34/34**,
+Projects browser acceptance **2/2**, расширенный UX/account browser gate **2/2**. Положительный
+browser-сценарий «Из шаблона» использует `task_template.view/use` scope `own` и проверяет
+одну Work Task, этап, параметры, приёмку и idempotent repeat без дубля. Desktop и mobile
+evidence получены на синтетическом проекте «Запуск сезона». Подробности и
+воспроизводимые команды: [PROJECTS_UX.md](PROJECTS_UX.md). Commit/push/deployment и
+production-операции не выполнялись.
+
 ## Integrated People + Projects + iiko + Cards candidate — 27.09.2026
 
 На базе `8d9fc81` в изолированном checkout `AYS Connect integrated release`, ветка

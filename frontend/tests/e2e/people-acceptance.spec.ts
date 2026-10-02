@@ -35,7 +35,9 @@ test('A-B desktop invitation activation login profile and refresh', async ({page
   await expect(page.getByRole('link', {name:'Мой онбординг', exact:true})).toBeVisible();
   await page.goto('/people/me');
   await expect(page.getByRole('heading', {name:'Мой профиль', exact:true})).toBeVisible();
-  await page.getByRole('button', {name:'Редактировать', exact:true}).click();
+  await expect(page.locator('input, textarea, select')).toHaveCount(0);
+  await page.goto('/people/me/edit');
+  await expect(page.getByRole('heading', {name:'Редактировать профиль', exact:true})).toBeVisible();
   await page.locator('[name=preferred_name]').fill('Synthetic Browser');
   await page.locator('[name=bio]').fill('Synthetic profile acceptance');
   await page.getByRole('button', {name:/Сохранить/}).click();
