@@ -93,7 +93,8 @@ class TaskUXService:
         "pause": "task.pause", "resume": "task.pause", "complete": "task.complete",
         "accept": "task.accept", "reject": "task.reject", "reopen": "task.reopen",
         "cancel": "task.cancel", "reassign": "task.reassign",
-        "change_deadline": "task.change_deadline", "comment": "task.comment", "watch": "task.watch",
+        "change_deadline": "task.change_deadline", "comment": "task.comment",
+        "watch": "task.watch", "unwatch": "task.watch",
     }
     TRANSITIONS = {
         "publish": TaskStatus.OPEN, "start": TaskStatus.IN_PROGRESS,
@@ -123,8 +124,27 @@ class TaskUXService:
             if action == "complete" and task.production_checklists.filter(removed_at__isnull=True, items__required=True, items__is_completed=False).exists(): continue
             if action == "pause" and task.status != TaskStatus.IN_PROGRESS: continue
             if action == "resume" and task.status != TaskStatus.WAITING: continue
+            is_watching = task.watcher_records.filter(employee=employee, removed_at__isnull=True).exists()
+            if action == "watch" and is_watching: continue
+            if action == "unwatch" and not is_watching: continue
             actions.append(action)
         return actions
+
+    @classmethod
+    def action_blockers(cls, task, employee, is_superuser=False):
+        """Expose blockers only for actions the current actor may perform."""
+        if not is_superuser and not TaskAccessPolicy.allows(employee=employee, permission="task.view", task=task):
+            return {}
+        may_complete = is_superuser or TaskAccessPolicy.allows(
+            employee=employee, permission="task.complete", task=task
+        )
+        if not may_complete or task.status != TaskStatus.IN_PROGRESS:
+            return {}
+        if task.production_checklists.filter(
+            removed_at__isnull=True, items__required=True, items__is_completed=False
+        ).exists():
+            return {"complete": "Завершите обязательные пункты чек-листа."}
+        return {}
 
     @staticmethod
     def counters(employee, queryset=None):

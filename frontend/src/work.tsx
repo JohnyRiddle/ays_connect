@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   AssignmentTarget,
   lookupApi,
@@ -14,7 +14,7 @@ const labels: Record<string, string> = {
   open: "Открыта",
   in_progress: "В работе",
   waiting: "Ожидание",
-  review: "На проверке",
+  review: "На приёмке",
   completed: "Завершена",
   cancelled: "Отменена",
   new: "Новая",
@@ -30,10 +30,10 @@ const labels: Record<string, string> = {
 };
 const actionLabels: Record<string, string> = {
   publish: "Опубликовать",
-  start: "Начать",
+  start: "Начать работу",
   pause: "Приостановить",
   resume: "Продолжить",
-  complete: "Завершить",
+  complete: "Выполнить",
   accept: "Принять",
   reject: "Отклонить",
   reopen: "Переоткрыть",
@@ -446,16 +446,19 @@ function ActionDialog({
   onCancel,
   onSubmit,
   busy,
+  reviewRequired = false,
 }: {
   action: string;
   onCancel: () => void;
   onSubmit: (data: any) => void;
   busy: boolean;
+  reviewRequired?: boolean;
 }) {
   const [reason, setReason] = useState("");
   const [waitingReason, setWaitingReason] = useState("waiting_other");
   const [target, setTarget] = useState("");
   const [due, setDue] = useState("");
+  const [completionComment, setCompletionComment] = useState("");
   const needsReason = [
     "reject",
     "reopen",
@@ -491,6 +494,7 @@ function ActionDialog({
           }
           if (action === "change_deadline")
             data.due_at = new Date(due).toISOString();
+          if (action === "complete") data.completion_comment = completionComment;
           onSubmit(data);
         }}
       >
@@ -534,6 +538,12 @@ function ActionDialog({
             </select>
           </label>
         )}
+        {action === "complete" && (
+          <>
+            {reviewRequired && <p className="work-action-note" role="status">После выполнения результат будет передан на обязательную приёмку.</p>}
+            <label className="work-field"><span>Результат выполнения</span><textarea value={completionComment} onChange={(e) => setCompletionComment(e.target.value)} /></label>
+          </>
+        )}
         {needsReason && (
           <label className="work-field">
             <span>
@@ -557,6 +567,45 @@ function ActionDialog({
       </form>
     </div>
   );
+}
+
+const hiddenHeaderActions = new Set(["edit", "comment", "attachment_add", "watcher_manage", "checklist_manage"]);
+
+function TaskActions({ task, busy, onAction }: { task: any; busy: boolean; onAction: (action: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const available = (task.available_actions || []).filter((name: string) => !hiddenHeaderActions.has(name));
+  const primaryByStatus: Record<string, string> = { draft: "publish", open: "start", waiting: "resume", in_progress: "complete", review: "accept" };
+  const candidate = primaryByStatus[task.status];
+  const primary = available.includes(candidate) ? candidate : "";
+  const secondary = available
+    .filter((name: string) => name !== primary)
+    .sort((left: string, right: string) => Number(left === "cancel") - Number(right === "cancel"));
+  const blocker = task.action_blockers?.[candidate];
+  useEffect(() => {
+    if (!open) return;
+    const outside = (event: MouseEvent) => {
+      if (!root.current?.contains(event.target as Node)) {
+        setOpen(false);
+        window.setTimeout(() => trigger.current?.focus(), 0);
+      }
+    };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") { setOpen(false); trigger.current?.focus(); } };
+    document.addEventListener("mousedown", outside); document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("mousedown", outside); document.removeEventListener("keydown", escape); };
+  }, [open]);
+  return <div className="work-actions" ref={root}>
+    {primary && <button className="primary" disabled={busy} onClick={() => onAction(primary)}>{actionLabels[primary]}</button>}
+    {!primary && blocker && <button className="primary" disabled title={blocker}>{actionLabels[candidate]}</button>}
+    {blocker && <span className="work-action-blocker" role="status">{blocker}</span>}
+    {secondary.length > 0 && <div className="work-action-menu">
+      <button ref={trigger} type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(value => !value)} disabled={busy}>Действия <span aria-hidden="true">⌄</span></button>
+      {open && <div className="work-action-menu-list" role="menu" aria-label="Действия задачи">{secondary.map((name: string) => <React.Fragment key={name}>
+        {name === "cancel" && <hr />}<button role="menuitem" className={name === "cancel" ? "danger" : ""} disabled={busy} onClick={() => { setOpen(false); onAction(name); }}>{actionLabels[name] || name}</button>
+      </React.Fragment>)}</div>}
+    </div>}
+  </div>;
 }
 
 function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
@@ -603,6 +652,12 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
           : actionName.replace("wait_", "wait-");
       if (actionName === "watch") {
         await tasksApi.watch(id);
+        setAction("");
+        await load();
+        return;
+      }
+      if (actionName === "unwatch") {
+        await tasksApi.watch(id, true);
         setAction("");
         await load();
         return;
@@ -673,37 +728,12 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
             <span className={`work-status ${task.status}`}>
               {labels[task.status] || task.status}
             </span>
-            <span>{labels[task.priority] || task.priority}</span>
+            <span className={`work-priority ${task.priority}`}>{labels[task.priority] || task.priority}</span>
           </div>
         </div>
-        <div className="work-actions">
-          {(task.available_actions || [])
-            .filter(
-              (x: string) =>
-                ![
-                  "edit",
-                  "comment",
-                  "attachment_add",
-                  "watcher_manage",
-                  "checklist_manage",
-                ].includes(x),
-            )
-            .map((x: string) => (
-              <button
-                key={x}
-                disabled={busy}
-                onClick={() =>
-                  ["publish", "start", "resume", "complete", "accept"].includes(
-                    x,
-                  )
-                    ? run(x)
-                    : setAction(x)
-                }
-              >
-                {actionLabels[x] || x}
-              </button>
-            ))}
-        </div>
+        <TaskActions task={task} busy={busy} onAction={(name) =>
+          ["publish", "start", "resume", "accept"].includes(name) ? run(name) : setAction(name)
+        } />
       </header>
       {error && <ErrorState error={error} />}{" "}
       {conflict && (
@@ -874,13 +904,11 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
           )}
         </section>
       </div>
-      {action &&
-        !["publish", "start", "resume", "complete", "accept"].includes(
-          action,
-        ) && (
+      {action && !["publish", "start", "resume", "accept"].includes(action) && (
           <ActionDialog
             action={action}
             busy={busy}
+            reviewRequired={task.acceptance_policy !== "none"}
             onCancel={() => setAction("")}
             onSubmit={(data) => run(action, data)}
           />

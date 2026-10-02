@@ -1,3 +1,6 @@
+## 02.10.2026 — Work Task actions UX (local candidate)
+
+В отдельной ветке `codex/work-task-actions` от `origin/main` упрощена шапка карточки Work Task: один следующий переход и доступное меню второстепенных операций. Completion flow показывает передачу на обязательную приёмку, сохраняет результат при ошибке и показывает server-derived blocker обязательного checklist без раскрытия действий пользователям без прав. Synthetic browser gate и затронутые backend/frontend проверки описаны в [WORK_TASK_ACTIONS_UX.md](WORK_TASK_ACTIONS_UX.md). Проверки выполнены в synthetic staging; релизный checkpoint разрешён после завершения gate.
 # Текущее состояние AYS Connect
 
 ## Projects UX — локальный staging candidate, 02.10.2026

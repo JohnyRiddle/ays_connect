@@ -92,6 +92,7 @@ class TaskDetailSerializer(TaskSerializer):
     checklists_count = serializers.SerializerMethodField()
     checklist_progress = serializers.SerializerMethodField()
     available_actions = serializers.SerializerMethodField()
+    action_blockers = serializers.SerializerMethodField()
 
     def get_comments_count(self, obj):
         return obj.production_comments.filter(deleted_at__isnull=True).count()
@@ -115,6 +116,13 @@ class TaskDetailSerializer(TaskSerializer):
         if not request or not hasattr(request.user, "employee"):
             return []
         return TaskUXService.available_actions(obj, request.user.employee, request.user.is_superuser)
+
+    def get_action_blockers(self, obj):
+        from .ux import TaskUXService
+        request = self.context.get("request")
+        if not request or not hasattr(request.user, "employee"):
+            return {}
+        return TaskUXService.action_blockers(obj, request.user.employee, request.user.is_superuser)
 
     class Meta(TaskSerializer.Meta):
         fields = TaskSerializer.Meta.fields

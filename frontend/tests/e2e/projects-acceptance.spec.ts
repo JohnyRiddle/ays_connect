@@ -83,9 +83,10 @@ test('manager creates project, stage, Work task, links existing task and complet
   await expect(page.getByRole('link',{name:'Задачи'})).toBeVisible();
   for(const id of ids) {
     await page.goto(`/tasks/${id}`);
-    await page.locator('.work-actions').getByRole('button',{name:'Начать',exact:true}).click();
-    await page.locator('.work-actions').getByRole('button',{name:'Завершить',exact:true}).click();
-    await expect(page.locator('.work-detail-head .work-status')).toHaveText('На проверке');
+    await page.locator('.work-actions').getByRole('button',{name:'Начать работу',exact:true}).click();
+    await page.locator('.work-actions').getByRole('button',{name:'Выполнить',exact:true}).click();
+    await page.getByRole('dialog').getByRole('button',{name:'Подтвердить'}).click();
+    await expect(page.locator('.work-detail-head .work-status')).toHaveText('На приёмке');
   }
   await page.getByLabel('Меню аккаунта').click();
   await page.getByRole('menuitem',{name:'Выйти'}).click();

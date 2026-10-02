@@ -72,7 +72,9 @@ class Command(BaseCommand):
         path = Path("/staging-private/projects-fixture.json")
         if path.exists():
             role=Role.objects.get(code="synthetic-projects-acceptance")
-            RolePermission.objects.get_or_create(role=role,permission=Permission.objects.get(code="employee.view"),defaults={"scope":"global"})
+            for code in ("employee.view", "task.pause", "task.reject", "task.cancel", "task.reopen",
+                         "task.reassign", "task.change_deadline", "task.watch"):
+                RolePermission.objects.get_or_create(role=role,permission=Permission.objects.get(code=code),defaults={"scope":"global"})
             for code in ("task_template.view", "task_template.use"):
                 RolePermission.objects.get_or_create(role=role,permission=Permission.objects.get(code=code),defaults={"scope":"own"})
             fixture=json.loads(path.read_text(encoding="utf-8"))
@@ -88,7 +90,8 @@ class Command(BaseCommand):
             codes = ("project.view", "project.create", "project.edit", "project.members_manage",
                 "project.structure_manage", "project.task_link_manage", "project.lifecycle", "project.comment",
                 "project.attachment_add", "project.attachment_delete", "task.view", "task.create", "task.edit",
-                "task.assign", "task.start", "task.complete", "task.accept", "task.reopen", "employee.view",
+                "task.assign", "task.start", "task.pause", "task.complete", "task.accept", "task.reject",
+                "task.cancel", "task.reopen", "task.reassign", "task.change_deadline", "task.watch", "employee.view",
                 "task_template.view", "task_template.use")
             for code in codes:
                 permission = Permission.objects.get(code=code)

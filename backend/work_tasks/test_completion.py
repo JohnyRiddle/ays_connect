@@ -15,7 +15,8 @@ from .automation import RecurrenceService, TaskTemplateService
 from .exceptions import TaskBusinessError, TaskValidationError
 from .models import (
     ChecklistTemplate, ChecklistTemplateItem, DeadlineRule, SourceType, Task,
-    TaskOccurrence, TaskPriority, TaskSavedView, TaskStatus, TaskWatcher,
+    TaskChecklist, TaskChecklistItem, TaskOccurrence, TaskPriority, TaskSavedView,
+    TaskStatus, TaskWatcher,
 )
 from .services import TaskService
 from .ux import SavedViewService, SavedViewValidator, SystemViewService, TaskUXService
@@ -182,6 +183,33 @@ class SavedViewsAndUXTests(CompletionPhaseTestCase):
         self.assertEqual(counters["my_tasks"], 1)
         self.assertEqual(counters["created_by_me"], 1)
         self.assertEqual(counters["watching"], 1)
+
+    def test_completion_blocker_is_exposed_only_while_required_item_is_incomplete(self):
+        self.mine.status = TaskStatus.IN_PROGRESS
+        self.mine.save(update_fields=["status"])
+        checklist = TaskChecklist.objects.create(
+            task=self.mine, name="Обязательный", created_by=self.actor
+        )
+        item = TaskChecklistItem.objects.create(
+            checklist=checklist, text="Подтвердить результат", position=1, required=True
+        )
+
+        self.assertNotIn(
+            "complete", TaskUXService.available_actions(self.mine, self.actor, is_superuser=True)
+        )
+        self.assertEqual(
+            TaskUXService.action_blockers(self.mine, self.actor, is_superuser=True),
+            {"complete": "Завершите обязательные пункты чек-листа."},
+        )
+
+        item.is_completed = True
+        item.completed_by = self.actor
+        item.completed_at = timezone.now()
+        item.save(update_fields=["is_completed", "completed_by", "completed_at"])
+        self.assertIn(
+            "complete", TaskUXService.available_actions(self.mine, self.actor, is_superuser=True)
+        )
+        self.assertEqual(TaskUXService.action_blockers(self.mine, self.actor, is_superuser=True), {})
 
 
 class CompletionApiTests(CompletionPhaseTestCase):
