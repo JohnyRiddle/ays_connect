@@ -120,6 +120,7 @@ class TaskUXService:
             if action in {"accept", "reject"}:
                 expected = task.author_id if task.acceptance_policy == "author" else task.responsible_employee_id
                 if employee.pk != expected: continue
+            if action == "publish" and (not task.title or not task.author_id or not task.responsible_target_id): continue
             if action == "complete" and task.status != TaskStatus.IN_PROGRESS: continue
             if action == "complete" and task.production_checklists.filter(removed_at__isnull=True, items__required=True, items__is_completed=False).exists(): continue
             if action == "pause" and task.status != TaskStatus.IN_PROGRESS: continue
@@ -135,6 +136,16 @@ class TaskUXService:
         """Expose blockers only for actions the current actor may perform."""
         if not is_superuser and not TaskAccessPolicy.allows(employee=employee, permission="task.view", task=task):
             return {}
+        may_publish = is_superuser or TaskAccessPolicy.allows(
+            employee=employee, permission="task.assign", task=task
+        )
+        if may_publish and task.status == TaskStatus.DRAFT:
+            missing = []
+            if not task.title: missing.append("название")
+            if not task.author_id: missing.append("автора")
+            if not task.responsible_target_id: missing.append("ответственного")
+            if missing:
+                return {"publish": f"Для публикации укажите {', '.join(missing)}."}
         may_complete = is_superuser or TaskAccessPolicy.allows(
             employee=employee, permission="task.complete", task=task
         )

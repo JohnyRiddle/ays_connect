@@ -31,6 +31,12 @@ function messageFromPayload(payload: unknown): string {
   if (!payload || typeof payload !== "object")
     return "Не удалось выполнить запрос.";
   const data = payload as Record<string, unknown>;
+  const nestedError = data.error;
+  if (nestedError && typeof nestedError === "object") {
+    const nested = nestedError as Record<string, unknown>;
+    if (typeof nested.message === "string") return nested.message;
+    if (typeof nested.detail === "string") return nested.detail;
+  }
   const candidate = data.detail || data.message || data.error || data.code;
   if (typeof candidate === "string") return candidate;
   for (const value of Object.values(data)) {

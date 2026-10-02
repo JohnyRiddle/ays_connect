@@ -7,6 +7,11 @@ async function session(page:any,tokens:any){await page.addInitScript((value:any)
 test('Work task header follows lifecycle, permissions and accessible actions menu',async({page,request})=>{
   const manager=fixture.actors.manager, executor=fixture.actors.executor;
   const managerAuth=await auth(request,manager); const mh={Authorization:`Bearer ${managerAuth.access}`};
+  const blockedCreated=await request.post('/api/internal/v1/tasks/',{headers:mh,data:{title:'Синтетическая задача без ответственного'}});
+  expect(blockedCreated.status()).toBe(201); const blockedTask=await blockedCreated.json();
+  await session(page,managerAuth); await page.goto(`/tasks/${blockedTask.id}`);
+  await expect(page.getByRole('button',{name:'Опубликовать',exact:true})).toBeDisabled();
+  await expect(page.getByText('Для публикации укажите ответственного.')).toBeVisible();
   const created=await request.post('/api/internal/v1/tasks/',{headers:mh,data:{title:'Синтетическая проверка действий Work',description:'Только изолированный staging',responsible_target:fixture.executor_target,executor_target:fixture.executor_target,acceptance_policy:'author'}});
   expect(created.status()).toBe(201); let task=await created.json();
   await session(page,managerAuth); await page.goto(`/tasks/${task.id}`); await page.setViewportSize({width:1440,height:900});

@@ -8,7 +8,7 @@
 
 Карточка Work Task показывает один основной следующий переход согласно фактической state machine: `draft → publish`, `open → start`, `waiting → resume`, `in_progress → complete`, `review → accept`. Второстепенные разрешённые операции находятся в меню «Действия»; отмена отделена и расположена последней. Основное действие не дублируется.
 
-Доступ формируется `TaskUXService` через существующие Permission и SQL scope. Для выполнения, временно заблокированного обязательным чек-листом, detail API возвращает `action_blockers.complete`; действие без полномочий не раскрывается. Наблюдение переключается существующими POST/DELETE `watch` endpoints.
+Доступ формируется `TaskUXService` через существующие Permission и SQL scope. Для выполнения, временно заблокированного обязательным чек-листом, detail API возвращает `action_blockers.complete`; действие без полномочий не раскрывается. Публикация черновика без обязательных данных блокируется до запроса с явной причиной, а структурированные сообщения backend `error.message` отображаются пользователю. Наблюдение переключается существующими POST/DELETE `watch` endpoints.
 
 «Выполнить» открывает completion dialog, сохраняет введённый результат при ошибке API и заранее сообщает о передаче на обязательную приёмку. Backend сохраняет прежнюю семантику: при `acceptance_policy != none` результат переходит в `review`; optimistic locking, Audit/Outbox и уведомления не менялись. Конфликт версии не повторяет команду автоматически и предлагает обновить данные.
 
@@ -20,6 +20,7 @@
 | Stale version и Audit/Outbox rollback | `TaskDeadlineHierarchyConcurrencyTests` и существующие domain tests | PASS |
 | Permission/scope и ограниченный пользователь | `TaskApiSecurityTests` + browser outsider | PASS |
 | Обязательный checklist и понятный blocker | `SavedViewsAndUXTests.test_completion_blocker...` | PASS |
+| Публикация без ответственного и точное сообщение | `SavedViewsAndUXTests.test_publish_blocker...` + browser gate | PASS |
 | Автор → исполнитель → принимающий | synthetic PostgreSQL staging browser | PASS |
 | Draft / In progress / Review, меню, отсутствие дубля primary | `work-actions-ux.spec.ts` | PASS |
 | Completion result, mandatory acceptance notice, API 500 input retention | `work-actions-ux.spec.ts` | PASS |

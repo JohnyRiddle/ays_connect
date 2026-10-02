@@ -184,6 +184,19 @@ class SavedViewsAndUXTests(CompletionPhaseTestCase):
         self.assertEqual(counters["created_by_me"], 1)
         self.assertEqual(counters["watching"], 1)
 
+    def test_publish_blocker_explains_missing_responsible(self):
+        self.mine.responsible_target = None
+        self.mine.responsible_employee = None
+        self.mine.save(update_fields=["responsible_target", "responsible_employee"])
+
+        self.assertNotIn(
+            "publish", TaskUXService.available_actions(self.mine, self.actor, is_superuser=True)
+        )
+        self.assertEqual(
+            TaskUXService.action_blockers(self.mine, self.actor, is_superuser=True),
+            {"publish": "Для публикации укажите ответственного."},
+        )
+
     def test_completion_blocker_is_exposed_only_while_required_item_is_incomplete(self):
         self.mine.status = TaskStatus.IN_PROGRESS
         self.mine.save(update_fields=["status"])
