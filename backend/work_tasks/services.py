@@ -108,6 +108,8 @@ class TaskService:
     def create(cls, *, actor, actor_user, title, description="", author=None, responsible_target=None, executor_target=None, correlation_id=None, **data):
         cls._authorize(actor=actor, actor_user=actor_user, permission="task.create")
         author = author or actor
+        from organizations.object_services import require_available_location
+        require_available_location(data.get("location"), actor_user)
         cls._validate_dates(data.get("planned_start_at"), data.get("due_at"))
         cls._validate_parent(None, data.get("parent"))
         task = Task.objects.create(number=cls._next_number(), title=title, description=description, author=author, responsible_target=responsible_target, executor_target=executor_target, created_by=actor_user, updated_by=actor_user, **data)
@@ -127,6 +129,9 @@ class TaskService:
                 changes.pop('acceptance_policy')
         if not changes:
             return task
+        from organizations.object_services import require_available_location
+        if "location" in changes and changes["location"] != task.location:
+            require_available_location(changes["location"], actor_user)
         allowed = {"title", "description", "priority", "planned_start_at", "parent", "org_unit", "legal_entity", "location", "acceptance_policy", "completion_policy"}
         if set(changes) - allowed:
             raise TaskValidationError("Попытка изменить защищённые поля задачи.", code="task_field_read_only")

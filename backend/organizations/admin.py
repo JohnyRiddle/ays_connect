@@ -1,6 +1,30 @@
 from django.contrib import admin
 from .models import Cluster, Company, Department, Facility, LegalEntity, Location, OrgUnit, Region, Zone
-for model in (Company, Region, Cluster, Facility, Department, Zone, LegalEntity, Location): admin.site.register(model)
+for model in (Company, Region, Cluster, Facility, Department, Zone, LegalEntity): admin.site.register(model)
+
+@admin.register(Location)
+class LocationAdmin(admin.ModelAdmin):
+    list_display = ("code", "name", "node_kind", "business_status", "is_archived")
+    readonly_fields = tuple(field.name for field in Location._meta.fields)
+    def has_add_permission(self, request): return False
+    def has_change_permission(self, request, obj=None): return False
+    def has_delete_permission(self, request, obj=None): return False
+    def get_fields(self, request, obj=None):
+        from rest_framework.exceptions import NotFound
+        from .object_services import ObjectService
+        fields = list(super().get_fields(request, obj))
+        if obj:
+            for field in ("parent", "legal_entity", "org_unit"):
+                value = getattr(obj, field)
+                if value:
+                    try:
+                        ObjectService.relation(request.user, value, value.__class__)
+                    except NotFound:
+                        fields.remove(field)
+        return fields
+    def get_queryset(self, request):
+        from .object_policies import LocationAccessPolicy
+        return LocationAccessPolicy.visible(request.user)
 
 @admin.register(OrgUnit)
 class OrgUnitAdmin(admin.ModelAdmin):

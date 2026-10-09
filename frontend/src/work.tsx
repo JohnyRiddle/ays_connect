@@ -335,6 +335,9 @@ function TaskList({ navigate }: { navigate: Navigate }) {
 }
 
 function TaskCreate({ navigate }: { navigate: Navigate }) {
+  const initialLocation = new URLSearchParams(window.location.search).get("location") || "";
+  const [locations, setLocations] = useState<any[]>([]);
+  useEffect(() => { lookupApi.locations().then(x => setLocations(x.results)).catch(() => {}); }, []);
   const [form, setForm] = useState<any>({
     title: "",
     description: "",
@@ -342,6 +345,7 @@ function TaskCreate({ navigate }: { navigate: Navigate }) {
     responsible_target: "",
     executor_target: "",
     due_at: "",
+    location: initialLocation,
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<any>();
@@ -353,6 +357,7 @@ function TaskCreate({ navigate }: { navigate: Navigate }) {
     try {
       const data = {
         ...form,
+        location: form.location || null,
         due_at: form.due_at ? new Date(form.due_at).toISOString() : null,
         responsible_target: form.responsible_target || null,
         executor_target: form.executor_target || null,
@@ -422,6 +427,7 @@ function TaskCreate({ navigate }: { navigate: Navigate }) {
             />
           </label>
         </div>
+        <label className="work-field"><span>Объект / локация</span><select value={form.location} onChange={event=>setForm({...form,location:event.target.value})}><option value="">Не указано</option>{initialLocation&&!locations.some(x=>x.id===initialLocation)&&<option value={initialLocation}>Выбранный объект</option>}{locations.filter(x=>!x.is_archived).map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
         <AssignmentSelector
           label="Ответственный target"
           value={form.responsible_target}
@@ -1168,6 +1174,9 @@ function RequestList({ navigate }: { navigate: Navigate }) {
 }
 
 function RequestCreate({ navigate }: { navigate: Navigate }) {
+  const initialLocation = new URLSearchParams(window.location.search).get("location") || "";
+  const [locationName, setLocationName] = useState("");
+  useEffect(() => { if (initialLocation) workRequest<any>(`/locations/${initialLocation}/`).then(x=>setLocationName(x.name)).catch(()=>setLocationName("Выбранный объект")); }, [initialLocation]);
   const [catalog, setCatalog] = useState<any[]>([]);
   const [typeId, setTypeId] = useState("");
   const [schema, setSchema] = useState<any>();
@@ -1226,6 +1235,7 @@ function RequestCreate({ navigate }: { navigate: Navigate }) {
       }
       const request = await requestsApi.create({
         request_type: typeId,
+        ...(initialLocation ? {location: initialLocation} : {}),
         subject: form.subject,
         description: form.description,
         priority: form.priority,
@@ -1255,6 +1265,7 @@ function RequestCreate({ navigate }: { navigate: Navigate }) {
         <div>
           <p>Каталог услуг</p>
           <h1>Создать заявку</h1>
+          {initialLocation && <p>Объект заявки: {locationName || "Загружаем…"}</p>}
         </div>
       </header>
       <form className="work-form" onSubmit={submit}>

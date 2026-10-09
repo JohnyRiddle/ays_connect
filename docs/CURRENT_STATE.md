@@ -1,3 +1,11 @@
+## 08.10.2026 — Objects READY FOR CHECKPOINT; O0 DATA BLOCKED
+
+Функциональность Objects реализована в изолированном worktree `codex/objects` от `64f85fa`: существующий Location UUID, UI create/retry, зоны/ответственные/lifecycle, scopes, Audit/Outbox, связанные People/Work/Requests/Projects. Финальное review всего tracked/untracked diff исправило create без view, скрытые FK в старом API/Admin, restore под архивным предком и потерю скрытых/неизменённых полей UI PATCH; связанные записи и legacy не классифицировались и не переносились.
+
+Synthetic acceptance **PASS** на окончательном коде 08.10.2026: свежий PostgreSQL **585/585** (в том числе Objects **36**, concurrency **4**), inventory **8/8**, browser **6/6**, build/check/drift/Compose/diff PASS; read-only upgrade/restore fingerprints повторно совпали. Схема при review не менялась, append-only install/upgrade evidence 02.10 сохранён. **O0 DATA BLOCKED; реальные mapping, перенос и production readiness — NOT VERIFIED.** Пустые локальные counts не трактуются как production.
+
+[Acceptance и команды](OBJECTS_ACCEPTANCE.md), [точный checkpoint manifest](OBJECTS_CHECKPOINT.md), [O0 evidence](OBJECTS_O0_ACCEPTANCE.md). Все 13 исходных незакоммиченных файлов прежнего checkout на main побайтово сохранены, в checkpoint не входят. Commit/push/merge/deployment не выполнялись.
+
 ## 02.10.2026 — Work Task actions UX (local candidate)
 
 В отдельной ветке `codex/work-task-actions` от `origin/main` упрощена шапка карточки Work Task: один следующий переход и доступное меню второстепенных операций. Completion flow показывает передачу на обязательную приёмку, сохраняет результат при ошибке и показывает server-derived blocker обязательного checklist без раскрытия действий пользователям без прав. Synthetic browser gate и затронутые backend/frontend проверки описаны в [WORK_TASK_ACTIONS_UX.md](WORK_TASK_ACTIONS_UX.md). Проверки выполнены в synthetic staging; релизный checkpoint разрешён после завершения gate.

@@ -27,6 +27,16 @@ class PermissionService:
         for assignment in grants.distinct():
             scopes = assignment.role.permission_grants.filter(permission__code=permission).values_list("scope", flat=True)
             for scope in scopes:
+                # Object scope is implemented by the Location domain only.
+                # Adding the enum must not authorize unrelated generic APIs.
+                if scope == "location":
+                    if obj is not None and obj.__class__.__name__ == "Location" and employee.user_id:
+                        from organizations.object_policies import LocationAccessPolicy
+                        if LocationAccessPolicy.allows(employee.user, permission, obj):
+                            return True
+                    elif obj is None and permission == "location.view" and assignment.location_id:
+                        return True
+                    continue
                 if obj is None:
                     if scope == "global" or assignment.org_unit_id or assignment.legal_entity_id or assignment.location_id:
                         return True

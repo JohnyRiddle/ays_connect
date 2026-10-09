@@ -117,7 +117,7 @@ class RequestSchemaValidator:
         equal=payload.get(cond["field"])==cond["value"]
         return equal if cond["operator"].upper()=="EQUALS" else not equal
     @classmethod
-    def validate(cls,schema_version,payload,employee=None):
+    def validate(cls,schema_version,payload,employee=None,actor_user=None):
         cleaned={}; errors={}; known={f["key"] for f in schema_version.schema_json["fields"]}
         for unknown in set(payload)-known: errors[unknown]=["Unknown field."]
         for field in schema_version.schema_json["fields"]:
@@ -127,12 +127,12 @@ class RequestSchemaValidator:
             if value in (None,""):
                 if field["required"]: errors[key]=["Required field."]
                 continue
-            try: cleaned[key]=cls._value(field,value,employee)
+            try: cleaned[key]=cls._value(field,value,employee,actor_user)
             except (ValueError,TypeError,InvalidOperation) as exc: errors[key]=[str(exc) or "Invalid value."]
         if errors: raise CatalogError({"fields":errors})
         return cleaned
     @classmethod
-    def _value(cls,f,v,employee):
+    def _value(cls,f,v,employee,actor_user=None):
         t,c=f["field_type"],f.get("config",{})
         if t in (FieldType.TEXT,FieldType.TEXTAREA,FieldType.FILE):
             if not isinstance(v,str): raise ValueError("Must be a string.")
@@ -162,6 +162,10 @@ class RequestSchemaValidator:
         elif t in cls.ENTITY_MODELS:
             uid=UUID(str(v)); obj=cls.ENTITY_MODELS[t].objects.filter(pk=uid).first()
             if not obj: raise ValueError("Entity not found.")
+            if t==FieldType.LOCATION:
+                from organizations.object_services import require_available_location
+                with transaction.atomic():
+                    require_available_location(obj,actor_user or getattr(employee,"user",None))
             if hasattr(obj,"is_active") and not c.get("allow_inactive") and not obj.is_active: raise ValueError("Entity is inactive.")
             if c.get("same_legal_entity") and employee and getattr(obj,"legal_entity_id",None)!=employee.legal_entity_id: raise ValueError("Entity is outside legal entity.")
             if c.get("org_unit_id") and str(getattr(obj,"org_unit_id",None))!=str(c["org_unit_id"]): raise ValueError("Entity is outside org unit.")
@@ -195,24 +199,32 @@ class ServiceRequestService:
         AuditService.record(action=action,entity=obj,actor_user=user,actor_employee=actor,old_value=old,new_value=new)
         DomainEventService.publish(event_type=action,entity=obj,actor=user,payload={"request_id":str(obj.pk),"number":obj.number,"status":obj.status})
     @classmethod
-    def _route(cls,request_type,requester,priority):
-        rules=request_type.routing_rules.filter(is_active=True).filter(Q(legal_entity__isnull=True)|Q(legal_entity=requester.legal_entity),Q(org_unit__isnull=True)|Q(org_unit=requester.org_unit),Q(location__isnull=True)|Q(location=requester.primary_location),Q(priority="")|Q(priority=priority)).order_by("order","id")
+    def _route(cls,request_type,requester,priority,location=None):
+        rules=request_type.routing_rules.filter(is_active=True).filter(Q(legal_entity__isnull=True)|Q(legal_entity=requester.legal_entity),Q(org_unit__isnull=True)|Q(org_unit=requester.org_unit),Q(location__isnull=True)|Q(location=location or requester.primary_location),Q(priority="")|Q(priority=priority)).order_by("order","id")
         first=rules.first()
         if not first:return None
         if rules.filter(order=first.order).count()>1: raise RequestBusinessError("Several routing rules have the same priority.",code="request_routing_ambiguous")
         return first.target
     @classmethod
     @transaction.atomic
-    def create(cls,*,actor,actor_user,request_type,subject,payload,requester=None,description="",priority=None):
+    def create(cls,*,actor,actor_user,request_type,subject,payload,requester=None,description="",priority=None,location=None):
         cls._authorize(actor,actor_user,"request.create")
         requester=requester or actor
+        from organizations.object_services import require_available_location
+        if location is not None:
+            from organizations.object_policies import LocationAccessPolicy
+            from rest_framework.exceptions import NotFound
+            if not LocationAccessPolicy.allows(actor_user, "location.view", location):
+                raise NotFound()
+        location = location or requester.primary_location
+        require_available_location(location)
         if requester!=actor:cls._authorize(actor,actor_user,"request.create_for_others")
         request_type=RequestType.objects.select_related("service__category","current_schema_version").get(pk=request_type.pk)
         if not request_type.is_active or not request_type.service.is_active or not request_type.current_schema_version_id or not RequestTypeAccessPolicy.category_path_active(request_type.service.category) or not RequestTypeAccessPolicy.allows(request_type,requester,actor_user):
             raise RequestBusinessError("Request type is unavailable.",code="request_type_unavailable")
-        cleaned=RequestSchemaValidator.validate(request_type.current_schema_version,payload,requester); priority=priority or request_type.default_priority
-        target=cls._route(request_type,requester,priority); employee=cls._resolve_one(target) if target else None; now=timezone.now()
-        obj=ServiceRequest.objects.create(number=cls._next_number(),request_type=request_type,schema_version=request_type.current_schema_version,requester=requester,created_by=actor_user,updated_by=actor_user,subject=subject,description=description,priority=priority,status=RequestStatus.ASSIGNED if employee else RequestStatus.NEW,service=request_type.service,category=request_type.service.category,assigned_target=target,assigned_employee=employee,responsible_target=target,responsible_employee=employee,org_unit=requester.org_unit,legal_entity=requester.legal_entity,location=requester.primary_location,routing_unresolved=not bool(target),submitted_at=now,assigned_at=now if employee else None)
+        cleaned=RequestSchemaValidator.validate(request_type.current_schema_version,payload,requester,actor_user); priority=priority or request_type.default_priority
+        target=cls._route(request_type,requester,priority,location); employee=cls._resolve_one(target) if target else None; now=timezone.now()
+        obj=ServiceRequest.objects.create(number=cls._next_number(),request_type=request_type,schema_version=request_type.current_schema_version,requester=requester,created_by=actor_user,updated_by=actor_user,subject=subject,description=description,priority=priority,status=RequestStatus.ASSIGNED if employee else RequestStatus.NEW,service=request_type.service,category=request_type.service.category,assigned_target=target,assigned_employee=employee,responsible_target=target,responsible_employee=employee,org_unit=requester.org_unit,legal_entity=requester.legal_entity,location=location,routing_unresolved=not bool(target),submitted_at=now,assigned_at=now if employee else None)
         fields={f["key"]:f for f in request_type.current_schema_version.schema_json["fields"]}
         ServiceRequestFieldValue.objects.bulk_create([ServiceRequestFieldValue(request=obj,field_key=k,field_type=fields[k]["field_type"],label=fields[k]["label"],value_json=v) for k,v in cleaned.items()])
         ServiceRequestStatusHistory.objects.create(request=obj,to_status=obj.status,actor=actor)
@@ -240,7 +252,7 @@ class ServiceRequestService:
         if set(changes)-{"subject","description","priority"}:raise RequestBusinessError("Protected request fields cannot be patched.",code="request_field_read_only")
         if payload is not None:
             if request.status not in {RequestStatus.NEW,RequestStatus.ASSIGNED}:raise RequestBusinessError("Dynamic values can only be edited before work starts.",code="request_payload_immutable")
-            old={v.field_key:v.value_json for v in request.field_values.all()};merged={**old,**payload};cleaned=RequestSchemaValidator.validate(request.schema_version,merged,request.requester)
+            old={v.field_key:v.value_json for v in request.field_values.all()};merged={**old,**payload};cleaned=RequestSchemaValidator.validate(request.schema_version,merged,request.requester,actor_user)
             definitions={f["key"]:f for f in request.schema_version.schema_json["fields"]}
             request.field_values.all().delete()
             ServiceRequestFieldValue.objects.bulk_create([ServiceRequestFieldValue(request=request,field_key=k,field_type=definitions[k]["field_type"],label=definitions[k]["label"],value_json=v) for k,v in cleaned.items()])

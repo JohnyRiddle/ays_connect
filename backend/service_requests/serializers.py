@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from employees.models import Employee
+from organizations.models import Location
 from .models import (ServiceCategory, Service, RequestType, RequestTypeAccessRule, RequestFieldDefinition, RequestFieldOption, RequestTypeSchemaVersion,
  ServiceRequest, ServiceRequestFieldValue, RequestRoutingRule, ServiceRequestTask, ServiceRequestComment, ServiceRequestAttachment, ServiceRequestWatcher, CollaborationVisibility, RequestStatus)
 
@@ -101,6 +102,7 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
         executions=list(instance.executions.all());return {"has_escalation":True,"current_level":max((x.rule_snapshot.get("level",0) for x in executions if x.status in {"succeeded","skipped"}),default=0),"last_triggered_at":max((x.triggered_at for x in executions),default=None),"has_failed_actions":any(x.status=="failed" for x in executions)}
 
 class RequestCreateSerializer(serializers.Serializer):
+    location=serializers.PrimaryKeyRelatedField(queryset=Location.objects.all(),required=False,allow_null=True)
     request_type=serializers.PrimaryKeyRelatedField(queryset=RequestType.objects.all());requester=serializers.PrimaryKeyRelatedField(queryset=Employee.objects.all(),required=False)
     subject=serializers.CharField(max_length=240);description=serializers.CharField(required=False,allow_blank=True);priority=serializers.ChoiceField(choices=RequestType.Priority.choices,required=False);payload=serializers.JSONField()
 

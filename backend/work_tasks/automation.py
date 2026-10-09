@@ -63,6 +63,8 @@ class TaskTemplateService(TemplatePermissionMixin):
     def create(cls, *, actor, actor_user, checklist_templates=(), correlation_id=None, **data):
         cls.authorize(actor, actor_user, "task_template.manage", TaskTemplate(created_by=actor, **data))
         cls._validate_rule(data.get("deadline_rule", DeadlineRule.NONE), data.get("deadline_offset"))
+        from organizations.object_services import require_available_location
+        require_available_location(data.get("location"), actor_user)
         template = TaskTemplate.objects.create(created_by=actor, **data)
         for index, checklist in enumerate(checklist_templates, start=1):
             TaskTemplateChecklist.objects.create(task_template=template, checklist_template=checklist, position=index)
@@ -73,6 +75,9 @@ class TaskTemplateService(TemplatePermissionMixin):
     @transaction.atomic
     def update(cls, *, template, actor, actor_user, checklist_templates=None, correlation_id=None, **changes):
         template = TaskTemplate.objects.select_for_update().get(pk=template.pk)
+        from organizations.object_services import require_available_location
+        if "location" in changes and changes["location"] != template.location:
+            require_available_location(changes["location"], actor_user)
         cls.authorize(actor, actor_user, "task_template.manage", template)
         rule = changes.get("deadline_rule", template.deadline_rule)
         offset = changes.get("deadline_offset", template.deadline_offset)

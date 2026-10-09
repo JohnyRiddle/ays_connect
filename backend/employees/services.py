@@ -53,6 +53,8 @@ class EmployeeService:
     def deactivate(*, employee: Employee, actor_user=None) -> Employee:
         locked = Employee.objects.select_for_update().get(pk=employee.pk)
         old = {"is_active": locked.is_active, "status": locked.status}
+        from organizations.object_services import ObjectService
+        ObjectService.end_employee_responsibilities(locked, actor_user)
         locked.is_active = False
         locked.status = Employee.Status.DISMISSED
         if locked.user_id:
@@ -88,6 +90,8 @@ class EmployeeService:
             return locked
         now = timezone.now()
         old = {"status": locked.status, "is_active": locked.is_active, "dismissed_at": locked.dismissed_at}
+        from organizations.object_services import ObjectService
+        ObjectService.end_employee_responsibilities(locked, actor_user)
         from access_control.models import EmployeeRole
         from access_control.services import RoleService
         for assignment in EmployeeRole.objects.filter(employee=locked, is_active=True).order_by("pk"):
@@ -186,6 +190,8 @@ class EmployeeAssignmentService:
         if not locked.is_active or locked.status == Employee.Status.TERMINATED:
             raise ValidationError("Terminated employee cannot receive assignments.")
         org_unit=context.get("org_unit")
+        from organizations.object_services import require_available_location
+        require_available_location(context.get("location"))
         if org_unit and (not org_unit.is_active or getattr(org_unit,"status","active")!="active"):
             raise ValidationError("Closed organizational unit cannot receive active assignments.")
         if is_primary and EmployeeAssignment.objects.select_for_update().filter(employee=locked, is_primary=True, status=EmployeeAssignment.Status.ACTIVE).exists():
