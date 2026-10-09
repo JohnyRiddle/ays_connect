@@ -34,6 +34,7 @@ test("synthetic create, edit, zones, responsibles, season, related and archive",
   await dialog.getByRole("combobox",{name:"Управляющий",exact:true}).selectOption({label:"Управляющий Синтетический"});
   await dialog.getByRole("button",{name:"Создать объект",exact:true}).click();
   await expect(page.getByRole("heading",{name,exact:true})).toBeVisible();
+  await expect(page).toHaveURL(url => /^\/objects\/[0-9a-f-]+$/.test(url.pathname));
   const id = new URL(page.url()).pathname.split("/").pop()!;
   await expect(page.getByRole("status")).toContainText("Объект создан");
   await page.getByRole("button",{name:"Добавить зоны",exact:true}).click();
@@ -172,6 +173,7 @@ test("synthetic duplicate confirmation, archive and restore retain identity",asy
   const dialog=page.getByRole("dialog");await dialog.getByLabel("Название *",{exact:true}).fill(name);await dialog.getByLabel("Тип объекта *").selectOption("bar");
   await dialog.getByRole("button",{name:"Создать объект",exact:true}).click();await expect(dialog.getByRole("alert")).toContainText("похожий");
   await dialog.getByRole("checkbox").check();await dialog.getByRole("button",{name:"Создать объект",exact:true}).click();await expect(page.getByRole("heading",{name,exact:true})).toBeVisible();
+  await expect(page).toHaveURL(url => /^\/objects\/[0-9a-f-]+$/.test(url.pathname));
   const id=new URL(page.url()).pathname.split("/").pop();
   await page.getByRole("button",{name:"Окончательно закрыть",exact:true}).click();await page.getByLabel("Причина",{exact:true}).fill("Синтетическое закрытие");await page.getByRole("dialog").getByRole("button",{name:"Подтвердить"}).click();
   await page.getByRole("button",{name:"Архивировать",exact:true}).click();await page.getByRole("dialog").getByRole("button",{name:"Подтвердить"}).click();await expect(page.locator(".object-status")).toHaveText("Архив");

@@ -1,5 +1,23 @@
 # Объекты — финальное review/acceptance, 08.10.2026
 
+## 09.10.2026 — acceptance рабочей восстановленной копии
+
+**Code/synthetic acceptance PASS; O0 inventory PASS для подтверждённого snapshot; restored upgrade compatibility PASS. Legacy mapping / transfer N/A: рабочие Facility=0, Zone=0. Production readiness CONDITIONAL / NOT VERIFIED полного выпуска, deployment NOT PERFORMED.** Предоставленный SSH identity снял DATA BLOCKED для документированного текущего источника: PostgreSQL 17.11, все восемь target models=0; 101 applied/0 pending/0 unknown migrations; 407/407 runtime Python/requirements files совпадают с main `64f85fa…` после нормализации EOL.
+
+PASS ограничен согласованным dump SHA из readiness report, получение завершено 2026-10-09T06:53:54.581111+00:00; время открытия PostgreSQL snapshot отдельно не записано.
+
+Точный runtime код: `73a8092b4b0675daf2f0a6ab11fb8e090226f58c` **плюс локальные две URL waits в objects.spec.ts**. Backend/UI runtime и миграции unchanged; browser-test SHA `0d19dad80147e1dbe658db52842ee84f32a5ca287f30f12574c8c3f5195facc9`. Полный 585 regression не повторялся; 32/32 transaction-rollback API checks на upgraded source copy, browser **6/6, 29.9s, exit 0** на окончательном test diff. Исправлена ранняя фиксация UUID до navigation, query created=1 допустим; Windows fixture encoding исправлено только в копии. Промежуточные failed browser attempts не объявляются PASS.
+
+Baseline 196 tables/1950 rows → upgrade 198/1973; пять append-only migrations; 192 old tables identical, четыре ожидаемых catalog/migration delta; grants unchanged. Original restore fingerprints PASS; исходные 2 Work/1 Project сохранились. Post-test differences только number counters от test creation; новых source users/passwords/roles не меняли. Значения/DB/private artifacts не входят в Git. [Полное evidence и команды](OBJECTS_RELEASE_READINESS.md), [O0](OBJECTS_O0_ACCEPTANCE.md). Fresh maintenance DB/media/off-host restore перед выпуском остаётся отдельным operational gate; merge/deployment не выполнялись.
+
+## История: актуализация 09.10 до предоставления identity
+
+Функциональность реализована. **Code / synthetic acceptance — PASS** для опубликованного checkpoint `73a8092b4b0675daf2f0a6ab11fb8e090226f58c`, draft [PR #1](https://github.com/JohnyRiddle/ays_connect/pull/1); текущая base main `64f85fa58f06bf3eb8f24108e7dc2cfe8d998e85`. Все 36 source SHA-256 совпадают с manifest; код и миграции не менялись, полный gate повторно не запускался. Новые локальные изменения только документационные.
+
+**O0 DATA BLOCKED; compatibility на восстановленной рабочей копии, реальные mapping, перенос и production readiness — NOT VERIFIED.** Повторный SSH с настроенными identities и существующим deploy-key не прошёл; подтверждённого актуального backup нет. Новых inventories/upgrade/browser на реальных данных нет. [O0 evidence](OBJECTS_O0_ACCEPTANCE.md), [release readiness и следующий шаг](OBJECTS_RELEASE_READINESS.md). Production deployment NOT PERFORMED. В этой задаче commit/push/merge не выполнялись; формулировки ниже о ещё не созданном checkpoint описывают состояние review 08.10 до его отдельной публикации.
+
+## Историческое финальное review 08.10
+
 **READY FOR CHECKPOINT. Функциональность реализована; synthetic acceptance — PASS. O0 DATA BLOCKED. Реальные mapping, перенос и production readiness — NOT VERIFIED.** Ветка `codex/objects`, база `64f85fa58f06bf3eb8f24108e7dc2cfe8d998e85`, отдельный managed worktree. Commit/push/merge/deployment не выполнялись.
 
 ## Три отдельных результата
