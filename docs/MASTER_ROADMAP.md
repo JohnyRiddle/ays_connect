@@ -1,3 +1,11 @@
+## 09.10.2026 — release STOP до maintenance; temporary persona закрыта
+
+Повторная фактическая storage проверка обнаружила незакрытый обязательный gate: действующий `ays-connect-production_backup_data`, 24 файла / 8124 KiB, находится на `/dev/sdb1 ext4`, без подтверждённого crypt-слоя. EFS off-host/LUKS rehearsal storage не защищает этот действующий volume. Перед GO требуется проверенное переключение всего periodic backup storage на encrypted mount с сохранением bytes/UID/GID/modes, возобновлением без запуска retention и отказом записи при отсутствии encrypted mount. Пользовательский downtime **0 секунд**; production init, merge, deployment и новый release backup не выполнялись. Прежняя версия production сохранена.
+
+Temporary production persona User 6 / Employee fa09c72e-5a01-49f4-a7da-8e32856ea903 штатно закрыта после STOP: active assignments 0, User inactive, Employee terminated/inactive; audited session revocation, фактический access до закрытия 200, тот же access после 401, refresh 401, новый login 401. Реальные User values не менялись, audit/rows сохранены. Live denied/scoped Objects acceptance **NOT PERFORMED**, прежний rehearsal PASS относится только к копии; этот cleanup PASS не является разрешением пропуска live gate. Для следующей попытки проверить статус persona и свежий baseline заново; не использовать уже отозванные credentials.
+
+Production после STOP: 11 running containers, backend и 6 workers healthy, backup running/unpaused, оба HTTPS домена и live/ready — 6/6 HTTP 200. Исходные dirty bytes сохранены. Snapshot O0/upgrade PASS и legacy N/A остаются ограничены snapshot 09:49 UTC; production readiness **CONDITIONAL**, deployment **NOT PERFORMED**. Разрешение release сохраняется после устранения STOP, повторное разрешение предусмотренных шагов не требуется.
+
 # AYS Connect — текущий roadmap
 
 ### 09.10.2026 — encrypted preflight и временная live persona подготовлены
