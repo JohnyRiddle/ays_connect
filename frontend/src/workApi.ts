@@ -87,9 +87,11 @@ export async function workRequest<T>(
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
     const fields: Record<string, string[]> = {};
-    if (payload && typeof payload === "object")
-      for (const [key, value] of Object.entries(payload))
+    const fieldPayload = payload?.error?.details || payload;
+    if (fieldPayload && typeof fieldPayload === "object")
+      for (const [key, value] of Object.entries(fieldPayload))
         if (Array.isArray(value)) fields[key] = value.map(String);
+        else if (typeof value === "string") fields[key] = [value];
     const kinds: Record<number, ApiErrorKind> = {
       400: "validation",
       401: "unauthenticated",

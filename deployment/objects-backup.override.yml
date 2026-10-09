@@ -1,0 +1,25 @@
+# Apply after production overrides. Values must come from a verified LUKS mount.
+# Missing values or bind sources fail; the guard rejects ordinary fallback storage.
+services:
+  backup:
+    image: ${OBJECTS_BACKUP_IMAGE:?pin the verified backup image}
+    pull_policy: never
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=64m
+    entrypoint: [sh]
+    command: ["-ec", "while true; do sh /opt/ays/periodic-backup-guard.sh; sleep 86400; done"]
+    environment:
+      EXPECTED_BACKUP_DEVICE: ${OBJECTS_BACKUP_DEVICE:?verify the encrypted device major:minor}
+    volumes:
+      - type: bind
+        source: ${OBJECTS_BACKUP_DIRECTORY:?verified encrypted backup directory required}
+        target: /backups
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${OBJECTS_BACKUP_GUARD_PATH:?verified guard file required}
+        target: /opt/ays/periodic-backup-guard.sh
+        read_only: true
+        bind:
+          create_host_path: false

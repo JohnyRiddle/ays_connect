@@ -66,11 +66,47 @@ class OrgUnit(TimestampedUUIDModel):
 
 
 class Location(TimestampedUUIDModel):
+    class NodeKind(models.TextChoices):
+        UNCLASSIFIED = "unclassified", "Не классифицировано"
+        GEOGRAPHY = "geography", "География"
+        SITE = "site", "Площадка"
+        OBJECT = "object", "Объект"
+        ZONE = "zone", "Зона"
+
+    class BusinessType(models.TextChoices):
+        RESTAURANT = "restaurant", "Ресторан"
+        BAR = "bar", "Бар"
+        NIGHTCLUB = "nightclub", "Ночной клуб"
+        HOTEL = "hotel", "Отель"
+        DORMITORY = "dormitory", "Общежитие"
+        WAREHOUSE = "warehouse", "Склад"
+        PRODUCTION = "production", "Производство"
+        OFFICE = "office", "Офис"
+        TECHNICAL = "technical", "Технический объект"
+        OTHER = "other", "Другое"
+
+    class BusinessStatus(models.TextChoices):
+        PREPARATION = "preparation", "Подготовка"
+        OPERATING = "operating", "Работает"
+        SEASONAL_CLOSED = "seasonal_closed", "Сезонно закрыт"
+        FINAL_CLOSED = "final_closed", "Окончательно закрыт"
+
     name = models.CharField(max_length=200)
     code = models.CharField(max_length=64, blank=True, null=True, unique=True)
     parent = models.ForeignKey("self", on_delete=models.PROTECT, null=True, blank=True, related_name="children")
     legal_entity = models.ForeignKey(LegalEntity, on_delete=models.PROTECT, null=True, blank=True, related_name="locations")
     location_type = models.CharField(max_length=64, blank=True)
+    node_kind = models.CharField(max_length=24, choices=NodeKind.choices, default=NodeKind.UNCLASSIFIED, db_index=True)
+    business_type = models.CharField(max_length=24, choices=BusinessType.choices, blank=True)
+    business_status = models.CharField(max_length=24, choices=BusinessStatus.choices, blank=True)
+    address = models.CharField(max_length=500, blank=True)
+    timezone = models.CharField(max_length=64, blank=True)
+    org_unit = models.ForeignKey(OrgUnit, on_delete=models.PROTECT, null=True, blank=True, related_name="locations")
+    contacts = models.CharField(max_length=1000, blank=True)
+    work_schedule = models.CharField(max_length=1000, blank=True)
+    description = models.TextField(blank=True, max_length=10000)
+    is_archived = models.BooleanField(default=False, db_index=True)
+    version = models.PositiveIntegerField(default=1)
 
     class Meta:
         indexes = [models.Index(fields=["parent"]), models.Index(fields=["legal_entity"])]
@@ -78,6 +114,37 @@ class Location(TimestampedUUIDModel):
 
     def __str__(self):
         return self.name
+
+
+class LocationResponsibility(TimestampedUUIDModel):
+    class Role(models.TextChoices):
+        MANAGER = "manager", "Управляющий"
+        TECHNICAL = "technical", "Технический ответственный"
+
+    location = models.ForeignKey(Location, on_delete=models.PROTECT, related_name="responsibilities")
+    employee = models.ForeignKey("employees.Employee", on_delete=models.PROTECT, related_name="location_responsibilities")
+    role = models.CharField(max_length=24, choices=Role.choices)
+    valid_from = models.DateTimeField(default=timezone.now)
+    valid_to = models.DateTimeField(null=True, blank=True)
+    end_reason = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["location", "role"], condition=models.Q(valid_to__isnull=True), name="location_one_current_responsible"),
+            models.CheckConstraint(condition=models.Q(valid_to__isnull=True) | models.Q(valid_to__gte=models.F("valid_from")), name="location_responsibility_period"),
+        ]
+
+
+class LocationIdempotency(models.Model):
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    operation = models.CharField(max_length=32)
+    key = models.CharField(max_length=128)
+    payload_hash = models.CharField(max_length=64)
+    location = models.ForeignKey(Location, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["actor", "operation", "key"], name="location_idempotency_actor_operation_key")]
 
 class Company(models.Model):
     name = models.CharField(max_length=200)

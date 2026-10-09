@@ -12,6 +12,7 @@ from sla.views import CalendarViewSet, PolicyViewSet, AssignmentRuleViewSet, Pre
 from employees.profile_api import AvatarView, ChangeRequestReviewViewSet, CompletenessView, DirectoryViewSet, MeView, OrganizationView, SelfChangeRequestViewSet, TeamsView, VisibilityView
 from employees.onboarding_phase24_api import AccountAccessView, AccountBlockView, AccountReactivateView, AccountRestoreView, FirstLoginView, InvitationViewSet, OnboardingTemplateViewSet, OnboardingViewSet, SelfOnboardingViewSet
 from projects.views import ProjectViewSet
+from organizations.objects_api import ObjectViewSet
 
 router = DefaultRouter()
 router.register("employees", EmployeeViewSet, basename="internal-employees")
@@ -27,6 +28,7 @@ router.register("positions", PositionViewSet, basename="internal-positions")
 router.register("legal-entities", LegalEntityViewSet, basename="internal-legal-entities")
 router.register("org-units", OrgUnitViewSet, basename="internal-org-units")
 router.register("locations", LocationViewSet, basename="internal-locations")
+router.register("objects", ObjectViewSet, basename="internal-objects")
 router.register("functional-groups", FunctionalGroupViewSet, basename="internal-functional-groups")
 router.register("teams", TeamViewSet, basename="internal-teams")
 router.register("assignment-targets", AssignmentTargetViewSet, basename="internal-assignment-targets")

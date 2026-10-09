@@ -9,6 +9,7 @@ class Scope(models.TextChoices):
     ORG_UNIT = "org_unit", "Подразделение"
     LEGAL_ENTITY = "legal_entity", "Юридическое лицо"
     GLOBAL = "global", "Глобально"
+    LOCATION = "location", "Объект и его зоны"
 
 
 class Permission(models.Model):

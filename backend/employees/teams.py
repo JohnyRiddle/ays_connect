@@ -71,6 +71,8 @@ class TeamService:
     @transaction.atomic
     def create(cls, *, actor_user=None, **data):
         candidate=Team(**data); cls._validate_context(candidate)
+        from organizations.object_services import require_available_location
+        require_available_location(data.get("location"))
         if data.get("lead_employee"):
             raise ValidationError("Руководителя можно назначить только после добавления его в активную команду.")
         for employee in (data.get("owner_employee"), data.get("lead_employee")):
@@ -83,6 +85,9 @@ class TeamService:
     @transaction.atomic
     def update(cls, *, team, expected_version, actor_user=None, **data):
         locked = Team.objects.select_for_update().get(pk=team.pk)
+        from organizations.object_services import require_available_location
+        if "location" in data and data["location"] != locked.location:
+            require_available_location(data["location"])
         if locked.version != expected_version: raise TeamConflict("Версия команды устарела.")
         forbidden = set(data) - cls.UPDATE_FIELDS
         if forbidden: raise ValidationError("Иерархию, руководство и lifecycle-поля можно изменять только отдельными операциями.")

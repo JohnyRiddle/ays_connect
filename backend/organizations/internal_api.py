@@ -22,6 +22,19 @@ class OrgUnitSerializer(serializers.ModelSerializer):
 
 
 class LocationSerializer(serializers.ModelSerializer):
+    def to_representation(self, obj):
+        from rest_framework.exceptions import NotFound
+        from .object_services import ObjectService
+        data = super().to_representation(obj)
+        for field in ("parent", "legal_entity", "org_unit"):
+            value = getattr(obj, field)
+            if value:
+                try:
+                    ObjectService.relation(self.context["request"].user, value, value.__class__)
+                except NotFound:
+                    data[field] = None
+        return data
+
     class Meta:
         model = Location
         fields = "__all__"
@@ -70,8 +83,12 @@ class OrgUnitViewSet(viewsets.ModelViewSet):
         return Response([node(x) for x in children.get(None,[])])
 
 
-class LocationViewSet(viewsets.ModelViewSet):
+class LocationViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Location.objects.select_related("parent", "legal_entity").order_by("name")
     serializer_class = LocationSerializer
     permission_classes = (InternalAPIPermission,)
     permission_domain = "location"
+
+    def get_queryset(self):
+        from .object_policies import LocationAccessPolicy
+        return LocationAccessPolicy.visible(self.request.user).order_by("name", "id")

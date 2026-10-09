@@ -67,6 +67,8 @@ class ProjectService:
     @transaction.atomic
     def create(cls, *, actor, actor_user, name, manager=None, correlation_id=None, **data):
         cls.authorize(actor, actor_user, "project.create")
+        from organizations.object_services import require_available_location
+        require_available_location(data.get("location"), actor_user)
         if not name.strip():
             raise ProjectBusinessError("Укажите название проекта.")
         if data.get("planned_start_at") and data.get("planned_end_at") and data["planned_start_at"] > data["planned_end_at"]:
@@ -140,6 +142,9 @@ class ProjectService:
         if project.is_archived or project.status in {ProjectStatus.COMPLETED, ProjectStatus.CANCELLED}:
             raise ProjectBusinessError("Финальный проект нельзя редактировать обычной командой.")
         allowed = {"name", "description", "goal", "expected_result", "manager", "customer", "org_unit", "location", "planned_start_at", "planned_end_at"}
+        from organizations.object_services import require_available_location
+        if "location" in changes and changes["location"] != project.location:
+            require_available_location(changes["location"], actor_user)
         if not changes or not set(changes) <= allowed:
             raise ProjectBusinessError("Укажите допустимые поля проекта.")
         if "name" in changes and not changes["name"].strip():
