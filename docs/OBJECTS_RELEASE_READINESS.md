@@ -1,8 +1,212 @@
 # Objects — release readiness, 09.10.2026
 
+## 09.10.2026 — обязательные pre-maintenance ресурсы подготовлены
+
+Новое разрешение пользователя допускает одну маркированную temporary production persona/Employee без staff/superuser, временные минимальные назначения только в smoke-контексте, аудит изменений и обязательное штатное закрытие с проверкой старых credentials. Создана **одна** persona `RELEASE-SMOKE-220ffac-PERSONA-8368bd894544` (User 6 / Employee fa09c72e-5a01-49f4-a7da-8e32856ea903), **0 grants/assignments**, существующие User/roles/grants не менялись. Django UserManager + EmployeeService + Audit применены без invitation и notification delivery event types. Первая защитная транзакция откатилась до commit из-за ошибочного сравнения служебного ModelState; повторное сравнение persisted values исправлено, orphan rows отсутствуют. Пропуск integer sequence значения возможен после rollback, это не дополнительный аккаунт. Normal login/me через SSH-only ingress — 200. Credentials/token values находятся только в EFS private files, в Git/чат/логи не выведены.
+
+Штатный **самостоятельный вход Ивана** на `http://localhost:13041` подтверждён UI меню аккаунта: ivan@ays-connect.ru. Подготовленный immutable ingress не публикует ports; доступ только SSH `127.0.0.1:13041`, production public proxy пока продолжает прежнюю работу. Ingress отображает RC frontend, upstream до deployment — прежний backend. Пароль и roles/grants владельца не менялись, owner tokens не извлекались и не выпускались обходом auth.
+
+### Защита файлов и проверка recovery key
+
+Пользователь назначил **I:\AYS Connect** off-host хранилищем. Новые каталоги создаются с user-only ACL и **EFS до записи raw files**. Проверена реальная EFS encryption (AES-256), не неподтверждённый BitLocker. В `I:\AYS Connect\Objects\snapshot-20261009T0949Z` четыре файла snapshot/digests/age копии, SHA исходных DB/media совпадают. Все 96 файлов прежнего private release evidence и private evidence более раннего O0 snapshot также зашифрованы EFS; исходные bytes сохранены. Release private state/persona credentials в `I:\AYS Connect\Objects\release-220ffac\private`, шифрование наследуется. Full-disk BitLocker **NOT VERIFIED**, не используется как доказательство.
+
+Отдельная физическая key copy: **F:\CodexRecovery\objects-220ffac**, disk 2, user-only ACL, Windows DPAPI CurrentUser. Source identity на C: disk 3, backup destination I: disk 0. Защищённая SSH key copy восстановлена в память/age stdin; **фактическая расшифровка существующего age backup дала исходные DB/media SHA**. Private key не записывался в plaintext temporary file и не включён в архив. Ограничение: все диски на том же Windows host, DPAPI зависит от профиля/master keys текущего пользователя; portable/off-device disaster recovery **не проверен**. Не удалять исходную identity/Windows key material по сроку backup.
+
+Server контур: **LUKS2 / aes-xts-plain64**, новый 2 GiB файл `/home/ivan/ays-objects-rc-065325677b2c/encrypted-storage/storage.luks`, mapper `/dev/mapper/objects-220ffac-recovery`, mount `/home/ivan/ays-objects-rc-065325677b2c/encrypted-storage/mounted`. Ключ случайный 64 bytes, единственная persistent key copy DPAPI на F:, в server filesystem не записан. Восстановленный из DPAPI ключ успешно прошёл `cryptsetup open --test-passphrase`; findmnt доказал encrypted mapper. Для root-only storage preparation использован краткоживущий configured Docker helper без network; production mounts не затрагивались. IPC/udev ожидание первого helper устранено, для последующих helpers используется host IPC; повторный format не выполнялся.
+
+Существующий server snapshot backup перенесён на encrypted mount с сохранением прежнего пути symlink; SHA DB/media прежние. Четыре **остановленных** rehearsal volumes перенесены на encrypted mount с bind к прежним Docker mountpoints: RC pg **4740 files**, media **4**, static **163**, предыдущий O0 pg **4743**. Все file SHA/UID/GID/modes совпали; production DB/media volumes не менялись. Raw `/tmp` двух retained copy API сохранён в encrypted storage, copy API пересозданы с прежними image/commands/environment, read-only rootfs и encrypted /tmp; прежние ephemeral writable layers удалены, **DB records/backup history не удалялись**. После исправления env-file newline передача всех environment values проверена; RC copy check/migrate --check PASS, helpers остановлены.
+
+Это **file/logical-volume at-rest защита Objects backup/rehearsal scope**, не доказательство физического стирания старых plaintext blocks на свободном месте. Free-space remanence **NOT VERIFIED**, wipe/retention не выполнялись. Старый periodic production backup history/daemon не менялся и не принимается как encrypted release storage; новую rollback точку создавать только на проверенном LUKS mount и EFS off-host destination. После reboot unlock/mount и все bind mounts требуют восстановления с ключом recovery owner; **STOP до записи**, если findmnt не указывает mapper. Retained copies не должны стартовать автоматически в отсутствие encrypted mounts.
+
+### Минимальный live scope и обязательное закрытие
+
+Подготовленный сценарий проверен только на изолированной копии: authenticated no-grant detail 404/create 403/list count 0/lookups; затем **только** location.view + location.manage_zones с location scope на маркированном root, list count 1/detail 200/lookup 200/zone create 201, root create вне контекста 403, related People/Tasks/Requests/Projects скрытые counts 0. RoleService revoke → detail 404; EmployeeService terminate → User/Employee inactive, active assignments=0; **старый access/refresh и новый login 401**, global grants=0. Аудит сохранён; это rehearsal, **не production permissions PASS**.
+
+Live применит тот же минимум к разрешённому `RELEASE-SMOKE-220ffac-<UTC>` root; общий role/grants реальных пользователей не трогать. Positive scoped-create здесь — **зона внутри явно разрешённого test parent**. Positive **root-object** scoped-create через LegalEntity — **N/A при отсутствии разрешённого LegalEntity-контекста**, не отмечать PASS и не создавать реальное юрлицо/оргструктуру предположением; попытка вне контекста обязана быть denied. Location permissions не должны давать доступ к People/Work/Requests/Projects: проверить related counts и прямые недоступные реальные records, без новых рабочих связей.
+
+Ровно один root через owner UI, replay без дубля и одна зона; зона создаётся scoped persona. Операции cleanup root/zone выполняет owner, права test role лишь view/manage_zones. Каждое назначение/revoke через RoleService, дополнительно аудит scope/root/expiry и фактическая permission check. Уборка **всегда**, включая STOP: revoke test assignments, deactivate test-only role, EmployeeService terminate для User/Employee, framework SessionStore delete только сессий test user (аудировать), проверить свежий valid access до деактивации и тот же access/refresh/new login 401 после неё. Никаких SQL DELETE или удаления audit/domain rows. Cleanup script и phase state сохранены в защищённом private storage.
+
+Актуальный preflight source после создания persona: **Users 5 / Employees 4**, Work 2, Project 1, Requests 0; восемь целевых справочников отдельно 0. Migrations **101/0/0**, source runtime 407/407, реальные EmployeeRole=1 и global location view/manage по 1. Прежняя O0 acceptance остаётся привязана к snapshot 09:49, новая persona и post-snapshot drift должны войти в **новый frozen baseline/rollback backup**. До нового backup/restore+full-copy-init и GO merge/production init не выполнялись; production readiness **CONDITIONAL**, deployment **NOT PERFORMED на момент этого preflight**. Следующие действия уже разрешены пользователем; повторных разрешений на предусмотренные шаги не требуется.
+
+
+## 09.10.2026 — production release preflight: STOP ДО MAINTENANCE
+
+Пользователь разрешил merge/release по runbook, но явно запретил считать разрешение принятием пропуска обязательного gate. Recovery owner — **Иван**, хранение 90 дней, удаление только по его решению. Разрешение сохраняется; повторное подтверждение предусмотренных шагов не требуется после устранения конкретных блокеров. До устранения обязательных условий PR #1 остаётся draft/open/unmerged, HEAD RC `220ffac89568a0e7b2aa493a4b599e0aa1946772`; release/merge SHA отсутствует. Production downtime этой попытки **0 секунд**, init/migrations/image switch/новый backup/write-smoke не выполнялись.
+
+Повторный read-only inventory (`transaction_read_only=on`) фактического production: applied migrations **101**, Location/Facility/Zone и Company/Region/Cluster/LegalEntity/OrgUnit отдельно **0**. Users **4** против snapshot **3**, Employees **3** против **2**: имеется drift реальных данных после snapshot 09:49 UTC, перенос прежней acceptance на них запрещён. Role **1**, RolePermission **125**, EmployeeRole **1**; fingerprints всех трёх совпадают с frozen snapshot. Source runtime backend и каждого из шести workers: **407/407** нормализованных tracked Python/requirements hashes совпали с main `64f85fa58f06bf3eb8f24108e7dc2cfe8d998e85`. В момент preflight все прежние 13 containers/images сохранены: 11 running, 2 exited one-offs; оба HTTPS домена /, live, ready — **6/6 HTTP 200**. Семантический скан новых данных/свежая frozen acceptance ещё не выполнены, прежний O0 PASS остаётся ограничен snapshot 09:49.
+
+Pinned backend/frontend images и production override повторно прошли config/digest/env/command/mount проверки; SHA override прежний. Runtime/schema RC не изменились, документы не требуют image rebuild. Штатный production UI через существующую сессию показывает аккаунт **ivan@ays-connect.ru**, active superuser с active Employee подтверждён read-only. Пароль/roles/grants не менялись, токены не извлекались и не выпускались серверным обходом. Доступ к original-origin UI подтверждён; login/session для **отдельного SSH-only smoke origin ещё NOT VERIFIED**, существующая сессия автоматически между origins не переносится. До downtime необходим реально проверенный штатный вход на smoke origin.
+
+Обязательные STOP-блокеры:
+
+1. **Live scoped/denied persona отсутствует.** Текущие active non-superuser=0, в том числе suitable active Employee persona=0. Есть inactive non-superuser, его не активировали и credentials не использовали. Основной owner superuser непригоден для проверки scoped/denied прав. Анонимно на RC можно проверить отказ без JWT/с невалидным JWT (401), отсутствие анонимного доступа и закрытый admin route (403 на ingress). Это не проверяет authenticated 403/hidden-detail 404/scoped list/detail/lookup/counts, scoped create и доступ к связанным People/Work/Requests/Projects. Эти сценарии подтверждены **только на изолированной копии**; production PASS им не присваивается. Необходима доступная подходящая существующая active persona и штатная авторизация; новое сообщение не является waiver. Новые accounts, activation или grants changes этой попыткой не выполняются.
+2. **Защита всех backup/raw/restore storage не доказана.** Повторный Windows BitLocker query не дал успешного status; ACL подтверждает access restriction, не encryption. Server guest topology ext4/LVM без crypt/LUKS слоя, encryption provider storage не подтверждена. Age encrypted copy проверенного 09:49 backup остаётся валидной, но raw source/off-host files, retained earlier evidence и restored PG/media volumes этим не защищены. До maintenance требуется подтверждённое encrypted хранение всего охватываемого raw/restore набора и новых release файлов; старые копии/volumes нельзя удалять без решения Ивана.
+3. **Отдельная защищённая key custody отсутствует в доказательствах.** Имеющаяся identity находится на том же Windows устройстве в OneDrive Desktop; независимое защищённое место/доступ recovery owner и контроль восстановления оттуда не подтверждены. Сам факт ключа вне ciphertext archive не закрывает gate. Не копировать private key в backup/repository и не запрашивать его в чате.
+4. **Штатная авторизация SSH-only smoke не завершена.** Original-origin session есть; доступного подтверждённого login для отдельного loopback origin пока нет. Подготовить и подтвердить его до write freeze, без передачи password/token в чат, сброса пароля или обхода auth.
+
+Действие по STOP: production остаётся на прежней версии и продолжает обычную работу; maintenance/merge/release не начаты. Исходные dirty-файлы сохраняются. После устранения ресурсов и persona/auth выполнить новый read-only drift review, затем разрешённый цикл fresh freeze/защищённый off-host rollback point/restore/init/smoke/workers/open. Пользовательское разрешение цикла не нужно запрашивать повторно. После новых writes старый backup не восстанавливать вслепую; решение сохранения новых данных и rollback принимает Иван.
+
+
+## Финальный пакет выпуска RC 220ffac — подготовлен, production не переключён
+
+Evidence O0/upgrade относится строго к frozen snapshot **09.10.2026, 09:49 UTC** (capture 09:49:39.874375–09:49:41.107101 UTC), source main `64f85fa58f06bf3eb8f24108e7dc2cfe8d998e85`. O0 — PASS; upgrade полного init восстановленной off-host копии — PASS; legacy mapping/перенос — N/A только этому snapshot. Ограничения semantic scan и пустых FileField references из репетиции сохраняются. Эти результаты не доказывают состояние production после возобновления writes.
+
+Перед подготовкой повторно проверен diff четырёх документов против сохранённых reviewed SHA-256: совпадает. `git diff 73a8092b4b0675daf2f0a6ab11fb8e090226f58c 220ffac89568a0e7b2aa493a4b599e0aa1946772 -- backend frontend` содержит только прежний browser-test; substantive working-tree diff backend/frontend пуст. Runtime и схема не менялись. Повтор полного 585 regression не нужен. В этой задаче изменены только четыре документа; CRLF-only views.py и 13 исходных dirty-файлов сохранены побайтово, index пуст.
+
+### Immutable артефакты и override
+
+Все images доступны локально на production Docker host в отдельном staging `/home/ivan/ays-objects-rc-065325677b2c/release-package`; registry push и переключение сервисов не выполнялись. Docker inspect подтверждает разрешение каждого указанного RepoDigest в соответствующий image ID (linux/amd64). `pull_policy: never` исключает незаметную подмену загрузкой; перед выпуском повторить inspect и проверку наличия.
+
+| Артефакт | Проверенный RepoDigest |
+|---|---|
+| Backend / init / шесть workers, exact RC, 416/416 source hashes | `ays-objects-rc-065325677b2c@sha256:83c65c8816fcff3c09ea37482282edc13397fd67440dba8bb83d0eadfb98ffa6` |
+| Frontend, exact git archive RC, VITE_API_URL=/api/v1, VITE_APP_VERSION=full RC | `ays-objects-rc-065325677b2c@sha256:69fe92bab0926f813ea68d2bee60c3746883e876a4eb8ea6108a21251fe3b85f` |
+| Test-only ingress, тот же проверенный frontend bundle | `ays-objects-rc-065325677b2c@sha256:ddb5cc4736ea2a96437f33b2add2142d5d47b7caf517127c89b7f15c986d6126` |
+| Сохранённый source proxy | `caddy@sha256:af32e97399febea808609119bb21544d0265c58a02836576e32a2d082c262c17` |
+
+`production.override.yml` SHA-256 `00cca67bbd90d850618bfb06538c4a529e84c49ca548e61a64bc304daa2c9560`. `docker compose --env-file /opt/ays-connect/.env.production -p ays-connect-production -f <stage>/source/docker-compose.prod.yml -f <stage>/source/docker-compose.iiko.yml -f <stage>/production.override.yml config --quiet` — PASS. Полный config с секретами не сохранялся/не выводился. Проверены одинаковый backend digest для восьми сервисов, frontend digest, AYS_CONNECT_VERSION, прежние environment values (кроме version), iiko Gunicorn command, реальные volume/network names. Сохранён фактический TLS Caddy bind `/home/ivan/ays-releases/64f85fa58f06bf3eb8f24108e7dc2cfe8d998e85/deployment/Caddyfile.production` (SHA `f60739fcf1e5e5de2f1cf12ff7a2227244b86158a41ae0e4c14204448230ae5c`), а не Git RC HTTP-config.
+
+Ingress Caddy validate — PASS. Через ingress с immutable production-flavoured frontend на уже upgraded изолированной копии выполнен неизменный `objects.spec.ts`: **6/6 PASS**, включая scoped negative persona, idempotency, lifecycle и archive. `/admin/` — 403, anonymous Objects API — 401; опубликованных портов нет, copy network internal=true, source mounts/networks отсутствуют. Исходные строки копии сохранены с ранее оговорённым исключением трёх synthetic number counters; migrate --check — PASS. Helpers остановлены, volumes сохранены. Это artifact acceptance на копии, не production smoke. Подготовка не запускала production init/backup/retention и не меняла production services.
+
+### Фактическая защита backup и согласованные решения
+
+Recovery owner — **пользователь**, разрешение отката/сохранения новых данных даёт он. Backup, защищённые копии и rehearsal volumes хранить **90 дней**; удаление только по отдельному разрешению пользователя, без автоматического удаления по истечении срока. Для snapshot 09:49 минимальная дата — **07.01.2027 09:49:41 UTC**; для свежего release backup срок отсчитывается заново. Не менять periodic production retention в этой задаче; release evidence хранится вне его назначения.
+
+Windows ACL off-host directory — user-only; BitLocker подтвердить не удалось, **NOT VERIFIED**. Server файлы 0600 / directory 0700, filesystem ext4 на LVM; guest lsblk не содержит crypt/LUKS слоя. ACL/mode не являются доказательством шифрования. Шифрование хоста провайдера не проверено. Исходные database.dump/media.tar.gz и восстановленные volumes остаются без подтверждённой at-rest encryption.
+
+Доступный вариант проверен фактически: official **age v1.3.2**, Windows release ZIP SHA подтверждён GitHub release metadata. Создана отдельная encrypted copy **существующего** snapshot, без нового production backup: private `snapshot-20261009T0949Z.tar.age`, SHA `477d3dcc4e3338ebf305d82b9c01ad6fa73293cd855980c2fcdc2bdfb7657df0`. Расшифрование в память дало исходные SHA DB/media; tamper rejection — PASS. Recipient — public key существующей SSH identity, private key не включён в архив. [age поддерживает SSH-ed25519 identities](https://github.com/FiloSottile/age/blob/main/README.md). Ключ сейчас на том же Windows устройстве (OneDrive Desktop): независимая защищённая key custody **не доказана**. Ciphertext защищён на уровне файла, но общая защита всех raw копий этим не закрыта. Исходные файлы не удалялись.
+
+До GO обеспечить cipher-only хранение нового rollback DB/media point (потоковое шифрование до записи archive на persistent storage, отдельные plaintext/ciphertext checksums, явная проверка pipe exit codes), доступность ключа recovery owner через защищённый отдельный канал и восстановление именно из off-host ciphertext. В isolated restore plaintext PG/media volumes защищать реально подтверждённым encrypted storage; иначе отдельно принять ограничение, не заявлять at-rest gate PASS. Не уничтожать старые raw copies без разрешения пользователя.
+
+### Restricted smoke — согласованный сценарий, запуск не выполнен
+
+P1 — существующий active superuser с active Employee; пользователь согласовал выполнение оператором через собственный логин. Соответствие аккаунту хранится только в private `smoke-persona-candidates.private.json`. Перед окном проверить актуальные flags/Employee/grants read-only. Не создавать/активировать accounts, не менять пароли или grants. P1 проверяет позитивный путь; superuser не доказывает scoped permissions. В snapshot нет active non-superuser/denied persona. **Оставшееся решение пользователя:** предоставить существующую подходящую persona для live scoped/denied проверки либо явно согласовать это ограничение выпуска, опираясь на изолированные tests. Сейчас live scoped acceptance не закрыт.
+
+Ingress запускать только в разрешённом release window, при публичном proxy и writers закрытых. Отдельный контейнер exact ingress digest в production network, read-only rootfs, tmpfs /data,/config, static volume read-only; **без -p**, без media route, `/admin/*` запрещён. SSH tunnel с локальным bind `127.0.0.1:<port>` к private IP ingress:8080; operator browser открывает loopback. Upstream `backend:8000`, Host localhost/X-Forwarded-Proto https; доступ к серверу только настроенной SSH identity. Production network само по себе не internal (имя не доказательство), поэтому отсутствие public published ports и private SSH path проверять фактически. Подготовленный config уже проверен на copy; production ingress в этой задаче не запускался.
+
+1. UI exact bundle: создать один `RELEASE-SMOKE-220ffac-<UTC>` объект, office / Asia/Novosibirsk / preparation. Не создавать LE/OrgUnit и не переводить в operating без действующего необходимого контекста. Сохранить payload/key/UUID в private журнале. Идентичный replay — тот же UUID (201 затем 200), изменённый payload с тем же key — 409, без второго Domain Audit/Outbox.
+2. Создать ровно одну `<marker>-ZONE`, каждый раз брать текущую version. Проверить list/detail/tree/lookup/counts, parent UUID/version и related People/Work/Requests/Projects read-only. Anonymous — 401; scoped/denied проверки только согласованной существующей persona. Legacy Location writes — 405, Django Admin ограничения — по ранее принятому code/copy evidence: production admin ingress закрыт.
+3. Уборка domain API/UI: archive zone → close root с reason `release smoke completed` → archive root. Между действиями GET current version. Проверить запрет новой зоны под archived root (400, ноль записей). Не DELETE/SQL cleanup; UUID, код и история сохраняются.
+4. Допустимые domain writes: два Location, один LocationIdempotency, пять соответствующих событий Audit/Outbox: location.created, location.zone_created, location.archive(zone), location.close(root), location.archive(root). Также обычные auth/session/JWT artifacts существующего логина и необходимые технические служебные записи; отдельно зарегистрировать фактический delta. Ни User/Employee/grants, ни responsibilities/assignments, ни реальных задач/обращений/проектов не создавать. Replay/conflict/failed archived create не добавляют domain events. Непредусмотренный delta — STOP. Workers пока не запускаются.
+
+### Выпуск: обязательные GO / STOP и следующее разрешение
+
+Ниже — подготовленный порядок, **не выполненные production команды**. Существующий раздел runbook ниже даёт backup/init/rollback детали; этот package section уточняет immutable images, SSH-only ingress, решения владельца и at-rest ограничения.
+
+1. **GO preflight:** repeat read-only drift/source hashes/applied migrations/counts/grants/persona checks, место, tools, immutable refs/override, off-host destination и ключ восстановления. Snapshot 09:49 не переносить на новые данные. Неизвестный drift/legacy или отсутствующий ресурс — STOP до downtime; повторить необходимую isolated acceptance.
+2. **GO write freeze:** новое согласованное окно; зафиксировать текущие IDs/images/states/config. Закрыть public proxy, остановить backend/шесть writers после завершения jobs; periodic backup pause, не restart/retention. Подтвердить отсутствие внешних writers, in-flight/prepared transactions. Иначе STOP и resume старых IDs.
+3. **GO rollback point:** свежий согласованный DB/media после возобновлённых writes, уникальные имена без перезаписи/retention, подтверждённая encryption, plaintext/ciphertext SHA. Off-host transfer/checksum, decrypt/restore из этих off-host файлов в новые isolated encrypted volumes с egress blocked/no workers/source mounts. Сверить current frozen business/grant/media fingerprints и ожидаемый plan. При необходимости долгой репетиции сначала возобновить старый production; затем новое freeze и новая актуальная точка, если writes изменились. Нельзя использовать устаревшую точку как fresh.
+4. **GO init:** только после gates 1–3 и отдельного разрешения, ровно один `dc run --rm --no-deps init` с backend digest. Ожидаемые пять migrations перечислены ниже; migrate+seed_permissions+collectstatic+chown. Повторный plan пуст, check/drift/RBAC/business/media сохранены. Unexpected plan/privilege/data delta либо partial init failure — STOP, не повторять init вслепую.
+5. **GO restricted smoke:** `dc run --rm --no-deps frontend_assets`, затем `dc up -d --no-deps --no-build --force-recreate backend` с pin. Public proxy закрыт; SSH-only ingress+согласованные personas, сценарий выше и archive cleanup. Проверить image/version, health/ready/media/legacy consumers, событийный delta. Scoped gate должен быть закрыт persona или явно принят owner как ограничение. При failure — STOP/write freeze.
+6. **GO writers:** заменить/запустить ровно шесть workers с тем же backend digest (`--no-deps --no-build`); проверить health/heartbeats, Outbox pending/failed/repeated и внешние effects. С этого момента возможны новые реальные записи/доставки даже при закрытом proxy. Непредусмотренная доставка/дубли/сбой — STOP.
+7. **GO users:** убрать test-only ingress, проверить старый сохранённый TLS config и HTTPS/live/ready/SPA при restricted доступе; открыть пользовательский ingress только после всех проверок. Согласованно resume periodic backup без немедленного retention release point. Записать UTC открытия и actual deployed IDs/digests. До этого deployment не считается завершённым.
+
+**Откат:** до init вернуть сохранённые старые IDs без зависимостей. После init schema compatibility старого кода не предполагается; reverse migrations автоматически не выполнять. При rollback восстановить fresh off-host backup в новые volumes, не поверх рабочей БД, сохранить изменённый контур/evidence. Потерю даже разрешённых smoke/auth/Audit/Outbox записей разрешает только recovery owner. После workers/user writes старый backup **нельзя восстанавливать вслепую**: снова freeze, защищённая аварийная копия текущего состояния по разрешению, полный delta новых записей/media/external effects, план сохранения/replay/forward fix и решение пользователя. Внешняя доставка restore не отменяется.
+
+**Точный объём следующего разрешения:** maintenance/freeze и актуальный защищённый rollback DB/media backup, off-host verification+isolated restore, применение указанного init/пяти migrations и exact images, SSH-only P1 smoke (один объект/зона, архивирование, только перечисленные effects), запуск workers/проверка Outbox и открытие доступа при GO. Не включать создание accounts/grants, legacy классификацию/перенос, blind restore/потерю новых записей. Commit/push/merge отдельно этим пакетом не разрешены. При STOP возврат прежнего контура до init допускается по runbook; после data-changing действий решение об откате принимает пользователь.
+
+Итог: **release package подготовлен; production readiness CONDITIONAL; deployment NOT PERFORMED**. Остаточные gates: актуальный drift/fresh rollback point/off-host restore, доказанная защита всех release backup/restore storage и независимая key custody, решение по live denied/scoped persona, отдельно разрешённые production init/smoke/workers/open и последующая фактическая проверка.
+
+
+## 09.10.2026 — предрелизная backup / full-init репетиция RC 220ffac
+
+**O0 frozen snapshot — PASS; согласованный DB/media backup, off-host checksum и independent restore — PASS; полный фактический init RC и upgrade — PASS; API 32/32 и browser 6/6 — PASS. Legacy mapping / перенос — N/A только для этого snapshot. Production readiness — CONDITIONAL; deployment и production write-smoke — NOT PERFORMED.**
+
+Разрешение этой задачи: кратко закрыть пользовательский доступ, остановить writers, подготовить свежий согласованный backup и восстановить off-host файлы в новом isolated contour. Production init/migrate, изменение рабочей схемы/данных/accounts/grants, merge, commit, push и deployment не разрешены и не выполнялись. После off-host проверки прежний production возобновлён **до** изолированной репетиции.
+
+### RC и актуальный source drift
+
+RC `220ffac89568a0e7b2aa493a4b599e0aa1946772`, branch `codex/objects`, [draft PR #1](https://github.com/JohnyRiddle/ays_connect/pull/1). `git diff --name-only 73a8092b4b0675daf2f0a6ab11fb8e090226f58c 220ffac89568a0e7b2aa493a4b599e0aa1946772` содержит только шесть документов и browser-test: runtime/schema неизменны. Текущий browser-test raw SHA `0d19dad80147e1dbe658db52842ee84f32a5ca287f30f12574c8c3f5195facc9`, обе URL assertions сохранены. Полный 585 regression не повторялся; его evidence от 08.10 относится к неизменному runtime. Новые API/browser результаты ниже относятся к **свежей** восстановленной копии после **полного init**, не к прежнему online dump.
+
+Фактический production project `ays-connect-production`, working directory из labels `/home/ivan/ays-releases/64f85fa58f06bf3eb8f24108e7dc2cfe8d998e85`, Compose prod + iiko из этой директории; настроенный environment file `/opt/ays-connect/.env.production`. Содержимое env/identity/credentials не выводилось. Backend container/image прежние: `f66b6b84e6bb5f9b032183635a0ed7149487dc902fdf8858d7ee4f36287bbbb2` / `sha256:182f57f5ad5340e055edf113e66ab4ce7886a0995c48b324bcb826224d6e9b6f`.
+
+Read-only source inventory через установленный production Django runtime и прежние PGOPTIONS: PostgreSQL **17.11**, applied/pending/unknown **101/0/0**. Backend и **каждый из шести workers** совпали с main `64f85fa…` по **407/407** Python/requirements files. Images workers различны, их фактические IDs зафиксированы отдельно, равенство images не предполагается. Все 13 containers/images/commands/mounts/states сохранены в private evidence; 11 running и 2 exited one-offs (init/frontend_assets). Возобновление сохранило эти IDs/images и running/exited states, one-offs не запускались.
+
+Актуальные counts отдельно: **Location=0; Facility=0; Zone=0; Company=0; Region=0; Cluster=0; LegalEntity=0; OrgUnit=0**. FK fields **71**, все reference counts=0, errors=0. Source Users=3, Employees=2, Work Task=2, Project=1, ServiceRequest=0, iiko KnownGuest=2, CardCreation=0. Global location.view=1, global location.manage=1, EmployeeRole=1. После возобновления source снова 101/0/0 и все восемь counts=0; fingerprints Users/Employees/Role/RolePermission/EmployeeRole совпали с frozen baseline.
+
+Fresh semantic scan этого snapshot: **505 fields / 5477 nonempty values**, включая 39 пустых JSON containers. Явных **непустых** object ID/key references=0; два location_id keys в Outbox имеют null и не являются mapping candidates. Audit object references=0; GenericForeignKey fields=0. Значения и ПДн не выводились. Ограничение неизменно: encoded/name-only/произвольные свободные ссылки автоматический скан не исключает. Empty legacy N/A доказан рабочими таблицами этого backup; искусственные legacy строки, классификация и перенос не создавались.
+
+### Preflight, write freeze и возобновление
+
+До downtime проверены strict known-host SSH, Docker 29.7.2, tar/sha256sum, pg_dump/pg_restore 17.11, Edge/Playwright, место (~35 GB server / ~105 GB off-host при preflight), mode 0700 нового server directory и off-host ACL только текущего пользователя вне Git/OneDrive. Собран отдельный RC backend image **`sha256:83c65c8816fcff3c09ea37482282edc13397fd67440dba8bb83d0eadfb98ffa6`**; все **416/416** RC Python/requirements files совпали с git archive exact RC. До downtime подготовлены inert capture container, новая internal network, пустые PG/media/static volumes и inert RC API. Это rehearsal artifact; production image override/frontend image этим не принимаются.
+
+Проверены host timers, cron.d и cron spool без вывода содержимого заданий: AYS/Docker/DB backup jobs вне известного backup container не обнаружены; production DB/Redis не публикуют ports, публичный ingress только proxy. Periodic backup container находился в sleep 86400 без pg_dump/tar. Вместо stop/start применён **pause/unpause того же ID**: остановлен таймер/retention и сохранено прежнее ожидание; restart старого loop немедленно вызвал бы backup.sh/retention. Старые backup SHA до/после совпали, удаления/retention и перезаписи не было.
+
+Proxy и backend остановлены по сохранённым IDs с timeout 330s. Worker PID1 shell не передаёт TERM sleep; только после завершения Python jobs безопасно завершены idle sleep, затем подтверждено exited состояние всех шести workers. Busy job не прерывался; завершающий helper может получить exit 137 при остановке namespace, это не считается доказательством завершения job без inspect. После всех остановок **other client connections=0, in-flight transactions=0, prepared transactions=0**. DB/Redis продолжали работать. Для resume использован `docker start` сохранённых backend/worker/proxy IDs, не Compose dependency traversal; backup unpause.
+
+| Событие | UTC 09.10.2026 |
+|---|---|
+| Начало maintenance операции | 09:47:03.146947 |
+| Proxy stopped (Docker FinishedAt) | 09:47:04.101417879 |
+| Write freeze / нулевые in-flight подтверждены | 09:49:37.825392 |
+| Frozen row baseline сохранён | 09:49:39.874375 |
+| Начало DB/media capture command | 09:49:39.874375 |
+| Окончание capture command | 09:49:41.107101 |
+| Off-host SHA проверены | 09:49:43.696577 |
+| Прежний proxy started (Docker StartedAt) | 09:50:17.798340263 |
+| Все внешние HTTPS проверки завершены | 09:50:24.749291 |
+
+**Proxy stopped interval — 193.697s (3 min 13.7s); вся maintenance операция до финальных проверок — 201.602s (3 min 21.6s).** Время недоступности HTTPS ограничено сверху 200.648s от FinishedAt до завершения проверок; мгновенная готовность TLS в StartedAt не предполагается. Snapshot идентифицирован ниже dump SHA и frozen capture window; отдельный timestamp открытия pg_dump transaction не измерялся.
+
+До открытия proxy backend ready=200 и все семь writer containers healthy. После открытия `https://ays-connect.ru` и `https://www.ays-connect.ru`: `/`, `/api/v1/health/live/`, `/api/v1/health/ready/` — **200** с проверкой TLS. Старые DB/Redis/backup и workers работают; после остановки rehearsal production снова проверен **2026-10-09T10:15:06.022180+00:00**: прежние IDs/images/states, HTTPS/health PASS. Production schema/RBAC/data mutation commands и write-smoke не выполнялись; обычная работа прежних workers после resume разрешена и может создавать новые записи.
+
+### Новый backup / off-host / independent restore
+
+Уникальный server directory `/home/ivan/ays-objects-rc-065325677b2c/backup`, без прежних production backup mounts для записи. Read-only production media mount использовался только inert capture helper, после получения файлов helper остановлен. `backup.sh`, retention, DROP DATABASE и существующие restore scripts не запускались.
+
+Защищённое off-host назначение **`C:/Users/riddl/.codex/private/objects-release-85aee147f94841ba8aafadafca64b5ec`**: вне OneDrive/Git, inheritance удалён, ACL текущего пользователя; транспорт SSH с known-host проверкой. Source/off-host SHA256SUMS совпали:
+
+| Файл | Bytes | SHA-256 |
+|---|---:|---|
+| database.dump | 1 024 851 | `df1943c4e0286cb1d0cfe55ade14ce636187138134f137d1c0d1e9762c777504` |
+| media.tar.gz | 398 | `63e15ba15ac544c6de0d349438e999d5025d7b1ff3accf7bf1e89577f4225d63` |
+
+Archive listing проверен; media members только относительные media/ paths, без traversal/links/devices. Перед restore SHA повторно проверены. Обе БД **objects_copy и objects_original** восстановлены `pg_restore --exit-on-error --no-owner --no-acl` из **локального off-host database.dump через SSH stdin**, media — из **локального off-host media.tar.gz**, не из server-local backup. DB owner/ACL адаптированы к новой isolated роли; production roles/grants не менялись.
+
+Новый project **ays-objects-rc-065325677b2c**: network `-net` internal=true, volumes `-pg`, `-media`, `-static`, containers `-db` / `-api`. Нет published ports, production mounts/networks и production runtime env, restored workers/cron; SMTP/Telegram/iiko disabled, signing secret и DB password новые. Из copy TCP к 1.1.1.1:443 и 109.237.109.58:443 блокирован. SSH loopback tunnel даёт только локальный доступ к copy API. Инертный capture helper с разрешённым source read-only mount остановлен до репетиции и не относится к восстановленным DB/API mounts.
+
+Оба restore до init: **196 tables / 1950 rows**, все fingerprints совпали с frozen source. Independent objects_original осталась неизменной и после всех тестов. Media **4 files / 40 content bytes**, все hashes совпали до/после init/tests, app имеет права чтения; реальных FileField references в snapshot **0**, missing=0. Это подтверждает перенос фактического архива, но не функциональность отсутствующих пользовательских attachments. Off-host ACL/SSH защита подтверждена; статус BitLocker/at-rest encryption не удалось прочесть без administrative rights (`manage-bde -status C:`: access denied). Политика долговременного хранения, at-rest защиты и recovery owner требуют согласования для выпуска; этот отчёт не утверждает encrypted-at-rest backup.
+
+### Полный actual init и acceptance свежей копии
+
+Ordered migration plan до init ровно пять entries, как в runbook ниже; approved plan SHA-256 (UTF-8 lines, final LF) **`ff6526d3ca8a01154ebe65465a60f81340f972be1cea90b1c3dcc34311834baf`**. Actual init command сверена с exact RC Compose и выполнена **один раз только в copy**, user 0:0:
+
+```sh
+python manage.py migrate --noinput && python manage.py seed_permissions && python manage.py collectstatic --noinput && chown -R app:app /app/media /app/staticfiles
+```
+
+Full init started **2026-10-09T09:53:41.065071+00:00**, finished **2026-10-09T09:53:50.900860+00:00**. Exit **0**: пять migrations OK, `Permissions ready: 162`, **163 static files** собраны и доступны app. Это PASS полного init, включая seed_permissions/collectstatic/chown, который прежний online-snapshot отчёт не проверял. Copy runserver для browser работал от **app**, не root.
+
+После init: **198 tables / 1973 rows**, **192 исходные таблицы fingerprints unchanged**. Только ожидаемые deltas: access_control_permission **166→174**, auth_permission **740→748**, django_content_type **185→187**, django_migrations **101→106**; две новые Organizations tables пусты. Все старые catalog identities/rows сохранены; seed_permissions существующие labels не изменил (**renamed=0**). Role, RolePermission, EmployeeRole, User privileges/passwords и Employee fingerprints неизменны; новые grants реальным пользователям отсутствуют. Старые business sequences unchanged; изменились только auth_permission/django_content_type/django_migrations sequences вслед за catalog additions. Все восемь справочников после init ещё пусты, автоматической классификации/legacy insertion/backfill нет.
+
+`MigrationExecutor` повторный plan **[]**, `check` **0 issues**, `migrate --check` PASS, `makemigrations --check --dry-run` **No changes detected**. После tests повторный plan [] / applied=106.
+
+- **32/32 ObjectsTests methods**, **19.078s**, каждая проверка в atomic rollback на objects_copy без test DB/flush: create/replay/conflict/scopes/list/detail/lookups/counts, lifecycle/zones/responsibles, Audit/Outbox, old API/Admin/ORM bypass, bindings/related policies. Четыре concurrency tests не повторялись: их PASS — прежний PostgreSQL 585 checkpoint на неизменном runtime.
+- Новая non-superuser persona с **125** cloned grants существующей роли: capability/create/replay PASS; исходная роль и реальные accounts не менялись. В atomic rollback новая test-admin persona прочитала исходные **2 Work / 1 Project**, status 200; это не обещает доступ всем существующим scoped ролям.
+- **Browser 6/6 PASS, 29.5s, exit 0** на fresh full-init copy, exact RC test SHA выше; Edge/Playwright, loopback UI13031/API18081, прежний final frontend build index-DwZChlut.js / index-BBC6vgjQ.css. Все assertions поведения и две URL assertions сохранены; ошибок/ожиданий не подавляли. Fixtures прочитаны UTF-8, созданы только новые copy synthetic accounts/records.
+- После acceptance все исходные строки сохранены; только три source number-counter rows в employees_employeenumbersequence, projects_projectnumbersequence, work_tasks_tasknumbersequence изменились от тестовых созданий. Это **тестовые эффекты в копии**, не миграции или production mutations. Media hashes и independent original restore unchanged.
+
+API/DB/capture rehearsal containers и local SSH/UI helpers после проверки остановлены; новые volumes, RC image и оба backup экземпляра сохранены. Private evidence хранит команды, stdout/stderr init/API/browser, hashes, row/sequence preservation, media manifest, IDs/states, исходный/последующий read-only inventory. В Git нет dump/media/ключей/env/PII. Исходные 13 dirty-файлов и raw CRLF-only views.py проверены побайтово; staging/HEAD не изменяются этой задачей.
+
+### Конкретный следующий выпуск — только по отдельному разрешению
+
+1. Утвердить окно, release/recovery owner, test personas/допустимые smoke effects, защищённое долговременное off-host хранение (включая применимую at-rest policy), ingress allowlist и условия rollback. **Merge/deploy/init/write-smoke требуют отдельного разрешения.** Текущий draft PR не merged; фиксировать exact RC SHA либо отдельно пересмотренный итоговый merge SHA.
+2. Подготовить отдельный clean release root для exact RC, сохранив старый root `64f85fa…`, env wiring `/opt/ays-connect/.env.production` и iiko overlay. Собрать **frontend Dockerfile.prod** с VITE_API_URL=/api/v1 и VITE_APP_VERSION=exact RC; зафиксировать immutable frontend image и bundle hashes. Для init/backend/шести workers проверить один approved backend image ID/digest (rehearsal 83c65c… уже соответствует 416 source files); подготовить image override, `config --quiet`, inspect каждого image. Проверенный loopback UI build не выдавать за production bundle acceptance.
+3. Заново read-only проверить source/image/migrations/counts/refs/grants **после возобновления production**. Новые legacy/scopes/schema drift — STOP, новая inventory/mapping/upgrade acceptance. Обычные новые Work/Projects требуют fresh preservation baseline. Этот backup 09:49 UTC нельзя использовать как гарантированно актуальную release rollback точку после новых writes.
+4. В новом согласованном write window закрыть ingress, корректно завершить writers (idle-worker helper ниже), приостановить sleeping backup timer без retention, подтвердить in-flight/prepared=0. Создать **новый** согласованный DB/media backup, source/off-host SHA match и independent restore proof. Сохранить исходные IDs/images/states. При ошибке **до init** вернуть старые IDs, проверить workers/health/HTTPS и открыть прежний доступ; не применять RC. Длительную новую data rehearsal снова проводить с возобновлённым прежним production, затем согласовать новую актуальную rollback точку перед выпуском.
+5. Пока writes закрыты и свежий reviewed plan ровно ожидаемые пять additions, **один** `dc run --rm --no-deps init` из approved backend image; сравнить output, повторный пустой plan/check/RBAC/business/media. Не повторять partial init вслепую. Затем `frontend_assets --no-deps`, заменить только backend approved image без зависимости на init/assets. Workers пока stopped. Test-only ingress — доказанный allowlist либо операторский loopback tunnel, общий proxy закрыт.
+6. **Отдельно авторизованный** create/replay/conflict/zone/rights/Audit/Outbox smoke с согласованными personas, ключом и маркированными объектом/зоной; read-only People/Work/Requests/Projects и media/HTTPS smoke, без произвольных real-account/LE/grant изменений. Только после PASS запустить шесть approved-image workers, проверить heartbeats/Outbox/integrations, затем открыть public writes. Зафиксировать момент первых новых writes/deliveries и отдельно согласовать backup/retention resume с сохранением rollback point.
+7. STOP/rollback по разделу 7 ниже: до init resume old IDs; после migrations code-only rollback **не доказан**. По умолчанию restore свежего pre-release DB/media в **новые** volumes после отдельного решения recovery owner, сохраняя изменённые. После реальных новых writes/deliveries **никакого blind restore**: freeze, разрешённая emergency copy/current delta, preservation/replay или forward fix; reverse migrations/DROP/удаление текущих volumes не выполнять.
+
+**Остаются:** отдельное разрешение выпуска/merge/production init/write-smoke; immutable frontend artifact + проверенный production image override/config; работающий test-only ingress и согласованные personas; актуальная на момент выпуска drift/inventory/RBAC и свежая rollback DB/media точка после возобновлённых writes; off-host retention/at-rest/recovery policy; actual production smoke/HTTPS/workers/Outbox и rollback решение для новых записей. Выполненная репетиция закрыла backup/restore/full-init gates **для указанного frozen snapshot**, не все release gates и не deployment.
+
+## История: online DB snapshot и upgrade до полного init, 06:53 UTC
+
+Следующие разделы до release runbook сохраняют прежнее evidence без переименования snapshot. Их указания о ещё невыполненном maintenance backup/full init относятся к прежней задаче; текущие результаты и остаточные условия — выше.
+
 **O0 inventory — PASS для подтверждённого рабочего snapshot. Upgrade / сохранность — PASS. Legacy mapping и перенос — N/A: Facility=0, Zone=0. Production readiness — CONDITIONAL / NOT VERIFIED; deployment — NOT PERFORMED.**
 
-## Точная версия
+### Точная версия
 
 Runtime checkpoint `73a8092b4b0675daf2f0a6ab11fb8e090226f58c`, ветка `codex/objects`; draft [PR #1](https://github.com/JohnyRiddle/ays_connect/pull/1), main/base `64f85fa58f06bf3eb8f24108e7dc2cfe8d998e85`, 46 checkpoint files. Перед работой все 36 raw SHA совпали с [manifest](OBJECTS_CHECKPOINT.md).
 
@@ -10,7 +214,7 @@ Release candidate: отдельный commit `docs(objects): record production s
 
 Code/synthetic acceptance — PASS: runtime regression 08.10 PostgreSQL 585/585 (Objects 36, concurrency 4), inventory 8/8, frontend build/check/drift/install/upgrade/restore PASS. Полный gate не повторялся: общие services/permissions/schema и runtime UI не менялись. Изменённый browser test повторно проверен 6/6 на восстановленной рабочей копии; PASS относится к окончательному локальному diff.
 
-## Подтверждённый источник
+### Подтверждённый источник
 
 Работающий `ays-connect-production` на документированном `109.237.109.58:40222`, `/opt/ays-connect`. Пользователь предоставил существующий SSH identity; подключение с BatchMode/IdentitiesOnly/StrictHostKeyChecking прошло. Содержимое ключа, env и credentials не выводилось. Предыдущие отказы default/deploy identity — исторические, DATA BLOCKED снят для этого источника.
 
@@ -24,7 +228,7 @@ Source applied migrations **101**, pending **0**, unknown **0**. Релеван�
 
 Fresh `pg_dump --format=custom --no-owner --no-acl` streamed по SSH в новый защищённый каталог **вне Git/OneDrive** с ACL текущего пользователя. Получение dump завершено **2026-10-09T06:53:54.581111+00:00**, размер **1 024 854 bytes**, SHA-256 `041c5fc9f2e6b7dd14b4c78909d50dd27afb6ff8d0e0f0a54126444816c3521b`. Это timestamp завершения получения артефакта, а не отдельно измеренное время открытия PostgreSQL snapshot: время открытия транзакции pg_dump не записано. O0 PASS относится к source snapshot/этому dump SHA и прочтениям 09.10, не к произвольному будущему состоянию production. Это online согласованный DB snapshot, не maintenance DB/media release backup. Исторический backup 10.09 не использовался. Исходный dump не изменялся.
 
-## Инвентаризация актуального snapshot
+### Инвентаризация актуального snapshot
 
 | Модель | Count | Пустые поля / дубли / дерево / связи |
 |---|---:|---|
@@ -43,7 +247,7 @@ Fresh `pg_dump --format=custom --no-owner --no-acl` streamed по SSH в нов�
 
 На исходной восстановленной версии в READ ONLY просмотрено **505** JSON/string/text полей, **5477** непустых значений. Явных объектных ключей/ID/UUID-паттернов — **0**, audit object references — **0**, GenericForeignKey fields — **0**. Ни значения, ни ПДн в stdout/Git не выведены. Ограничение: автоматический скан не доказывает отсутствие произвольных encoded/name-only ссылок; нет существующих целевых объектов, с которыми их можно сопоставить. Свободные тексты не считаются основанием CREATE_NEW. Кандидатов реального mapping нет по причине отсутствия legacy, а не из-за неподтверждённого matching.
 
-## Изолированная копия и upgrade
+### Изолированная копия и upgrade
 
 Выделенный Docker contour/project label `ays-objects-o0-b5d1348f6936`, новые `-net` (**internal=true**) и `-pg` volume; DB/API containers `-db` / `-api`. Существующие DB/volumes не удалялись и не перезаписывались. Docker CLI использован вместо Compose init: ни bootstrap, ни workers не запускались. Базы `objects_copy` и отдельно `objects_original` созданы с новыми именами. Нет public ports, production network/Redis/media mounts и внешнего выхода. Временный signing secret и DB credentials новые; restored sessions не открыты наружу. Исходный image использован только как dependency runtime; `git archive HEAD backend` скопирован в отдельный inert API container, production code не заменялся.
 
@@ -70,7 +274,7 @@ organizations.0007_binding_lifecycle_guards
 
 `check`: 0 issues; `migrate --check`: PASS; `makemigrations --check --dry-run`: No changes detected; повторный migration plan пуст. Исходный dump независимо восстановлен в **objects_original**: все 196 tables / 1950 rows и их fingerprints совпали с baseline. Upgraded dump не подменяет этот restore proof.
 
-## Проверки на восстановленной структуре
+### Проверки на восстановленной структуре
 
 - **32/32** ObjectsTests methods выполнены внутри отдельных atomic rollback на objects_copy, без Django test DB/flush. Новые test accounts/records откатились; concurrency 4 здесь не повторялись, их evidence — checkpoint 585 gate.
 - Проверены create/idempotency/payload conflict, scopes/list/detail/lookup/counts, hidden related data, Audit/Outbox rollback, версии/дерево/циклы, зоны/ответственные/lifecycle, старый API/Admin/ORM bypass, archive bindings и Work/Requests/Projects policies.
@@ -81,7 +285,7 @@ organizations.0007_binding_lifecycle_guards
 
 Фактический каталог объектов пуст; больших lookup проблем на нём не воспроизведено. Предел Employee UI lookup 200 и первая страница move UI остаются известными ограничениями, не доказанными проблемами текущего snapshot. Синтетические legacy строки тестов не объявляются реальными и не служат основанием mapping.
 
-## Команды и воспроизведение
+### Команды и воспроизведение
 
 Все DB-changing команды ниже относятся **только к новой isolated copy**, не production. Paths/credentials заменяются настроенными безопасными значениями; env не печатать. Записывать новый source timestamp/SHA, не переиспользовать существующие имена DB/volumes.
 
@@ -112,7 +316,7 @@ node frontend/node_modules/@playwright/test/cli.js test objects.spec.ts --config
 
 Private artifacts/metadata находятся в защищённом каталоге вне Git. Raw data и dump в Git не включать. `backup.sh` с retention и restore scripts с DROP DATABASE не использовались. После проверок новые тестовые API/DB **остановлены**, volume/backup сохранены, local tunnel/UI закрыты. Production backend имеет прежние container ID/image и healthy status; исходный dump SHA повторно совпал. Копия не очищалась.
 
-## Mapping, transfer и release
+### Mapping, transfer и release
 
 | Статус | Результат / основание |
 |---|---|
@@ -126,9 +330,11 @@ Private artifacts/metadata находятся в защищённом катал
 
 Нет неразрешённых реальных mapping/мультиюридических решений на этом snapshot. Это не blanket acceptance для будущих populated данных или другого источника. Перед выпуском остаются свежий maintenance DB/**media** backup, off-host checksum/restore, immutable release images и утверждённый actual migration plan; данный online DB snapshot не заменяет эти operational gates. Этот follow-up commit/push и обновление draft PR разрешены отдельным запросом на RC; новый production backup, merge и deployment в текущей задаче не выполняются.
 
-## Release runbook — подготовлен, НЕ ИСПОЛНЕН
+## Release runbook — production release требует отдельного разрешения
 
-Runbook дополняет [PRODUCTION_DEPLOYMENT](PRODUCTION_DEPLOYMENT.md). Исполнение требует отдельного разрешения на maintenance/backup/smoke/deployment. В этой задаче нижеописанные production операции не запускались. Выход каждого этапа — закрытый gate с evidence; отсутствие evidence означает STOP, а не допущение.
+Backup-only maintenance и full init **копии** выполнены выше. Production init, переключение release images и write-smoke ниже не выполнялись. При остановке старых workers использовать проверенный idle-loop helper ниже; shell PID1 не пересылает TERM sleep.
+
+Runbook дополняет [PRODUCTION_DEPLOYMENT](PRODUCTION_DEPLOYMENT.md). Исполнение требует отдельного разрешения на maintenance/backup/smoke/deployment. Backup-only действия этой задачи записаны выше; production init, release переключение и write-smoke этого runbook не выполнялись. Выход каждого этапа — закрытый gate с evidence; отсутствие evidence означает STOP, а не допущение.
 
 ### 1. Зафиксировать входные данные и проверить drift после snapshot
 
@@ -159,14 +365,39 @@ dc ps
 Доказать maintenance ingress allowlist: доступ только оператору/согласованным smoke personas, остальные клиенты не могут писать. Если такого механизма нет, proxy остаётся остановленным до его настройки; простое обещание «не открывать writes» не является защитой. Зафиксировать IDs прежних containers/images и конфигурацию для resume/rollback. Затем закрыть traffic и остановить foreground/background writers с timeout, соответствующим iiko graceful timeout 300s:
 
 ```bash
-dc stop -t 330 proxy backend recurrence_worker schedule_worker sla_worker \
-  escalation_worker notification_worker performance_worker
-# Pause periodic backup loop so retention cannot remove any prior backups.
-dc stop -t 30 backup
+# Saved IDs are the containers captured before this release window.
+# Pause the verified sleeping periodic backup before ingress closure.
+docker pause <saved-backup-container-ID>
+docker stop --time 330 <saved-proxy-container-ID> <saved-backend-container-ID>
+# Execute the idle-loop helper below for each of the six saved workers.
+# Do not interrupt Python jobs; verify every worker has exited.
 dc ps
 ```
 
 DB/Redis остаются running. Подтвердить завершение in-flight writes и отсутствие иных writers/cron/integration jobs. Пока это не доказано, backup/maintenance gate не закрыт. Записать начало write freeze UTC.
+
+### Завершение idle worker loops перед backup
+
+Для прежних shell -ec while loops проверить каждый сохранённый worker ID: если есть выполняющийся Python job, дождаться его завершения. Только единственный idle sleep можно прервать TERM: shell -e завершится, не начав следующую итерацию. Не отправлять TERM business Python jobs и не считать forced kill подтверждением безопасного завершения. После helper обязательно inspect Running=false и source client/in-flight/prepared=0; Docker exec exit 137 допустим только при доказанно завершённом контейнере без прерванного job.
+
+```bash
+docker exec -i <saved-worker-ID> python - <<'PY'
+import os, pathlib, signal
+processes = []
+for entry in pathlib.Path('/proc').glob('[0-9]*/comm'):
+    try:
+        processes.append((int(entry.parent.name), entry.read_text().strip()))
+    except FileNotFoundError:
+        pass
+assert not any(name.startswith('python') and pid != os.getpid() for pid, name in processes), 'Worker busy: wait, do not interrupt'
+sleepers = [pid for pid, name in processes if name == 'sleep']
+assert len(sleepers) == 1, 'Unexpected process layout: stop and review'
+os.kill(sleepers[0], signal.SIGTERM)
+PY
+# Verify saved worker stopped; repeat for all six; then verify zero DB transactions.
+```
+
+Pause sleeping backup **перед** закрытием ingress. Resume old services по сохранённым IDs и `docker unpause <saved-backup-ID>` после verified off-host copy, без нового retention invocation. Если backup активно пишет, дождаться окончания до pause; не freeze его в середине архива.
 
 ### 3. Свежий согласованный DB/media backup без retention
 
@@ -197,7 +428,7 @@ Restore gate запускается **из off-host файлов**, не из se
 
 В новой пустой БД выполнить pg_restore --exit-on-error, проверить исходные constraints, baseline counts/UUID/code/types/FK, media hashes и referenced file availability, RBAC fingerprints. В ещё одной новой базе повторить original-version restore. Нельзя очищать существующую rehearsal DB/volume.
 
-На свежей isolated upgraded copy проверить полный **фактический init command** из RC Compose, включая migrate, seed_permissions, collectstatic и подготовку прав файлов, без dependency traversal и без production mounts. Предыдущий PASS проверял migrations/post_migrate, не утверждает, что весь production init/seed_permissions уже репетирован. seed_permissions может согласованно обновить catalog labels; RolePermission/EmployeeRole и source user privileges должны остаться прежними. Объяснить все catalog/data deltas, повторить affected acceptance на свежих данных. Off-host DB+media restore и эта full-init rehearsal — отдельные незакрытые release gates.
+На свежей isolated upgraded copy проверить полный **фактический init command** из RC Compose, включая migrate, seed_permissions, collectstatic и подготовку прав файлов, без dependency traversal и без production mounts. Предыдущий PASS проверял migrations/post_migrate, не утверждает, что весь production init/seed_permissions уже репетирован. seed_permissions может согласованно обновить catalog labels; RolePermission/EmployeeRole и source user privileges должны остаться прежними. Объяснить все catalog/data deltas, повторить affected acceptance на свежих данных. Off-host DB+media restore и полный init подтверждены для frozen snapshot выше. Их актуальность/повторение для нового release restore point проверять отдельно; PASS прежнего online snapshot не заменяет full-init evidence.
 
 ### 5. Проверить точный migration plan и применить один раз
 
@@ -263,12 +494,6 @@ STOP: неизвестный production drift/новые legacy ambiguity, не�
 - Если единственные post-backup writes — заранее разрешённые synthetic smoke records/operational heartbeat/catalog changes, recovery owner должен явно разрешить их потерю после сохранения evidence; нельзя назвать такую БД «неизменённой». Учитывать Audit/Outbox и любые already delivered effects, которые restore не отменяет.
 - После запуска workers/доставок или открытия пользовательских writes презумпция **новых реальных данных**: запрет blind restore старого backup. Закрыть ingress/остановить writers, сделать отдельную защищённую аварийную копию текущей DB/media по разрешению, определить полный delta и сохранение/replay новых данных либо forward fix. Переключение/restore только после решения recovery owner о сохранности данных и согласованной компенсации необратимых внешних действий.
 
-### Остаточные условия выпуска
+### Остаточные условия выпуска после репетиции
 
-1. Отдельное разрешение release/maintenance/write smoke, immutable RC images и работающий test-only maintenance ingress.
-2. Fresh production drift/inventory/grants review после snapshot; при изменениях — обновлённый data/upgrade gate.
-3. Согласованный свежий DB/media backup, source/off-host SHA match, защищённая off-host копия и independent DB/media restore из неё.
-4. Fresh-copy rehearsal **точного production init**, approved five-entry plan либо отдельно reviewed новая delta; unchanged real grants/business data.
-5. Авторизованный create/replay/zone/rights smoke, HTTPS/consumers/workers/Outbox acceptance и утверждённый recovery plan для новых записей.
-
-До закрытия этих условий **production readiness CONDITIONAL**, deployment **NOT PERFORMED**. Подготовка/публикация RC не закрывает их автоматически.
+См. конкретный план и точный список выше. Snapshot backup/off-host restore/full actual init PASS; актуальность rollback point после возобновлённых writes должна проверяться в новом release window. Production smoke, immutable frontend/production config и отдельное release разрешение остаются обязательными. **Production readiness CONDITIONAL; deployment NOT PERFORMED.**
