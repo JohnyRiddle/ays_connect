@@ -1,3 +1,9 @@
+Свежая working DB rehearsal: **PASS for snapshot 12.10.2026 11:40:14.426 UTC**;
+198 original tables/users/grants preserved, actual full init six migrations,
+API 38/38, browser 6/6 18.3s, no SMTP. Production readiness CONDITIONAL, deployment
+NOT PERFORMED. Scoped manager setup absent; existing superuser route available.
+[Exact snapshot/SHA/image/limits](REGISTRATION_REHEARSAL.md).
+
 # Registration acceptance — новая политика 12.10.2026
 
 Ветка codex/registration, main base 5d9da353ee552af3b0c2182c374f132d0e91e2ce.

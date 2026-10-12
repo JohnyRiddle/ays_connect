@@ -1,3 +1,17 @@
+## 12.10.2026 — Registration fresh restored production rehearsal PASS
+
+Runtime RC f3305408cc85d6d95db74706742499ceadb6c820 published in draft PR #2.
+Fresh online snapshot observed 11:40:14.426 UTC / 18:40:14.426 Novosibirsk; original
+restore 198/198 tables, full init six migrations 106→112, old users/RolePermission/
+EmployeeRole unchanged; no assignment to existing users. Repeat plan/check/drift PASS.
+Actual copy API 38/38, browser 6/6 (18.3s) without SMTP. Protected EFS off-host/LUKS
+volumes, egress blocked; copy stopped, production unchanged/no downtime.
+One active registration object; 3 existing superuser candidates can approve/delegate.
+No active scoped non-superuser manager setup; no real grants changed to pass.
+Production readiness CONDITIONAL: current drift/setup, pinned frontend, separate
+consistent rollback/write-window/live smoke gates. Snapshot is online, not frozen
+DB/media rollback point. [Exact evidence/limitations](REGISTRATION_REHEARSAL.md).
+
 ## 12.10.2026 — Registration requirements: без подтверждения email и писем
 
 Self submit сразу pending, рабочий доступ после approval; invite submit сразу
