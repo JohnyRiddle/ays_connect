@@ -11,6 +11,7 @@ from django.utils import timezone
 from events.models import OutboxEvent
 
 REGISTRY = {
+    "assignment_target.created": ("employees", "AssignmentTarget"),
     **{code: ("employees", "RegistrationRequest") for code in (
         "registration.submitted", "registration.email_confirmed", "registration.approved",
         "registration.rejected", "registration.cancelled", "registration.expired")},

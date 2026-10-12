@@ -15,6 +15,7 @@ async function ownerToken(request:any){
 for(const scenario of ["self","invite"]){
   test(`${scenario}: direct submission, approval, scoped working access`,async({page,request},testInfo)=>{
     const email=`${scenario}-${testInfo.project.name}-${Date.now()}@synthetic.test`;
+    const firstName=`Тест ${Date.now()}`;
     const token=await ownerToken(request);
     const headers={Authorization:`Bearer ${token}`};
     let invite="";
@@ -26,7 +27,7 @@ for(const scenario of ["self","invite"]){
     const errors:string[]=[]; page.on("pageerror",e=>errors.push(e.message));
     await page.goto(`/register${invite?`#invite=${invite}`:""}`);
     await page.getByLabel("Фамилия",{exact:true}).fill("Синтетический");
-    await page.getByLabel("Имя",{exact:true}).fill("Тест");
+    await page.getByLabel("Имя",{exact:true}).fill(firstName);
     await page.getByLabel("E-mail",{exact:true}).fill(email);
     if(scenario==="self")await page.getByRole("combobox",{name:"Объект трудоустройства",exact:true}).selectOption(location);
     else await expect(page.getByText("Browser registration object",{exact:true})).toBeVisible();
@@ -37,6 +38,9 @@ for(const scenario of ["self","invite"]){
     if(scenario==="self"){
       const before=await request.post(backend+"/api/v1/auth/login/",{data:{email,password}});
       expect(before.status()).toBe(401);
+      const pendingTargets=await request.get(backend+"/api/internal/v1/assignment-targets/?search="+encodeURIComponent(firstName),{headers});
+      expect(pendingTargets.status()).toBe(200);
+      expect((await pendingTargets.json()).count).toBe(0);
     }
     if(scenario==="self"){
       const list=await request.get(backend+"/api/internal/v1/registration/requests/",{headers});
@@ -52,6 +56,25 @@ for(const scenario of ["self","invite"]){
     const access=(await login.json()).access;
     const detail=await request.get(backend+`/api/internal/v1/objects/${location}/`,{headers:{Authorization:`Bearer ${access}`}});
     expect(detail.status()).toBe(200);
+    const targets=await request.get(backend+"/api/internal/v1/assignment-targets/?search="+encodeURIComponent(firstName),{headers});
+    expect(targets.status()).toBe(200);
+    const targetData=await targets.json();
+    expect(targetData.count).toBe(1);
+    const target=targetData.results[0];
+    expect(target.target_type).toBe("employee");
+    expect(target.display_name).toContain(firstName);
+    const deniedLookup=await request.get(backend+"/api/internal/v1/assignment-targets/",{headers:{Authorization:`Bearer ${access}`}});
+    expect(deniedLookup.status()).toBe(403);
+
+    await page.evaluate(token=>sessionStorage.setItem("access",token),token);
+    await page.goto("/tasks/new");
+    for(const name of ["Ответственный target","Исполнитель target"]){
+      const field=page.locator("label").filter({hasText:name});
+      await field.getByRole("textbox").fill(firstName);
+      await expect(field.getByRole("option").filter({hasText:firstName})).toHaveCount(1);
+      await field.getByRole("combobox").selectOption(target.id);
+      await expect(field.getByRole("combobox")).toHaveValue(target.id);
+    }
     const width=await page.evaluate(()=>({body:document.documentElement.scrollWidth,viewport:innerWidth}));
     expect(width.body).toBeLessThanOrEqual(width.viewport);
     expect(errors).toEqual([]);

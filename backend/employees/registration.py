@@ -291,6 +291,8 @@ class ObjectRegistrationService:
                     password=item.password_hash, is_active=True)
             employee.user = user
             employee.save(update_fields=["user", "updated_at"])
+            from .services import EmployeeAssignmentTargetService
+            EmployeeAssignmentTargetService.ensure(employee=employee, actor_user=actor)
             EmployeeAssignmentService.replace_primary(employee=employee, actor_user=actor,
                 location=location, position=employee.position_ref,
                 legal_entity=employee.legal_entity, org_unit=employee.org_unit)

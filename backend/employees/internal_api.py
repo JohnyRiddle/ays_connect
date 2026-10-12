@@ -7,6 +7,7 @@ from access_control.permissions import InternalAPIPermission
 from access_control.models import Role
 from access_control.serializers import EmployeeRoleSerializer
 from access_control.services import RoleService
+from .assignment_targets import AssignmentLookupPermission
 from .models import AssignmentTarget, Employee, EmployeeAssignment, EmployeeManagerAssignment, FunctionalGroup, FunctionalGroupMembership, Position
 from .services import EmployeeAssignmentService, EmployeeManagerService, EmployeeService, FunctionalGroupService
 
@@ -169,11 +170,17 @@ class FunctionalGroupViewSet(viewsets.ModelViewSet):
 
 class AssignmentTargetViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = AssignmentTargetSerializer
-    permission_classes = (InternalAPIPermission,)
+    permission_classes = (AssignmentLookupPermission,)
     permission_domain = "employee"
 
     def get_queryset(self):
         queryset = AssignmentTarget.objects.select_related("employee", "position", "org_unit", "functional_group", "team", "explicit_employee")
+        from .assignment_targets import assignment_visibility
+        employees, global_access, _ = assignment_visibility(self.request.user)
+        if global_access:
+            queryset = queryset.filter(Q(target_type="employee", employee__in=employees) | ~Q(target_type="employee"))
+        else:
+            queryset = queryset.filter(target_type="employee", employee__in=employees)
         target_type = self.request.query_params.get("target_type")
         if target_type:
             queryset = queryset.filter(target_type=target_type)

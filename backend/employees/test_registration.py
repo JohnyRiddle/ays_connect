@@ -16,7 +16,7 @@ from events.models import OutboxEvent
 from notifications.channels import ProviderFailure, ProviderResult
 from organizations.models import Location
 from organizations.object_services import ObjectService
-from .models import Employee, EmployeeAssignment, EmployeeInvitation, RegistrationRequest
+from .models import AssignmentTarget, Employee, EmployeeAssignment, EmployeeInvitation, RegistrationRequest
 from .onboarding import InvitationService
 from .registration import ObjectInvitationService as Invite, ObjectRegistrationService as Register, ResponsibilityService, public_locations
 from .registration_mail import process_mail
@@ -61,6 +61,7 @@ class RegistrationTests(Setup, TestCase):
         item, token = self.submit()
         self.assertEqual(item.status, "pending")
         self.assertFalse(User.objects.filter(email=item.email).exists())
+        self.assertFalse(AssignmentTarget.objects.filter(employee__work_email=item.email).exists())
         self.assertEqual(Employee.objects.count(), 1)
         self.assertEqual(self.client.post(PUBLIC+"status/", {"token": token}, format="json").data["status"], "pending")
         self.assertEqual(self.client.get("/api/internal/v1/objects/").status_code, 401)
@@ -73,6 +74,9 @@ class RegistrationTests(Setup, TestCase):
         self.assertEqual(EmployeeAssignment.objects.filter(employee=user.employee, is_primary=True, status="active").count(), 1)
         item.refresh_from_db()
         self.assertEqual(item.password_hash, "")
+        self.assertEqual(AssignmentTarget.objects.filter(employee=user.employee,target_type="employee").count(),1)
+        self.client.force_authenticate(self.owner)
+        self.assertEqual(self.client.get("/api/internal/v1/assignment-targets/?search=Фамилия").data["count"],1)
         self.assertFalse(user.is_staff)
         self.assertFalse(user.is_superuser)
 
@@ -121,6 +125,7 @@ class RegistrationTests(Setup, TestCase):
         self.assertEqual(item.status, "approved")
         self.assertEqual(invitation.status, "accepted")
         self.assertEqual(Employee.objects.filter(user__email=item.email).count(), 1)
+        self.assertEqual(AssignmentTarget.objects.filter(employee__user__email=item.email,target_type="employee").count(),1)
         with self.assertRaises(ValidationError):
             Invite.context(raw)
 
@@ -470,6 +475,7 @@ class ConcurrentRegistrationTests(Setup, TransactionTestCase):
         employee = Employee.objects.get(user__email="new@synthetic.test")
         self.assertEqual(EmployeeAssignment.objects.filter(employee=employee, status="active", is_primary=True).count(), 1)
         self.assertEqual(EmployeeRole.objects.filter(employee=employee, is_active=True).count(), 1)
+        self.assertEqual(AssignmentTarget.objects.filter(employee=employee,target_type="employee").count(),1)
 
 
     def test_invite_submit_works_without_smtp(self):
