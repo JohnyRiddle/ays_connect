@@ -1,3 +1,20 @@
+# Final RC rehearsal and release evidence — 713be6b755950fcce5f5bf22d9fc05743c8f0053
+
+Final online snapshot **2026-10-12T12:53:30.278133+00:00**: original 198 tables/grants/targets preserved,
+433 exact source files, PostgreSQL 17.11, six migrations 106→112, actual full init,
+check/drift/empty repeated plan PASS; API **40/40**, immutable frontend desktop/mobile
+**6/6, 23.7s**. Isolated internal network/blocked egress, no production mounts/workers.
+Five copy-only users terminated, old access/refresh/new login 401, test object archived;
+original users/grants unchanged; only original number counter advanced by fixtures.
+Fresh frozen snapshot **2026-10-12T13:18:22.743916+00:00** independently restored from protected off-host
+files and full init PASS before production init. Production then released and live
+accepted, cleanup PASS. Exact hashes/images/commands and remaining limits:
+[REGISTRATION_RELEASE.md](REGISTRATION_RELEASE.md).
+
+The following is historical evidence for f330540; its 38/38, 18.3s and earlier
+snapshot must not be attributed to final RC. Its pending release gates are superseded
+only by the explicit final evidence above; it remains as an audit trail.
+
 # Registration restored production rehearsal — 12.10.2026
 
 Tested runtime RC `f3305408cc85d6d95db74706742499ceadb6c820`, draft [PR #2](https://github.com/JohnyRiddle/ays_connect/pull/2).

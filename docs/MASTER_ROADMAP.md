@@ -1,3 +1,26 @@
+## 12.10.2026 — Registration production release PASS
+
+Runtime **713be6b755950fcce5f5bf22d9fc05743c8f0053** (AssignmentTarget integration included). Synthetic acceptance
+**634/634 PostgreSQL, targeted 61/61, desktop/mobile 6/6 PASS**. Final restored
+production rehearsal: snapshot **2026-10-12T12:53:30.278133+00:00**, original 198 tables preserved,
+full init six migrations 106→112, API 40/40, immutable frontend browser 6/6 (23.7s).
+Frozen rollback snapshot **2026-10-12T13:18:22.743916+00:00**: protected off-host DB/media restored and full
+copy init PASS before production init. Live acceptance PASS: owner normal UI approval,
+scoped/denied API, invitation security, copied UI invite and both Work selectors.
+Two test User/Employee pairs terminated, assignments revoked, old access/refresh/new
+login 401; two test objects closed/archived, history retained. No real grants changed.
+Production backend + six workers healthy; registered consumers processed 25 new state
+events, zero new registration mail/external attempts. Public HTTPS/live/ready PASS on
+both domains. Ingress closed **1692.880 s**; maintenance **1700.693 s**.
+Existing superusers approve first release; ordinary-manager setup is optional and
+was not backfilled. Current source has six original location events (previous five
+plus 12 October creation), retained pending; unhandled lifecycle events retained too.
+Deployment PASS. Merge is recorded by [PR #2](https://github.com/JohnyRiddle/ays_connect/pull/2)
+after the release evidence commit; no second init/deployment is required.
+[Release evidence, images, limits and recovery](REGISTRATION_RELEASE.md).
+
+Earlier sections below are historical evidence for their explicitly named RCs.
+
 ## 12.10.2026 — Registration fresh restored production rehearsal PASS
 
 Runtime RC f3305408cc85d6d95db74706742499ceadb6c820 published in draft PR #2.

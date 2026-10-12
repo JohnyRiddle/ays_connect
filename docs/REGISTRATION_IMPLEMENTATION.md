@@ -1,3 +1,17 @@
+# Final runtime and release
+
+Registration contract and production release verified for `713be6b755950fcce5f5bf22d9fc05743c8f0053`.
+[Release evidence](REGISTRATION_RELEASE.md). AssignmentTarget automation integrated
+separately: canonical employee create/activation, self approval and invite acceptance
+ensure one audited target under Employee row lock; replay reuses existing target.
+Inactive/pending/blocked employees excluded from new lookup/resolution, historical
+FKs preserved. Lookup requires explicit employee.view scope and filters before list,
+search/detail/count; no grants added by target creation. Preview-default command
+`ensure_employee_assignment_targets` has explicit audited --apply/superuser actor;
+production backfill not run by this release. No additional schema migration.
+First-release approval uses existing superusers; scoped ordinary-manager setup not
+automatically assigned and not a blocker. All original dirty files remain outside Git.
+
 # Регистрация и объектные назначения — требования 12.10.2026
 
 Ветка codex/registration, база main 5d9da353ee552af3b0c2182c374f132d0e91e2ce.
@@ -105,7 +119,7 @@ registration_events подтверждает внутренние read model/sta
 User/Employee/RolePermission/EmployeeRole/primary history и настройка согласующих/делегации.
 
 GO: зафиксировать drift/migrations/images/services, проверить eligible минимальную роль,
-действующие публичные Objects и scoped approvers. Закрыть writes/регистрацию и остановить writers, включая notification worker
+действующие публичные Objects и существующих superuser-согласующих; scoped менеджеры не являются gate первого выпуска. Закрыть writes/регистрацию и остановить writers, включая notification worker
 старой версии до init, чтобы старый SMTP consumer не отправил накопленные письма. Получить
 fresh согласованный защищённый DB/media rollback backup + off-host SHA + restore.
 На копии выполнить полный migrate/seed_permissions/collectstatic/check/drift, повторный
@@ -113,7 +127,7 @@ fresh согласованный защищённый DB/media rollback backup +
 mail events при обоих сценариях и process_notifications при включённом SMTP без отправки.
 Пройти API/browser no-SMTP, denied/scoped/related сценарии и согласование. Затем согласованный
 production init шести additions, pinned images, restricted smoke, workers/Outbox, открыть доступ.
-Production требует отдельного разрешения; эта задача не является deployment.
+Production release разрешён завершающим ТЗ и выполнен для итогового RC; см. REGISTRATION_RELEASE.md.
 
 STOP: email collision, изменённые исходные grants/UUID, неверный plan/image, неподтверждённый
 backup/restore, утечка scope, автоматическая отправка registration mail или отсутствие approver.

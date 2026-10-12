@@ -1,3 +1,18 @@
+# Final registration acceptance — runtime 713be6b755950fcce5f5bf22d9fc05743c8f0053
+
+Synthetic **634/634 PostgreSQL, targeted 61/61, browser 6/6 PASS**; TypeScript/build,
+check/drift PASS. Final fresh restored production snapshot **2026-10-12T12:53:30.278133+00:00**: 198 original
+tables/grants/targets preserved, full six-migration init 106→112, API **40/40**, pinned
+frontend desktop/mobile **6/6, 23.7s**. Fresh frozen rollback **2026-10-12T13:18:22.743916+00:00** off-host
+restore/full init PASS. Live **27 API +8 security checks and normal owner UI PASS**;
+cleanup access/refresh/new login 401 for both accounts. Workers/registered Outbox,
+backup and HTTPS PASS; deployment PASS. Merge is evidenced by PR #2 after the release
+commit. No re-run of unchanged runtime after documentation/merge.
+[Commands, artifacts, exact scope and limits](REGISTRATION_RELEASE.md).
+
+Following sections record earlier RCs. Their counts and NOT PERFORMED states are
+historical; they must not replace the final evidence and must not be called final PASS.
+
 Свежая working DB rehearsal: **PASS for snapshot 12.10.2026 11:40:14.426 UTC**;
 198 original tables/users/grants preserved, actual full init six migrations,
 API 38/38, browser 6/6 18.3s, no SMTP. Production readiness CONDITIONAL, deployment
