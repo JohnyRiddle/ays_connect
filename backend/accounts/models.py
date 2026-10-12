@@ -10,6 +10,9 @@ class User(AbstractUser):
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username"]
 
+    class Meta(AbstractUser.Meta):
+        constraints = [models.UniqueConstraint(models.functions.Lower(models.functions.Trim("email")), name="user_normalized_email_unique")]
+
     def save(self, *args, **kwargs):
         if not self._state.adding:
             fields = kwargs.get("update_fields")

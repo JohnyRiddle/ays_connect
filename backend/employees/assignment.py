@@ -2,6 +2,7 @@ from django.db import models
 from django.utils import timezone
 
 from .models import AssignmentTarget, Employee, Team, TeamMembership
+from .assignment_targets import assignable_employees
 
 
 class AssignmentTargetUnresolved(Exception):
@@ -19,9 +20,9 @@ class AssignmentResolver:
     def resolve(target: AssignmentTarget, at=None) -> list[Employee]:
         now = at or timezone.now()
         if target.target_type == AssignmentTarget.Type.EMPLOYEE:
-            return [target.employee] if target.employee and target.employee.is_active else AssignmentResolver._unresolved()
+            return [target.employee] if target.employee and assignable_employees().filter(pk=target.employee_id).exists() else AssignmentResolver._unresolved()
         if target.target_type == AssignmentTarget.Type.POSITION:
-            employees = list(Employee.objects.filter(position_ref=target.position, is_active=True).order_by("pk")[:2])
+            employees = list(assignable_employees().filter(position_ref=target.position).order_by("pk")[:2])
             if not employees:
                 return AssignmentResolver._unresolved()
             if len(employees) > 1 and not target.position.allows_multiple_occupants:
@@ -30,9 +31,9 @@ class AssignmentResolver:
         if target.target_type == AssignmentTarget.Type.TEAM:
             return AssignmentResolver.resolve_team(target, at=now)[0]
         if target.target_type == AssignmentTarget.Type.ORG_UNIT:
-            employees = list(Employee.objects.filter(org_unit=target.org_unit, is_active=True))
+            employees = list(assignable_employees().filter(org_unit=target.org_unit))
         else:
-            employees = list(Employee.objects.filter(
+            employees = list(assignable_employees().filter(
                 functional_group_memberships__group=target.functional_group,
                 functional_group_memberships__is_active=True,
             ).filter(
@@ -61,7 +62,7 @@ class AssignmentResolver:
             owner=team.owner_employee
             if not owner:
                 return AssignmentResolver._unresolved()
-            if owner.is_active and owner.status not in {Employee.Status.TERMINATED,Employee.Status.DISMISSED,Employee.Status.ARCHIVED,Employee.Status.SUSPENDED}:
+            if assignable_employees().filter(pk=owner.pk).exists():
                 return [owner], {"strategy": strategy, "excluded": []}
             return AssignmentResolver._unresolved()
         elif strategy=="role_members": qs=qs.filter(role=target.team_role)
@@ -73,7 +74,7 @@ class AssignmentResolver:
         included=[]
         for membership in qs.order_by("employee_id"):
             employee=membership.employee
-            if employee.is_active and employee.status not in {Employee.Status.TERMINATED,Employee.Status.DISMISSED,Employee.Status.ARCHIVED,Employee.Status.SUSPENDED}: included.append(employee)
+            if assignable_employees().filter(pk=employee.pk).exists(): included.append(employee)
             else: excluded.append({"employee_id":str(employee.pk),"reason":"inactive_employee"})
         if not included: return AssignmentResolver._unresolved()
         return included,{"strategy":strategy,"excluded":excluded}

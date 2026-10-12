@@ -14,6 +14,10 @@ class EmailTokenSerializer(TokenObtainPairSerializer):
         token["auth_version"] = user.auth_version
         return token
     def validate(self, attrs):
+        from django.db.models.functions import Lower, Trim
+        normalized = attrs.get("email", "").strip().lower()
+        canonical = User.objects.annotate(normalized_email=Lower(Trim("email"))).filter(normalized_email=normalized).values_list("email", flat=True).first()
+        attrs["email"] = canonical if canonical is not None else normalized
         try: data = super().validate(attrs)
         except (AuthenticationFailed, DRFAuthenticationFailed) as exc: raise DRFAuthenticationFailed("Authentication failed.", code="no_active_account") from exc
         employee = getattr(self.user, "employee", None)

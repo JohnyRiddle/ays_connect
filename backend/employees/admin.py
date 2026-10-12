@@ -23,6 +23,7 @@ class ImmutableHistoryAdmin(admin.ModelAdmin):
 
 @admin.register(EmployeeInvitation)
 class EmployeeInvitationAdmin(ImmutableHistoryAdmin):
+    def has_change_permission(self, request, obj=None): return False
     list_display=("employee","delivery_address","status","expires_at","sent_at","used_at")
     list_filter=("status","created_at","expires_at")
     search_fields=("employee__employee_number","employee__first_name","employee__last_name","delivery_address")

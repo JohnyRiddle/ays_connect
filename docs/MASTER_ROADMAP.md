@@ -1,3 +1,53 @@
+## 12.10.2026 — Registration production release PASS
+
+Runtime **713be6b755950fcce5f5bf22d9fc05743c8f0053** (AssignmentTarget integration included). Synthetic acceptance
+**634/634 PostgreSQL, targeted 61/61, desktop/mobile 6/6 PASS**. Final restored
+production rehearsal: snapshot **2026-10-12T12:53:30.278133+00:00**, original 198 tables preserved,
+full init six migrations 106→112, API 40/40, immutable frontend browser 6/6 (23.7s).
+Frozen rollback snapshot **2026-10-12T13:18:22.743916+00:00**: protected off-host DB/media restored and full
+copy init PASS before production init. Live acceptance PASS: owner normal UI approval,
+scoped/denied API, invitation security, copied UI invite and both Work selectors.
+Two test User/Employee pairs terminated, assignments revoked, old access/refresh/new
+login 401; two test objects closed/archived, history retained. No real grants changed.
+Production backend + six workers healthy; registered consumers processed 25 new state
+events, zero new registration mail/external attempts. Public HTTPS/live/ready PASS on
+both domains. Ingress closed **1692.880 s**; maintenance **1700.693 s**.
+Existing superusers approve first release; ordinary-manager setup is optional and
+was not backfilled. Current source has six original location events (previous five
+plus 12 October creation), retained pending; unhandled lifecycle events retained too.
+Deployment PASS. Merge is recorded by [PR #2](https://github.com/JohnyRiddle/ays_connect/pull/2)
+after the release evidence commit; no second init/deployment is required.
+[Release evidence, images, limits and recovery](REGISTRATION_RELEASE.md).
+
+Earlier sections below are historical evidence for their explicitly named RCs.
+
+## 12.10.2026 — Registration fresh restored production rehearsal PASS
+
+Runtime RC f3305408cc85d6d95db74706742499ceadb6c820 published in draft PR #2.
+Fresh online snapshot observed 11:40:14.426 UTC / 18:40:14.426 Novosibirsk; original
+restore 198/198 tables, full init six migrations 106→112, old users/RolePermission/
+EmployeeRole unchanged; no assignment to existing users. Repeat plan/check/drift PASS.
+Actual copy API 38/38, browser 6/6 (18.3s) without SMTP. Protected EFS off-host/LUKS
+volumes, egress blocked; copy stopped, production unchanged/no downtime.
+One active registration object; 3 existing superuser candidates can approve/delegate.
+No active scoped non-superuser manager setup; no real grants changed to pass.
+Production readiness CONDITIONAL: current drift/setup, pinned frontend, separate
+consistent rollback/write-window/live smoke gates. Snapshot is online, not frozen
+DB/media rollback point. [Exact evidence/limitations](REGISTRATION_REHEARSAL.md).
+
+## 12.10.2026 — Registration requirements: без подтверждения email и писем
+
+Self submit сразу pending, рабочий доступ после approval; invite submit сразу
+approved в атомарной транзакции. Email обязателен/normalized/unique, mailbox ownership
+не проверяется. Mail events не создаются; старые jobs terminal disabled, old confirmation
+requests отменяются с Audit/Outbox, legacy activation закрыт. Шесть additions.
+No-SMTP API/upgrade 42/42 PASS (92.068s), browser 6/6 PASS (13.5s), build/check/drift PASS.
+PostgreSQL полный regression **627/627 PASS, 408.376s**. Реальная restored DB/grants и scoped approvers/delegation
+остаются обязательными. SMTP исключён из gates; production регистрации NOT PERFORMED.
+[Матрица](REGISTRATION_ACCEPTANCE.md), [контракт/release](REGISTRATION_IMPLEMENTATION.md),
+[инструкция](REGISTRATION_USER_GUIDE.md). Изолированная codex/registration; исходные
+13 dirty-файлов и Objects CRLF-only views.py сохранены.
+
 ## 09.10.2026 — Objects production release PASS; PR #1
 
 Storage gate **PASS для действующего backup/restore контура**: 24 исходных файла скопированы на LUKS2 с полным совпадением path/size/SHA-256/UID/GID/mode/mtime; guard отказал на обычном ext4 (exit 78, ноль новых файлов), missing bind source — exit 125 без fallback. Новый periodic backup 12:33:16 UTC корректен, история сохранена; retention отключён. Исходные 24 файла остаются отдельно на незашифрованном `ays-connect-production_backup_data`: **не вся история зашифрована**, удаление не выполнялось. Persistent crypttab/fstab manual unlock/noauto и Compose bind create_host_path=false проверены; reboot не выполнялся. Отдельная DPAPI key copy восстановлена и проверена. Guard и обязательный override опубликованы в deployment; source/backend/frontend runtime и схема относительно RC220ffac не изменены.

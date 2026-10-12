@@ -43,6 +43,7 @@ class EmployeeService:
     @transaction.atomic
     def create(*, actor_user=None, **data) -> Employee:
         employee = Employee.objects.create(**data)
+        EmployeeAssignmentTargetService.ensure(employee=employee, actor_user=actor_user)
         AuditService.record(actor_user=actor_user, action="employee.created", entity=employee, new_value={"display_name": employee.display_name})
         DomainEventService.publish(event_type="employee.created", entity=employee, actor=actor_user, payload={"display_name": employee.display_name})
         DomainEventService.publish(event_type="people.employee.created", entity=employee, actor=actor_user, payload={"employee_number": employee.employee_number, "display_name": employee.display_name})
@@ -57,6 +58,8 @@ class EmployeeService:
         ObjectService.end_employee_responsibilities(locked, actor_user)
         locked.is_active = False
         locked.status = Employee.Status.DISMISSED
+        from .registration import ResponsibilityService
+        ResponsibilityService.end(locked, actor_user)
         if locked.user_id:
             revoke_credentials(locked.user)
         locked.dismissed_at = locked.dismissed_at or timezone.localdate()
@@ -114,6 +117,8 @@ class EmployeeService:
             AuditService.record(actor_user=actor_user,action="people.team.leadership_vacated",entity=team,old_value=before,new_value={"owner_employee":str(team.owner_employee_id) if team.owner_employee_id else None,"lead_employee":str(team.lead_employee_id) if team.lead_employee_id else None})
             DomainEventService.publish(event_type="people.team.leadership_vacated",entity=team,actor=actor_user,payload={"employee_id":str(locked.pk)})
         locked.invitations.select_for_update().filter(used_at__isnull=True, revoked_at__isnull=True).update(revoked_at=now, status="revoked", revoke_reason="employee_terminated")
+        from .registration import ResponsibilityService
+        ResponsibilityService.end(locked, actor_user)
         from .models import OnboardingInstance
         active_onboarding = OnboardingInstance.objects.select_for_update().filter(employee=locked, status__in=["pending", "active", "paused"])
         for onboarding in active_onboarding:
@@ -176,6 +181,8 @@ class AccountAccessService:
         locked.user.save(update_fields=["is_active"])
         locked.account_access_state = Employee.AccountAccessState.NORMAL if enabled else (Employee.AccountAccessState.SUSPENDED if action == "suspended" else Employee.AccountAccessState.BLOCKED)
         locked.save(update_fields=["account_access_state", "updated_at"])
+        if enabled:
+            EmployeeAssignmentTargetService.ensure(employee=locked, actor_user=actor_user)
         payload = {"employee_id": str(locked.pk), "enabled": enabled}
         AuditService.record(actor_user=actor_user, action=f"people.account.{action}", entity=locked, new_value=payload)
         DomainEventService.publish(event_type=f"people.account.{action}", entity=locked, actor=actor_user, payload=payload)
@@ -318,3 +325,24 @@ class FunctionalGroupService:
         membership.save(update_fields=["is_active", "active_until"])
         AuditService.record(actor_user=actor_user, action="functional_group.member_removed", entity=group, old_value={"employee_id": str(employee.pk)})
         DomainEventService.publish(event_type="functional_group.member_removed", entity=group, actor=actor_user, payload={"employee_id": str(employee.pk)})
+
+
+class EmployeeAssignmentTargetService:
+    """Canonical employee intent for Work selectors; never changes RBAC or tasks."""
+    @staticmethod
+    @transaction.atomic
+    def ensure(*, employee, actor_user=None):
+        from .models import AssignmentTarget
+        locked = Employee.objects.select_for_update().get(pk=employee.pk)
+        from .assignment_targets import assignable_employees
+        if not assignable_employees().filter(pk=locked.pk).exists():
+            return None, False
+        target = AssignmentTarget.objects.filter(target_type=AssignmentTarget.Type.EMPLOYEE,
+            employee=locked).order_by("created_at", "pk").first()
+        if target:
+            return target, False
+        target = AssignmentTarget.objects.create(target_type=AssignmentTarget.Type.EMPLOYEE, employee=locked)
+        AuditService.record(actor_user=actor_user, action="assignment_target.created", entity=target,
+            new_value={"target_type": "employee", "employee_id": str(locked.pk)})
+        DomainEventService.publish(event_type="assignment_target.created", entity=target, actor=actor_user, payload={"employee_id": str(locked.pk)})
+        return target, True

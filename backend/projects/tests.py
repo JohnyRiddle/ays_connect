@@ -494,10 +494,15 @@ class ProjectsCoreTests(TestCase):
         uploaded=SimpleUploadedFile("synthetic.txt",b"Synthetic file",content_type="text/plain")
         item=ProjectCollaborationService.add_attachment(project=self.project,actor=self.actor,actor_user=self.user,
             uploaded_file=uploaded)
-        self.assertEqual(item.file.open("rb").read(),b"Synthetic file")
+        with item.file.open("rb") as stream:
+            self.assertEqual(stream.read(),b"Synthetic file")
         client=APIClient();client.force_authenticate(user=self.user)
         url=f"/api/internal/v1/projects/{self.project.pk}/attachments/{item.pk}/download/"
-        self.assertEqual(client.get(url).status_code,200)
+        response = client.get(url)
+        self.assertEqual(response.status_code,200)
+        # Exhaust Django's streaming wrapper: it closes the file and dispatches
+        # request_finished with the test connection cleanup correctly isolated.
+        self.assertEqual(b"".join(response.streaming_content),b"Synthetic file")
         RolePermission.objects.filter(role__code="synthetic-project-manager",permission__code="project.view").delete()
         self.assertEqual(client.get(url).status_code,404)
 

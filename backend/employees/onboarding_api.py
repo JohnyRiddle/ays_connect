@@ -205,10 +205,7 @@ class EmployeeDirectoryViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def invite(self, request, pk=None):
-        employee = self.get_object(); self._require("people.invitation.manage", employee)
-        try: invitation, raw = InvitationService.issue(employee=employee, actor_user=request.user, delivery_address=request.data.get("email", ""))
-        except DjangoValidationError as exc: raise serializers.ValidationError(exc.message_dict if hasattr(exc, "message_dict") else exc.messages)
-        return Response({"id": invitation.pk, "expires_at": invitation.expires_at, "activation_url": f"{settings.FRONTEND_BASE_URL}/activate/{raw}"}, status=201)
+        raise serializers.ValidationError("Используйте объектные приглашения /registration/invitations/.")
 
     @action(detail=True, methods=["post"], url_path="revoke-invitation")
     def revoke_invitation(self, request, pk=None):
@@ -245,7 +242,7 @@ class RegistrationViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = RegistrationSerializer
 
     def get_queryset(self):
-        queryset = RegistrationRequest.objects.select_related("matched_employee").order_by("-created_at")
+        queryset = RegistrationRequest.objects.filter(employment_location__isnull=True).select_related("matched_employee").order_by("-created_at")
         if self.request.user.is_superuser:
             return queryset
         actor = getattr(self.request.user, "employee", None)
