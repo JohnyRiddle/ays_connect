@@ -13,7 +13,7 @@ from .models import Employee, EmployeeInvitation, RegistrationRequest
 from .onboarding import InvitationService, token_hash
 from .registration_throttle import RegistrationThrottle
 from .registration import (ObjectInvitationService, ObjectRegistrationService,
-    ResponsibilityService, locations_for, public_locations, require, queue_mail)
+    ResponsibilityService, locations_for, public_locations, require)
 from organizations.models import Location
 
 
@@ -69,15 +69,13 @@ class Submit(PublicView):
         else:
             location = get_object_or_404(public_locations(), pk=location_id)
         item, key = ObjectRegistrationService.submit(**data, location=location, invitation=invitation)
-        return Response({"detail": "Проверьте почту. Для существующего аккаунта используйте вход или восстановление.",
-                         "status_token": key}, status=202)
+        return Response({"detail": "Заявка обработана. Для существующего аккаунта используйте вход или восстановление.",
+                         "status": item.status if item else "pending", "status_token": key}, status=202)
 
 
 class Confirm(PublicView):
-    throttle_scope = "activation"
     def post(self, request):
-        item, key = ObjectRegistrationService.confirm(token=request.data.get("token", ""))
-        return Response({"status": item.status, "status_token": key})
+        return Response({"detail": "Подтверждение e-mail отключено."}, status=410)
 
 
 class OwnStatus(PublicView):
@@ -90,15 +88,9 @@ class OwnStatus(PublicView):
         return Response({"status": item.status, "rejection_reason": item.rejection_code})
 
 
-class Resend(OwnStatus):
-    throttle_scope = "registration_resend"
-    @transaction.atomic
+class Resend(PublicView):
     def post(self, request):
-        item = get_object_or_404(RegistrationRequest.objects.select_for_update(), status_token_hash=token_hash(request.data.get("token", "")), status="email_pending", expires_at__gt=timezone.now())
-        item.mail_generation += 1
-        item.save(update_fields=["mail_generation"])
-        queue_mail(item, "verify")
-        return Response({"detail": "Подтверждение поставлено в очередь."}, status=202)
+        return Response({"detail": "Письма регистрации не отправляются."}, status=410)
 
 
 class Cancel(OwnStatus):
@@ -125,7 +117,7 @@ class RequestSerializer(serializers.ModelSerializer):
     location_name = serializers.CharField(source="employment_location.name", read_only=True)
     class Meta:
         model = RegistrationRequest
-        fields = ("id", "first_name", "last_name", "middle_name", "email", "employment_location", "location_name", "status", "created_at", "email_confirmed_at", "reviewed_at", "reviewed_by", "rejection_code")
+        fields = ("id", "first_name", "last_name", "middle_name", "email", "employment_location", "location_name", "status", "created_at", "reviewed_at", "reviewed_by", "rejection_code")
 
 
 class RequestFilter(serializers.Serializer):

@@ -18,7 +18,7 @@ from organizations.models import Location
 from organizations.object_services import ObjectService
 from .models import Employee, EmployeeAssignment, EmployeeInvitation, RegistrationRequest
 from .onboarding import InvitationService
-from .registration import ObjectInvitationService as Invite, ObjectRegistrationService as Register, ResponsibilityService, public_locations, verification_token
+from .registration import ObjectInvitationService as Invite, ObjectRegistrationService as Register, ResponsibilityService, public_locations
 from .registration_mail import process_mail
 from .services import EmployeeService
 
@@ -57,14 +57,13 @@ class Setup:
 
 @override_settings(SECURE_SSL_REDIRECT=False, NOTIFICATIONS_EMAIL_ENABLED=True)
 class RegistrationTests(Setup, TestCase):
-    def test_self_registration_email_then_approval_has_no_early_user_or_employee(self):
+    def test_self_registration_direct_pending_then_approval_has_no_early_user_or_employee(self):
         item, token = self.submit()
-        self.assertEqual(item.status, "email_pending")
+        self.assertEqual(item.status, "pending")
         self.assertFalse(User.objects.filter(email=item.email).exists())
         self.assertEqual(Employee.objects.count(), 1)
-        self.assertEqual(self.client.post(PUBLIC+"status/", {"token": token}, format="json").data["status"], "email_pending")
+        self.assertEqual(self.client.post(PUBLIC+"status/", {"token": token}, format="json").data["status"], "pending")
         self.assertEqual(self.client.get("/api/internal/v1/objects/").status_code, 401)
-        Register.confirm(token=verification_token(item))
         item.refresh_from_db()
         self.assertEqual(item.status, "pending")
         self.approve(item)
@@ -77,15 +76,16 @@ class RegistrationTests(Setup, TestCase):
         self.assertFalse(user.is_staff)
         self.assertFalse(user.is_superuser)
 
-    def test_pending_approval_rejected_until_verified(self):
+    def test_pending_approval_requires_authorized_reviewer(self):
         item, _ = self.submit()
-        with self.assertRaises(ValidationError):
-            self.approve(item)
+        self.assertEqual(item.status, "pending")
+        response = self.client.post(ADMIN+f"requests/{item.pk}/approve/", {"plan": self.plan}, format="json")
+        self.assertEqual(response.status_code, 401)
         self.assertFalse(User.objects.filter(email=item.email).exists())
 
+
     def test_rejection_records_actor_reason_and_own_status(self):
-        item, _ = self.submit()
-        _, key = Register.confirm(token=verification_token(item))
+        item, key = self.submit()
         item.refresh_from_db()
         Register.reject(registration=item, actor=self.owner, reason="Объект выбран неверно")
         item.refresh_from_db()
@@ -110,14 +110,13 @@ class RegistrationTests(Setup, TestCase):
         ObjectService.lifecycle(user=self.owner, location=self.other, action="close", version=1, reason="test")
         self.assertNotIn(str(self.other.pk), [str(x["id"]) for x in self.client.get(PUBLIC+"locations/").data])
 
-    def test_invite_email_confirmation_is_preapproval_and_old_activation_cannot_bypass(self):
+    def test_invite_acceptance_is_preapproval_and_old_activation_cannot_bypass(self):
         invitation, raw = Invite.issue(actor=self.owner, location=self.location, plan=self.plan, email="invite@synthetic.test")
         self.assertNotEqual(raw, invitation.token_hash)
         self.assertIsNone(InvitationService.context(raw))
         with self.assertRaises(Exception):
             InvitationService.activate(token=raw, password=PASSWORD, password_confirmation=PASSWORD)
         item, _ = self.submit(email="invite@synthetic.test", invitation=invitation)
-        Register.confirm(token=verification_token(item))
         item.refresh_from_db(); invitation.refresh_from_db()
         self.assertEqual(item.status, "approved")
         self.assertEqual(invitation.status, "accepted")
@@ -150,7 +149,7 @@ class RegistrationTests(Setup, TestCase):
     def test_existing_employee_requires_explicit_link_and_never_name_matching(self):
         existing = Employee.objects.create(first_name="Имя", last_name="Фамилия", work_email="new@synthetic.test")
         item, _ = self.submit()
-        Register.confirm(token=verification_token(item)); item.refresh_from_db()
+        item.refresh_from_db()
         with self.assertRaises(ValidationError): self.approve(item)
         self.approve(item, employee=existing)
         self.assertEqual(Employee.objects.count(), 2)
@@ -164,7 +163,6 @@ class RegistrationTests(Setup, TestCase):
         EmployeeService.reactivate(employee=employee, actor_user=self.owner); employee.refresh_from_db()
         invitation, _ = Invite.issue(actor=self.owner, location=self.location, plan=self.plan, email=user.email, employee=employee)
         item, _ = self.submit(email=user.email, invitation=invitation)
-        Register.confirm(token=verification_token(item))
         user.refresh_from_db(); employee.refresh_from_db()
         self.assertTrue(user.is_active)
         self.assertEqual(employee.user_id, user.pk)
@@ -183,7 +181,7 @@ class RegistrationTests(Setup, TestCase):
         self.assertEqual(employee.object_responsibility_history.filter(valid_to__isnull=True).count(), 0)
 
     def test_selected_responsibility_separate_from_primary(self):
-        item, _ = self.submit(); Register.confirm(token=verification_token(item)); item.refresh_from_db()
+        item, _ = self.submit(); item.refresh_from_db()
         self.plan["responsibility_locations"] = [str(self.location.pk), str(self.other.pk)]
         self.approve(item)
         employee = User.objects.get(email=item.email).employee
@@ -220,40 +218,49 @@ class RegistrationTests(Setup, TestCase):
         EmployeeRole.objects.filter(employee=issuer.employee).update(is_active=False)
         with self.assertRaises(PermissionDenied): Invite.context(raw)
 
-    def test_archived_or_closed_object_blocks_pending_invite_acceptance(self):
+    def test_archived_or_closed_object_blocks_invite_acceptance(self):
         invitation, _ = Invite.issue(actor=self.owner, location=self.location, plan=self.plan)
-        item, _ = self.submit(invitation=invitation)
         ObjectService.lifecycle(user=self.owner, location=self.location, action="close", version=1, reason="test")
-        with self.assertRaises(ValidationError): Register.confirm(token=verification_token(item))
-        self.assertFalse(User.objects.filter(email=item.email).exists())
+        with self.assertRaises(ValidationError): self.submit(invitation=invitation)
+        self.assertFalse(User.objects.filter(email="new@synthetic.test").exists())
 
-    def test_mail_consumer_provider_acceptance_retry_and_token_absence(self):
+
+    def test_both_flows_never_create_mail_events_even_with_smtp_enabled(self):
         item, _ = self.submit()
-        event = OutboxEvent.objects.get(event_type="registration.mail.requested")
-        token = verification_token(item)
-        self.assertNotIn(token, str(event.payload))
-        provider = Mock(); provider.send.return_value = ProviderResult()
-        self.assertEqual(process_mail(provider=provider), 1)
-        provider.send.assert_called_once()
-        self.assertIn(token, provider.send.call_args.args[2])
+        self.approve(item)
+        invitation, _ = Invite.issue(actor=self.owner, location=self.location, plan=self.plan, email="invite-no-mail@synthetic.test")
+        accepted, _ = self.submit(email="invite-no-mail@synthetic.test", invitation=invitation)
+        self.assertEqual(accepted.status, "approved")
+        self.assertIsNone(accepted.email_confirmed_at)
+        self.assertFalse(OutboxEvent.objects.filter(event_type__in=["registration.mail.requested", "registration.invite_mail.requested"]).exists())
+        provider = Mock()
         self.assertEqual(process_mail(provider=provider), 0)
-        self.assertNotIn(token, str(list(AuditEvent.objects.values())))
+        provider.send.assert_not_called()
 
-    def test_mail_failure_keeps_registration_and_ambiguous_outcome_stops_retry(self):
+
+    def test_old_mail_jobs_are_retired_without_provider_or_future_retry(self):
         item, _ = self.submit()
-        provider = Mock(); provider.send.side_effect = ProviderFailure("EMAIL_PROVIDER_ERROR", retryable=True, ambiguous=True)
-        self.assertEqual(process_mail(provider=provider), 1)
-        event = OutboxEvent.objects.get(event_type="registration.mail.requested")
-        self.assertEqual(event.last_error_code, "DELIVERY_OUTCOME_UNKNOWN")
+        event = OutboxEvent.objects.create(event_type="registration.mail.requested", entity_type="RegistrationRequest", entity_id=str(item.pk), occurred_at=timezone.now(), payload={"kind":"verify"})
+        provider = Mock()
+        self.assertEqual(process_mail(provider=provider), 0)
+        provider.send.assert_not_called()
+        event.refresh_from_db()
+        self.assertEqual(event.status, "failed")
+        self.assertEqual(event.last_error_code, "REGISTRATION_MAIL_DISABLED")
         self.assertIsNone(event.next_attempt_at)
+        self.assertEqual(process_mail(provider=provider), 0)
         self.assertTrue(RegistrationRequest.objects.filter(pk=item.pk).exists())
 
-    def test_resend_rotates_verify_and_cancellation_erases_password_hash(self):
-        item, key = self.submit(); old = verification_token(item)
-        self.assertEqual(self.client.post(PUBLIC+"resend/", {"token":key}, format="json").status_code, 202)
-        with self.assertRaises(ValidationError): Register.confirm(token=old)
+
+    def test_retired_confirmation_resend_and_cancel(self):
+        item, key = self.submit()
+        self.assertEqual(self.client.post(PUBLIC+"confirm/", {"token":"old"}, format="json").status_code, 410)
+        self.assertEqual(self.client.post(PUBLIC+"resend/", {"token":key}, format="json").status_code, 410)
         self.assertEqual(self.client.post(PUBLIC+"cancel/", {"token":key}, format="json").status_code, 200)
-        item.refresh_from_db(); self.assertEqual(item.password_hash, "")
+        item.refresh_from_db()
+        self.assertEqual(item.password_hash, "")
+        self.assertFalse(User.objects.filter(email=item.email).exists())
+
 
     def test_normalized_user_email_constraint_preserves_original_value(self):
         User.objects.create(username="odd", email=" Odd@Synthetic.Test ")
@@ -270,7 +277,8 @@ class RegistrationTests(Setup, TestCase):
     def test_second_email_cannot_reserve_the_same_single_use_invite(self):
         invitation, _ = Invite.issue(actor=self.owner, location=self.location, plan=self.plan)
         self.submit(invitation=invitation)
-        self.assertIsNone(self.submit(email="second@synthetic.test", invitation=invitation)[0])
+
+        with self.assertRaises(ValidationError): self.submit(email="second@synthetic.test", invitation=invitation)
         self.assertEqual(RegistrationRequest.objects.count(), 1)
 
     def test_access_scope_mutations_preserve_unrelated_assignments_and_replay(self):
@@ -288,45 +296,15 @@ class RegistrationTests(Setup, TestCase):
         self.client.force_authenticate(target_user)
         self.assertEqual(self.client.post(endpoint, payload, format="json").status_code, 404)
 
-    def test_real_smtp_capture_accepts_confirmation_mail(self):
-        import socketserver
-        import threading
-        accepted = []
-        class SMTP(socketserver.StreamRequestHandler):
-            def handle(inner):
-                inner.wfile.write(b"220 synthetic smtp\r\n")
-                data_mode = False
-                message = []
-                while True:
-                    line = inner.rfile.readline()
-                    if not line: break
-                    if data_mode:
-                        if line == b".\r\n":
-                            accepted.append(b"".join(message)); data_mode=False
-                            inner.wfile.write(b"250 accepted\r\n")
-                        else: message.append(line)
-                    elif line.upper().startswith(b"DATA"):
-                        data_mode=True; inner.wfile.write(b"354 data\r\n")
-                    elif line.upper().startswith(b"QUIT"):
-                        inner.wfile.write(b"221 bye\r\n"); break
-                    else: inner.wfile.write(b"250 OK\r\n")
-        with socketserver.TCPServer(("127.0.0.1",0),SMTP) as server:
-            thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
-            try:
-                item, _ = self.submit()
-                with override_settings(EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend", EMAIL_HOST="127.0.0.1", EMAIL_PORT=server.server_address[1], EMAIL_USE_TLS=False, EMAIL_HOST_USER="", EMAIL_HOST_PASSWORD="", DEFAULT_FROM_EMAIL="test@synthetic.test"):
-                    self.assertEqual(process_mail(), 1)
-                self.assertEqual(len(accepted), 1)
-                self.assertIn(b"Subject:", accepted[0])
-                from email import policy
-                from email.parser import BytesParser
-                body = BytesParser(policy=policy.default).parsebytes(accepted[0]).get_body().get_content()
-                self.assertIn(verification_token(item), body)
-                event = OutboxEvent.objects.get(event_type="registration.mail.requested")
-                self.assertEqual(event.status, "processed")
-                self.assertEqual(event.payload["accepted_recipients"], ["new@synthetic.test"])
-            finally:
-                server.shutdown(); thread.join()
+    def test_self_signup_works_without_smtp(self):
+        with override_settings(NOTIFICATIONS_EMAIL_ENABLED=False, EMAIL_HOST="", EMAIL_HOST_PASSWORD=""):
+            item, key = self.submit()
+            self.assertEqual(item.status, "pending")
+            self.assertIsNone(item.email_confirmed_at)
+            self.assertFalse(User.objects.filter(email=item.email).exists())
+            self.approve(item)
+            self.assertTrue(User.objects.get(email=item.email).check_password(PASSWORD))
+
 
     def test_new_viewer_cannot_read_related_people_work_requests_or_projects(self):
         from work_tasks.services import TaskService
@@ -341,7 +319,7 @@ class RegistrationTests(Setup, TestCase):
         request_type = RequestType.objects.create(service=service, name="Synthetic", code="REGISTRATION", created_by=owner_employee)
         SchemaService.publish(request_type, owner_employee, self.owner)
         work_request = ServiceRequestService.create(actor=owner_employee, actor_user=self.owner, request_type=request_type, subject="Hidden Request", payload={}, location=self.location)
-        item, _ = self.submit(); Register.confirm(token=verification_token(item)); item.refresh_from_db(); self.approve(item)
+        item, _ = self.submit(); item.refresh_from_db(); self.approve(item)
         user = User.objects.get(email=item.email)
         self.client.force_authenticate(user)
         for kind in ("tasks", "requests", "projects", "participating_projects"):
@@ -407,16 +385,16 @@ class RegistrationTests(Setup, TestCase):
         self.assertEqual(process_state_events(),1)
         state = OutboxEvent.objects.get(event_type="registration.submitted")
         self.assertEqual(state.payload["consumer_receipt"],"transactional_state_projection")
-        self.assertEqual(OutboxEvent.objects.get(event_type="registration.mail.requested").status,"pending")
+        self.assertFalse(OutboxEvent.objects.filter(event_type="registration.mail.requested").exists())
         self.assertEqual(process_state_events(),0)
 
-    def test_deactivation_of_superuser_inviter_blocks_pending_acceptance(self):
+    def test_deactivation_of_superuser_inviter_blocks_acceptance(self):
         invitation, raw = Invite.issue(actor=self.owner,location=self.location,plan=self.plan)
-        item, _ = self.submit(invitation=invitation)
         EmployeeService.deactivate(employee=self.owner.employee,actor_user=self.owner)
         with self.assertRaises(PermissionDenied): Invite.context(raw)
-        with self.assertRaises(PermissionDenied): Register.confirm(token=verification_token(item))
-        self.assertFalse(User.objects.filter(email=item.email).exists())
+        with self.assertRaises(PermissionDenied): self.submit(invitation=invitation)
+        self.assertFalse(User.objects.filter(email="new@synthetic.test").exists())
+
 
     def test_invite_default_is_minimal_view_role_and_single_employment_scope(self):
         invitation, _ = Invite.issue(actor=self.owner,location=self.location)
@@ -434,7 +412,7 @@ class RegistrationTests(Setup, TestCase):
 
     def test_readonly_signup_has_no_implicit_legacy_api_privileges(self):
         from accounts.serializers import EmailTokenSerializer
-        item, _ = self.submit(); Register.confirm(token=verification_token(item)); item.refresh_from_db(); self.approve(item)
+        item, _ = self.submit(); item.refresh_from_db(); self.approve(item)
         user = User.objects.get(email=item.email)
         access = str(EmailTokenSerializer.get_token(user).access_token)
         client = APIClient(); client.credentials(HTTP_AUTHORIZATION="Bearer "+access)
@@ -453,6 +431,25 @@ class RegistrationTests(Setup, TestCase):
         self.assertEqual(self.client.get(ADMIN+"requests/?status=unknown").status_code,400)
 
 
+    def test_upgrade_retires_old_confirmation_without_activating_or_sending(self):
+        from importlib import import_module
+        from django.apps import apps
+        item, _ = self.submit()
+        RegistrationRequest.objects.filter(pk=item.pk).update(status="email_pending")
+        legacy = RegistrationRequest.objects.create(email="old@synthetic.test", full_name="Legacy", status="pending", expires_at=timezone.now()+timedelta(days=1))
+        mail = OutboxEvent.objects.create(event_type="registration.mail.requested", entity_type="RegistrationRequest", entity_id=str(item.pk), occurred_at=timezone.now(), next_attempt_at=timezone.now())
+        import_module("employees.migrations.0020_retire_registration_verification").retire(apps, None)
+        item.refresh_from_db(); legacy.refresh_from_db(); mail.refresh_from_db()
+        self.assertEqual(item.status, "cancelled")
+        self.assertEqual(item.password_hash, "")
+        self.assertEqual(legacy.status, "pending")
+        self.assertFalse(User.objects.filter(email=item.email).exists())
+        self.assertEqual(mail.last_error_code, "REGISTRATION_MAIL_DISABLED")
+        self.assertIsNone(mail.next_attempt_at)
+        self.assertTrue(AuditEvent.objects.filter(action="registration.verification_retired", entity_id=str(item.pk)).exists())
+        self.assertTrue(OutboxEvent.objects.filter(event_type="registration.cancelled", entity_id=str(item.pk)).exists())
+
+
 class ConcurrentRegistrationTests(Setup, TransactionTestCase):
     def parallel(self, fn):
         def run(_):
@@ -466,26 +463,22 @@ class ConcurrentRegistrationTests(Setup, TransactionTestCase):
         self.parallel(lambda: self.submit())
         self.assertEqual(RegistrationRequest.objects.count(), 1)
 
-    def test_parallel_invite_confirmation_creates_one_user_employee_and_assignment(self):
+    def test_parallel_invite_submit_creates_one_user_employee_and_assignment(self):
         invitation, _ = Invite.issue(actor=self.owner, location=self.location, plan=self.plan)
-        item, _ = self.submit(invitation=invitation)
-        token = verification_token(item)
-        self.parallel(lambda: Register.confirm(token=token))
-        self.assertEqual(User.objects.filter(email=item.email).count(), 1)
-        employee = Employee.objects.get(user__email=item.email)
+        self.parallel(lambda: self.submit(invitation=EmployeeInvitation.objects.get(pk=invitation.pk)))
+        self.assertEqual(User.objects.filter(email="new@synthetic.test").count(), 1)
+        employee = Employee.objects.get(user__email="new@synthetic.test")
         self.assertEqual(EmployeeAssignment.objects.filter(employee=employee, status="active", is_primary=True).count(), 1)
         self.assertEqual(EmployeeRole.objects.filter(employee=employee, is_active=True).count(), 1)
 
-    @override_settings(NOTIFICATIONS_EMAIL_ENABLED=True)
-    def test_interrupted_mail_dispatch_is_not_retried_automatically(self):
-        class SimulatedCrash(BaseException): pass
-        self.submit()
-        provider = Mock(); provider.send.side_effect = SimulatedCrash()
-        with self.assertRaises(SimulatedCrash): process_mail(provider=provider)
-        event = OutboxEvent.objects.get(event_type="registration.mail.requested")
-        self.assertEqual(event.status, "failed")
-        self.assertEqual(event.last_error_code, "DELIVERY_OUTCOME_UNKNOWN")
-        self.assertEqual(process_mail(provider=Mock()), 0)
+
+    def test_invite_submit_works_without_smtp(self):
+        with override_settings(NOTIFICATIONS_EMAIL_ENABLED=False, EMAIL_HOST=""):
+            invitation, _ = Invite.issue(actor=self.owner, location=self.location, plan=self.plan)
+            item, _ = self.submit(invitation=invitation)
+            self.assertEqual(item.status, "approved")
+            self.assertFalse(OutboxEvent.objects.filter(event_type__contains="mail.requested").exists())
+
 
     def test_parallel_public_throttles_cannot_bypass_single_slot(self):
         from .registration_throttle import RegistrationThrottle
@@ -502,7 +495,9 @@ class ConcurrentRegistrationTests(Setup, TransactionTestCase):
         invitation, _ = Invite.issue(actor=self.owner, location=self.location, plan=self.plan)
         def run(email):
             close_old_connections()
-            try: return self.submit(email=email,invitation=EmployeeInvitation.objects.get(pk=invitation.pk))[0]
+            try:
+                try: return self.submit(email=email,invitation=EmployeeInvitation.objects.get(pk=invitation.pk))[0]
+                except ValidationError: return None
             finally: connection.close()
         with ThreadPoolExecutor(max_workers=2) as pool:
             list(pool.map(run,["one@synthetic.test","two@synthetic.test"]))

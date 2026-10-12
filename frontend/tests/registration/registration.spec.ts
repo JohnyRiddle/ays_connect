@@ -1,5 +1,4 @@
 import {test,expect} from "@playwright/test";
-import {execFileSync} from "node:child_process";
 
 const backend = process.env.REGISTRATION_BACKEND_URL || "http://127.0.0.1:18043";
 const location = process.env.REGISTRATION_TEST_LOCATION!;
@@ -8,18 +7,13 @@ const password = "Synthetic-Browser-2026!";
 test.beforeAll(()=>{
   if(backend!=="http://127.0.0.1:18043" || process.env.DATABASE_URL!=="postgresql://registration_test@127.0.0.1:55443/registration") throw new Error("Only isolated synthetic registration database is allowed");
 });
-function verifyToken(email:string){
-  const command = `from employees.models import RegistrationRequest; from employees.registration import verification_token; print(verification_token(RegistrationRequest.objects.get(email=${JSON.stringify(email)})))`;
-  const output=execFileSync(process.env.REGISTRATION_TEST_PYTHON!, ["manage.py","shell","-c",command],{cwd:process.env.REGISTRATION_TEST_BACKEND_DIR!,encoding:"utf8"});
-  return output.trim().split(/\r?\n/).at(-1)!;
-}
 async function ownerToken(request:any){
   const response=await request.post(backend+"/api/v1/auth/login/",{data:{email:"browser-owner@synthetic.test",password}});
   expect(response.status()).toBe(200);
   return (await response.json()).access;
 }
 for(const scenario of ["self","invite"]){
-  test(`${scenario}: email confirmation, approval, scoped working access`,async({page,request},testInfo)=>{
+  test(`${scenario}: direct submission, approval, scoped working access`,async({page,request},testInfo)=>{
     const email=`${scenario}-${testInfo.project.name}-${Date.now()}@synthetic.test`;
     const token=await ownerToken(request);
     const headers={Authorization:`Bearer ${token}`};
@@ -39,11 +33,11 @@ for(const scenario of ["self","invite"]){
     await page.getByLabel("Пароль",{exact:true}).fill(password);
     await page.getByLabel("Подтверждение пароля",{exact:true}).fill(password);
     await page.getByRole("button",{name:"Зарегистрироваться",exact:true}).click();
-    await expect(page.getByRole("heading",{name:"Ожидает подтверждения e-mail"})).toBeVisible();
-    const before=await request.post(backend+"/api/v1/auth/login/",{data:{email,password}});
-    expect(before.status()).toBe(401);
-    await page.goto(`/register#verify=${verifyToken(email)}`);
     await expect(page.getByRole("heading",{name:scenario==="self"?"Ожидает согласования":"Одобрена",exact:true})).toBeVisible();
+    if(scenario==="self"){
+      const before=await request.post(backend+"/api/v1/auth/login/",{data:{email,password}});
+      expect(before.status()).toBe(401);
+    }
     if(scenario==="self"){
       const list=await request.get(backend+"/api/internal/v1/registration/requests/",{headers});
       const data=await list.json(); const item=(data.results||data).find((x:any)=>x.email===email);

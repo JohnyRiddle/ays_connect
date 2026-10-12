@@ -384,7 +384,6 @@ class RegistrationRequest(models.Model):
         APPROVED = "approved", "Одобрена"
         REJECTED = "rejected", "Отклонена"
         EXPIRED = "expired", "Истекла"
-        EMAIL_PENDING = "email_pending", "Ожидает подтверждения email"
         CANCELLED = "cancelled", "Отменена"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

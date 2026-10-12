@@ -1,84 +1,60 @@
-# Registration acceptance — 12.10.2026
+# Registration acceptance — новая политика 12.10.2026
 
-Base: main `5d9da353ee552af3b0c2182c374f132d0e91e2ce`; branch `codex/registration`.
-Runtime/schema implemented. Synthetic acceptance: PASS.
-Working restored DB compatibility / external SMTP inbox: NOT VERIFIED.
-Production deployment: NOT PERFORMED. iikoCard: separate phase.
+Ветка codex/registration, main base 5d9da353ee552af3b0c2182c374f132d0e91e2ce.
+Требования заменяют email-verification/SMTP evidence коммита f60780d. Прошлый
+626/626 и browser 6/6 относятся к прошлому контракту и не являются gate новой версии.
+Production регистрации NOT PERFORMED; restored working DB compatibility NOT VERIFIED.
+SMTP исключён из условий выпуска, владение адресом не подтверждается.
 
-## Contour and commands
+## Окончательные проверки
 
-Fresh PostgreSQL 17.11, loopback 127.0.0.1:55443, synthetic registration DB;
-Django tests use a separate test_registration database. No production mounts,
-users, roles, grants or integrations. Exact backend requirements and frontend
-package-lock dependencies installed. Docker engine unavailable; PostgreSQL gate
-ran directly against PostgreSQL, not SQLite. Raw fixture/evidence outside Git.
+Изолированный PostgreSQL 17.11 / loopback 55443, synthetic DB и отдельная test DB;
+без production mounts/accounts/integrations. Docker недоступен, PostgreSQL проверяется
+напрямую. Dependencies — backend requirements/frontend package-lock. Evidence вне Git.
 
-| Final-code check | Command | Result |
-|---|---|---|
-| Full backend regression | `python manage.py test --noinput` (DATABASE_URL points to isolated PostgreSQL) | PASS 626/626, 355.661s |
-| Django | `python manage.py check` | PASS, no issues |
-| Model drift | `python manage.py makemigrations --check --dry-run` | PASS, no changes |
-| Repeat init migration plan | `python manage.py migrate --plan` | PASS, no operations |
-| TypeScript | `node node_modules/typescript/bin/tsc` | PASS |
-| Frontend bundle | `node node_modules/vite/bin/vite.js build` | PASS, 1816 modules |
-| Desktop/mobile | `node node_modules/@playwright/test/cli.js test --config playwright.registration.config.ts` | PASS 6/6, 15.3s |
-| Preservation | Private SHA-256 baseline comparison | PASS, 13 original dirty files + Objects CRLF-only views.py |
-
-Full regression includes all existing modules plus registration/upgrade cases.
-The prior 625/625 run preceded the last request-filter validation; it is historical,
-not substituted for the final gate. Interrupted final attempts are not PASS.
-Browser tests use exact local URL/DB guards and synthetic credentials, trace off.
-Confirmation capabilities are generated within the synthetic fixture, not by
-external inbox: browser email delivery is not claimed.
-
-## Acceptance matrix
-
-| Scenario | Evidence / limit |
+| Команда/проверка | Результат |
 |---|---|
-| Signup, optional patronymic, password confirmation, no early working access | API tests + desktop/mobile self-registration |
-| Email confirmation, approval/rejection/reason/actor, own status/resend/cancel | API tests; real local SMTP capture for verification |
-| Invite UI, fixed Location/role/scope, bound optional email, one use / expiry / revoke / reissue | API tests + desktop/mobile invite/create/revoke |
-| Normalized unique email and no automatic FIO matching | API tests + migration collision STOP |
-| Explicit existing Employee link; returning normal User through lifecycle | API tests, UUID reuse, old grants revoked |
-| Primary employment history; selected/all responsibility separate from RBAC | API tests; all includes future objects without extra access |
-| Scoped list/detail/count/options; delegation, unsafe/default modified role rejection | API tests; unrelated grants preserved |
-| Related People/Work/Requests/Projects denied; legacy IsAuthenticated bypass closed | API tests, real JWT legacy GET/POST denied, canonical own object available |
-| Archive/close and inactive inviter | API tests, pending acceptance rejected |
-| Concurrent submit / acceptance / invite reservation / shared throttle | PostgreSQL TransactionTestCase tests |
-| Existing rows, UUID, identity, primary history and grants survive additive upgrade | Synthetic migration executor tests; repeat plan empty |
-| Mail consumer success/retry/unknown/crash, state receipts | Tests including actual local SMTP protocol; receipt is not delivery |
+| `python manage.py test employees.test_registration employees.test_registration_upgrade --noinput` | PASS 42/42, 92.068s |
+| `python manage.py test --noinput` | PostgreSQL полный regression **627/627 PASS, 408.376s** |
+| `python manage.py check` | PASS |
+| `python manage.py makemigrations --check --dry-run` | PASS |
+| `python manage.py migrate --plan` после init | PASS, no planned operations |
+| TypeScript + Vite build | PASS, 1816 modules |
+| `node node_modules/@playwright/test/cli.js test --config playwright.registration.config.ts` | PASS 6/6, 13.5s, desktop/mobile; email disabled/host empty |
 
-Five additions: accounts 0004 + employees 0016–0019. No classification/mapping,
-Facility/Zone deletion or data transfer. Projects change is only a Windows-safe
-file/stream test cleanup; project runtime unchanged. Old public register and
-invite-create contracts deliberately switch to object-based registration; old
-issued legacy invite links retain their contract. Existing non-enrolled accounts
-retain legacy behavior.
+## Матрица
 
-## Remaining release gates
+- Self submit immediately pending; email обязательный/нормализованный; до approval
+  нет User/Employee, login 401. Decision authorised, reject reason/actor, status/cancel.
+- Invite submit directly approved: one-use, bound email match, immutable Location/
+  plan, expiry/revoke/reissue; old activation cannot bypass. No SMTP dependency.
+- Repeat/parallel same email/one invite/competing emails: один User/Employee/primary/
+  role, нет перезаписи ФИО/пароля и раскрытия оригинального capability.
+- scoped lists/detail/options/counts/filter/delegation; changed role/inactive issuer/
+  closed or archived Objects rejected. Related People/Work/Requests/Projects denied,
+  new ordinary accounts have legacy endpoints closed, old accounts unchanged.
+- primary employment history, selected/all responsibility separate from RBAC;
+  existing Employee explicit link/returning lifecycle; grants unrelated preserved.
+- Both flows create zero mail events even with email-enabled settings; tombstone
+  mail consumer never calls provider, old jobs terminal failed/retry=None.
+- Upgrade retires old object email_pending with Audit/Outbox, no autoactivation;
+  legacy pending preserved, password hash cleared; existing UUID/grants/history
+  synthetic upgrade preserved. confirm/resend 410, no side effects.
 
-- Restore fresh working DB/media in isolation; run collision preflight, complete
-  init and compare real users/Employee/grants/history. Synthetic preservation
-  does not prove populated production compatibility.
-- Confirm external SMTP provider and inbox delivery, authorized approvers,
-  default role and explicit delegation setup. Disabled/test email backends do
-  not report delivery. Resolve UNKNOWN outcomes manually.
-- All responsibility is installation-wide; multiple independent companies need
-  a separate tenant contract. Legacy/global/org/legal/team grants cannot be
-  transformed into Location scope by assumption. New ordinary accounts have
-  legacy modules closed in this version.
-- Follow protected backup/restore and pinned release plan in
-  [REGISTRATION_IMPLEMENTATION.md](REGISTRATION_IMPLEMENTATION.md). Separate
-  authorization required for production. No merge/deployment performed here.
+Шесть additions: accounts0004 + employees0016–0020. Исторические поля verification
+сохранены, новый runtime ими не открывает доступ. Никакой Facility/Zone классификации,
+mapping/переноса и automatic all. Internal Outbox receipts не объявляются mail delivery.
+Browser assertions проверки поведения сохранены, SMTP/verification helpers удалены.
 
-## Checked diff
+## Обязательные release gates
 
-All task files are in the isolated codex/registration worktree: accounts identity
-boundary; registration services/API/consumers/throttle; additive migrations;
-People integration; existing notification worker; React screens; backend and
-browser tests; implementation/user guide/acceptance/current state/roadmap.
-No .env, DB/media, keys, raw backups or production credentials are included.
-Exact checkpoint file names and normalized source SHA-256 are recorded in
-REGISTRATION_CHECKPOINT.json; this manifest excludes itself.
+Свежая согласованная защищённая production DB/media/off-host restore в изолированном
+контуре; collision check, actual migrate/seed/collectstatic/check/drift/repeat plan;
+сохранность реальных пользователей и RolePermission/EmployeeRole/primary history;
+настройка scoped approvers/delegation/default role. Runtime deployment/merge не выполнены.
+Внешняя SMTP-доставка НЕ release gate. Полный GO/STOP/rollback:
+[REGISTRATION_IMPLEMENTATION.md](REGISTRATION_IMPLEMENTATION.md).
+Исходные dirty-файлы должны оставаться вне checkpoint. Полный актуальный состав и
+нормализованные SHA-256 обновлены в REGISTRATION_CHECKPOINT.json.
 
-Final evidence recorded 12.10.2026, 07:34 UTC. Full backend log SHA-256: `3fae1a923ca63b8504e5362c81d5969b0f7c195c1dc583732f074f40cc43d41d`. Test DB left by the interrupted run was recreated by `--noinput`; the successful final test run completed with exit 0 / OK. No runtime/schema edits after final gates.
+Final source unchanged после gates; full log SHA-256: `79f6c863303653721b09d65884c4f5f930452d5cd23eb2542efb6503b525f646`. Evidence 12.10.2026, no commit/push/deployment in this follow-up. Новая схема с 0020 и политика отмены старых подтверждений должны быть проверены на свежей рабочей копии до выпуска.

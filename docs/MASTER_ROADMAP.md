@@ -1,18 +1,15 @@
-## 12.10.2026 — Registration / object-scoped invitations
+## 12.10.2026 — Registration requirements: без подтверждения email и писем
 
-Изолированная ветка `codex/registration`, база main `5d9da353ee552af3b0c2182c374f132d0e91e2ce`.
-Реализованы самостоятельная регистрация/email confirmation/согласование, одноразовые
-объектные приглашения, отдельные employment/responsibility/access, делегация, lifecycle,
-Audit/Outbox consumers, desktop/mobile UI и пять добавочных миграций. Старые UUID,
-пользователи и grants не преобразуются; legacy mapping не создаётся. Новым обычным
-аккаунтам закрыты legacy API без утверждённого Location scope.
-
-Synthetic acceptance **PASS: PostgreSQL 626/626, 355.661s**. Browser 6/6 (15.3s), TypeScript/build/check/drift/repeat plan PASS.
-Реальная restored DB и внешний SMTP/inbox NOT VERIFIED; production NOT PERFORMED,
-iikoCard отдельно. Матрица и команды: [REGISTRATION_ACCEPTANCE.md](REGISTRATION_ACCEPTANCE.md).
-Архитектура/release plan: [REGISTRATION_IMPLEMENTATION.md](REGISTRATION_IMPLEMENTATION.md);
-[инструкция](REGISTRATION_USER_GUIDE.md). Исходные 13 dirty-файлов и Objects CRLF-only
-views.py сохранены в прежних checkout и не входят в diff этой ветки.
+Self submit сразу pending, рабочий доступ после approval; invite submit сразу
+approved в атомарной транзакции. Email обязателен/normalized/unique, mailbox ownership
+не проверяется. Mail events не создаются; старые jobs terminal disabled, old confirmation
+requests отменяются с Audit/Outbox, legacy activation закрыт. Шесть additions.
+No-SMTP API/upgrade 42/42 PASS (92.068s), browser 6/6 PASS (13.5s), build/check/drift PASS.
+PostgreSQL полный regression **627/627 PASS, 408.376s**. Реальная restored DB/grants и scoped approvers/delegation
+остаются обязательными. SMTP исключён из gates; production регистрации NOT PERFORMED.
+[Матрица](REGISTRATION_ACCEPTANCE.md), [контракт/release](REGISTRATION_IMPLEMENTATION.md),
+[инструкция](REGISTRATION_USER_GUIDE.md). Изолированная codex/registration; исходные
+13 dirty-файлов и Objects CRLF-only views.py сохранены.
 
 ## 09.10.2026 — Objects production release PASS; PR #1
 

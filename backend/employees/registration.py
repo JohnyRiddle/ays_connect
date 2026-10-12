@@ -158,22 +158,13 @@ def validate_plan(actor, location, plan):
 
 
 def signed_token(entity, purpose, generation):
-    # Deterministic signed capabilities can be reconstructed for retry delivery;
-    # only their SHA-256 is persisted for invites, never raw tokens in mail jobs.
+    # Signed invite capability is copied by the issuer; only SHA-256 is persisted.
     return signing.Signer(salt="ays.registration." + purpose).sign(f"{entity.pk}:{generation}")
 
 
 def permission_snapshot(role):
     rows = list(role.permission_grants.order_by("permission__code", "scope").values_list("permission__code", "scope"))
     return hashlib.sha256(json.dumps(rows).encode()).hexdigest()
-
-
-def verification_token(item):
-    return signed_token(item, "verify", item.mail_generation)
-
-
-def queue_mail(item, kind, actor=None):
-    _event("registration.mail.requested", item, actor, new={"kind": kind, "generation": item.mail_generation})
 
 
 def active_employee(employee):
@@ -225,56 +216,21 @@ class ObjectRegistrationService:
                 status__in=["pending", "email_pending"]).first()
             if existing or (invitation and RegistrationRequest.objects.filter(invitation=invitation).exists()):
                 # Never overwrite identity/password from an unauthenticated repeat.
-                # A repeat gets an unrelated capability, while the genuine email owner
-                # can recover the true status capability from the confirmation email.
+                # Repeat never discloses the original private status capability.
                 return None, secrets.token_urlsafe(32)
             status_key = secrets.token_urlsafe(32)
             item = RegistrationRequest.objects.create(email=email, first_name=first_name,
                 last_name=last_name, middle_name=middle_name,
                 full_name=" ".join(filter(None, [last_name, first_name, middle_name])),
-                status="email_pending", employment_location=location, invitation=invitation,
+                status="pending", employment_location=location, invitation=invitation,
                 password_hash=make_password(password), status_token_hash=token_hash(status_key),
                 expires_at=timezone.now() + timedelta(days=14))
             _event("registration.submitted", item, new={"location_id": str(location.pk), "status": item.status})
-            queue_mail(item, "verify")
+            if invitation:
+                ObjectRegistrationService.approve(registration=item, actor=invitation.created_by,
+                    plan=invitation.access_plan, automatic=True)
+                item.refresh_from_db()
             return item, status_key
-
-    @staticmethod
-    @transaction.atomic
-    def confirm(*, token):
-        try:
-            value = signing.Signer(salt="ays.registration.verify").unsign(token)
-            pk, generation = value.split(":")
-        except (signing.BadSignature, ValueError):
-            raise ValidationError(DENIED)
-        item = RegistrationRequest.objects.filter(pk=pk).first()
-        if not item:
-            raise ValidationError(DENIED)
-        email_lock(item.email)
-        if item.invitation_id and item.invitation.employee_id:
-            Employee.objects.select_for_update().get(pk=item.invitation.employee_id)
-            EmployeeInvitation.objects.select_for_update().get(pk=item.invitation_id)
-        item = RegistrationRequest.objects.select_for_update().get(pk=pk)
-        if str(item.mail_generation) != generation or item.expires_at <= timezone.now() or item.status not in {"email_pending", "pending", "approved"}:
-            raise ValidationError(DENIED)
-        if item.status == "email_pending":
-            if not public_locations().filter(pk=item.employment_location_id).exists():
-                raise ValidationError(DENIED)
-            item.status = "pending"
-            item.email_confirmed_at = timezone.now()
-            item.save(update_fields=["status", "email_confirmed_at"])
-            _event("registration.email_confirmed", item, new={"status": item.status})
-            if item.invitation_id:
-                ObjectRegistrationService.approve(registration=item, actor=item.invitation.created_by,
-                    plan=item.invitation.access_plan, automatic=True)
-            else:
-                queue_mail(item, "review")
-        # Email proof also returns a new status capability, without exposing it in URLs/logs.
-        raw = secrets.token_urlsafe(32)
-        item.status_token_hash = token_hash(raw)
-        item.save(update_fields=["status_token_hash"])
-        item.refresh_from_db()
-        return item, raw
 
     @staticmethod
     @transaction.atomic
@@ -288,9 +244,9 @@ class ObjectRegistrationService:
             employee = Employee.objects.select_for_update().get(pk=employee.pk)
         item = RegistrationRequest.objects.select_for_update().get(pk=registration.pk)
         if item.invitation_id and not automatic:
-            raise ValidationError("Приглашение принимается через подтверждение e-mail.")
+            raise ValidationError("Приглашение принимается через публичную форму.")
         location = item.employment_location
-        if item.status != "pending" or not item.email_confirmed_at or item.expires_at <= timezone.now():
+        if item.status != "pending" or item.expires_at <= timezone.now():
             raise ValidationError(DENIED)
         if automatic:
             invitation = EmployeeInvitation.objects.select_for_update().get(pk=item.invitation_id)
@@ -358,7 +314,6 @@ class ObjectRegistrationService:
                 _event("people.invitation.accepted", invitation, actor, new={"employee_id": str(employee.pk)})
             _event("registration.approved", item, actor, new={"employee_id": str(employee.pk), "user_id": user.pk, "access_plan": normalized})
             _event("people.user.linked", employee, actor, new={"user_id": user.pk})
-            queue_mail(item, "approved", actor)
             return item
 
     @staticmethod
@@ -375,7 +330,6 @@ class ObjectRegistrationService:
         item.password_hash = ""
         item.save(update_fields=["status", "rejection_code", "reviewed_by", "reviewed_at", "password_hash"])
         _event("registration.rejected", item, actor, new={"reason": item.rejection_code})
-        queue_mail(item, "rejected", actor)
         return item
 
 
@@ -421,8 +375,6 @@ class ObjectInvitationService:
             item.token_hash = token_hash(token)
             item.save(update_fields=["token_hash"])
             _event("people.invitation.created", item, actor, new={"location_id": str(location.pk), "access_plan": normalized})
-            if item.delivery_address:
-                _event("registration.invite_mail.requested", item, actor, new={"generation": item.version})
             return item, token
 
     @staticmethod
