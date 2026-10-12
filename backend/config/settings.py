@@ -102,6 +102,8 @@ PEOPLE_OVERDUE_REPEAT_HOURS=max(1,int(os.getenv("PEOPLE_OVERDUE_REPEAT_HOURS", "
 REGISTRATION_REQUEST_TTL_DAYS=int(os.getenv("REGISTRATION_REQUEST_TTL_DAYS", "14"))
 FRONTEND_BASE_URL=os.getenv("FRONTEND_BASE_URL", os.getenv("AYS_CONNECT_PUBLIC_URL", "http://localhost:3000")).rstrip("/")
 EMAIL_BACKEND=os.getenv("EMAIL_BACKEND","django.core.mail.backends.console.EmailBackend")
+EMAIL_TIMEOUT = 10
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"].update({"registration_status": "60/min", "registration_locations": "60/min", "registration_resend": "3/hour"})
 EMAIL_HOST=os.getenv("EMAIL_HOST","");EMAIL_PORT=int(os.getenv("EMAIL_PORT","587"));EMAIL_HOST_USER=os.getenv("EMAIL_HOST_USER","");EMAIL_HOST_PASSWORD=os.getenv("EMAIL_HOST_PASSWORD","");EMAIL_USE_TLS=os.getenv("EMAIL_USE_TLS","1")=="1";DEFAULT_FROM_EMAIL=os.getenv("DEFAULT_FROM_EMAIL","AYS Connect <no-reply@localhost>")
 
 # iiko credentials stay outside Git in the existing server-side env file.

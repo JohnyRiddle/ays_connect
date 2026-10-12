@@ -47,7 +47,8 @@ import "./people-theme.css";
 import { ProductionWorkRouter } from "./work";
 import { ProjectsRouter } from "./projects";
 import { ObjectsRouter } from "./objects";
-import { ActivationPage, PeopleRouter, RegistrationPage } from "./people";
+import { ActivationPage, PeopleRouter } from "./people";
+import { RegistrationPage, RegistrationManagement } from "./registration";
 import IikoCardsPage from "./IikoCardsPage";
 import { CardsDashboard } from "./CardsDashboard";
 import { isCardsDashboard } from "./cardsDashboardData";
@@ -761,6 +762,8 @@ function App() {
           <IikoCardsPage />
         ) : isCardsDashboard({ pathname: path, hash: window.location.hash }) ? (
           <CardsDashboard />
+        ) : ["/people/registration", "/people/registrations", "/people/invitations"].includes(path) ? (
+          <RegistrationManagement />
         ) : path.startsWith("/people") ? (
           <PeopleRouter path={path} navigate={navigate} />
         ) : path.startsWith("/projects") ? (

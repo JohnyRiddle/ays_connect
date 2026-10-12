@@ -3,6 +3,8 @@ from access_control.models import Permission
 
 
 PERMISSIONS = {
+    "people.invitation.delegate": "Делегировать роль и объектный scope",
+    "people.responsibility.all": "Назначать ответственность за все объекты",
     "iiko.sheregesh.card.reassign": "Снятие регистрации и передача карт iikoCard: Шерегеш",
     "iiko.sheregesh.card.delete_guest": "Удаление прежнего гостя при переоформлении iikoCard: Шерегеш",
     "iiko.sheregesh.card.topup": "Пополнение кошелька при создании iikoCard: Шерегеш",

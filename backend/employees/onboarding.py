@@ -76,7 +76,7 @@ class InvitationService:
     @staticmethod
     def context(token):
         invitation = EmployeeInvitation.objects.select_related("employee__position_ref", "employee__legal_entity").filter(token_hash=token_hash(token)).first()
-        if not invitation or invitation.used_at or invitation.revoked_at or invitation.expires_at <= timezone.now():
+        if not invitation or invitation.employment_location_id or invitation.used_at or invitation.revoked_at or invitation.expires_at <= timezone.now():
             return None
         return invitation
 
@@ -92,7 +92,7 @@ class InvitationService:
         employee = Employee.objects.select_for_update().get(pk=owner_id)
         invitation = EmployeeInvitation.objects.select_for_update().filter(token_hash=hashed).first()
         now = timezone.now()
-        if not invitation or invitation.used_at or invitation.revoked_at or invitation.expires_at <= now:
+        if not invitation or invitation.employment_location_id or invitation.used_at or invitation.revoked_at or invitation.expires_at <= now:
             raise ValidationError("Activation link is unavailable.")
         if not employee.is_active or employee.status in {"archived", "suspended", "dismissed", "terminated"}:
             raise ValidationError("Activation link is unavailable.")
@@ -179,6 +179,8 @@ class RegistrationService:
     @transaction.atomic
     def approve(*, registration, employee, actor_user):
         registration = RegistrationRequest.objects.select_for_update().get(pk=registration.pk)
+        if registration.employment_location_id:
+            raise ValidationError("Use object registration approval.")
         if registration.status != RegistrationRequest.Status.PENDING:
             raise ValidationError("Registration was already processed.")
         invitation, raw = InvitationService.issue(employee=employee, actor_user=actor_user, delivery_address=registration.email)
@@ -194,6 +196,8 @@ class RegistrationService:
     @transaction.atomic
     def reject(*, registration, actor_user, reason="rejected"):
         registration = RegistrationRequest.objects.select_for_update().get(pk=registration.pk)
+        if registration.employment_location_id:
+            raise ValidationError("Use object registration approval.")
         if registration.status != RegistrationRequest.Status.PENDING:
             raise ValidationError("Registration was already processed.")
         registration.status = RegistrationRequest.Status.REJECTED

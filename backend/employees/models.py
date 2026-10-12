@@ -344,7 +344,10 @@ class EmployeeInvitation(models.Model):
         EXPIRED = "expired", "Истекло"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    employee = models.ForeignKey(Employee, on_delete=models.PROTECT, related_name="invitations")
+    employee = models.ForeignKey(Employee, on_delete=models.PROTECT, related_name="invitations", null=True, blank=True)
+    employment_location = models.ForeignKey("organizations.Location", on_delete=models.PROTECT, null=True, blank=True, related_name="registration_invitations")
+    access_plan = models.JSONField(default=dict, blank=True)
+    permission_snapshot = models.CharField(max_length=64, blank=True, editable=False)
     token_hash = models.CharField(max_length=64, unique=True)
     token_prefix = models.CharField(max_length=12, blank=True, editable=False)
     delivery_address = models.EmailField(blank=True)
@@ -381,6 +384,8 @@ class RegistrationRequest(models.Model):
         APPROVED = "approved", "Одобрена"
         REJECTED = "rejected", "Отклонена"
         EXPIRED = "expired", "Истекла"
+        EMAIL_PENDING = "email_pending", "Ожидает подтверждения email"
+        CANCELLED = "cancelled", "Отменена"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     full_name = models.CharField(max_length=300)
@@ -392,10 +397,38 @@ class RegistrationRequest(models.Model):
     reviewed_at = models.DateTimeField(null=True, blank=True)
     reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="registration_requests_reviewed")
     rejection_code = models.CharField(max_length=80, blank=True)
+    employment_location = models.ForeignKey("organizations.Location", on_delete=models.PROTECT, null=True, blank=True, related_name="registration_requests")
+    first_name = models.CharField(max_length=150, blank=True)
+    last_name = models.CharField(max_length=150, blank=True)
+    middle_name = models.CharField(max_length=150, blank=True)
+    password_hash = models.CharField(max_length=256, blank=True, editable=False)
+    status_token_hash = models.CharField(max_length=64, blank=True, editable=False)
+    email_confirmed_at = models.DateTimeField(null=True, blank=True)
+    invitation = models.OneToOneField(EmployeeInvitation, on_delete=models.PROTECT, null=True, blank=True, related_name="registration")
+    mail_generation = models.PositiveIntegerField(default=1)
 
     class Meta:
         indexes = [models.Index(fields=["email", "status", "created_at"])]
-        constraints = [models.UniqueConstraint(models.functions.Lower("email"), condition=models.Q(status="pending"), name="one_pending_registration_email")]
+        constraints = [models.UniqueConstraint(models.functions.Lower("email"), condition=models.Q(status__in=["pending", "email_pending"]), name="one_pending_registration_email")]
+
+
+class EmployeeObjectResponsibility(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    employee = models.ForeignKey(Employee, on_delete=models.PROTECT, related_name="object_responsibility_history")
+    mode = models.CharField(max_length=12, choices=[("selected", "Выбранные"), ("all", "Все объекты")])
+    locations = models.ManyToManyField("organizations.Location", blank=True)
+    valid_from = models.DateTimeField(default=timezone.now)
+    valid_to = models.DateTimeField(null=True, blank=True)
+    changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["employee"], condition=models.Q(valid_to__isnull=True), name="one_current_employee_object_responsibility")]
+
+
+class RegistrationRateBucket(models.Model):
+    key = models.CharField(max_length=64, primary_key=True)
+    count = models.PositiveIntegerField(default=0)
+    expires_at = models.DateTimeField(db_index=True)
 
 
 class EmployeeProfile(models.Model):

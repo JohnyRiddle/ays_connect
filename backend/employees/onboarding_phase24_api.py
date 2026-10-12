@@ -83,7 +83,7 @@ class InvitationViewSet(viewsets.GenericViewSet):
     serializer_class = InvitationSerializer
 
     def get_queryset(self):
-        qs = EmployeeInvitation.objects.select_related("employee", "created_by").filter(employee__in=visible_employees(self.request.user, "people.invitation.view"))
+        qs = EmployeeInvitation.objects.select_related("employee", "created_by").filter(employment_location__isnull=True, employee__in=visible_employees(self.request.user, "people.invitation.view"))
         p = self.request.query_params
         for param, field in (("status", "status"), ("employee", "employee_id"), ("legal_entity", "employee__legal_entity_id"), ("org_unit", "employee__org_unit_id"), ("location", "employee__primary_location_id"), ("created_by", "created_by_id")):
             if p.get(param): qs = qs.filter(**{field: p[param]})
@@ -102,22 +102,11 @@ class InvitationViewSet(viewsets.GenericViewSet):
         return Response(self.get_serializer(self.get_object()).data)
 
     def create(self, request):
-        require(request, "people.invitation.create")
-        employee = visible_employees(request.user, "people.invitation.create").get(pk=request.data.get("employee"))
-        try:
-            invitation, raw = InvitationService.issue(employee=employee, actor_user=request.user, delivery_address=request.data.get("email") or employee.work_email)
-        except DjangoValidationError as exc:
-            raise validation_response(exc)
-        return Response({**self.get_serializer(invitation).data, "activation_token": raw}, status=201)
+        raise serializers.ValidationError("Создавайте приглашения через /registration/invitations/ с обязательным объектом.")
 
     @action(detail=True, methods=["post"])
     def resend(self, request, pk=None):
-        require(request, "people.invitation.resend")
-        previous = self.get_object()
-        try:
-            invitation, raw = InvitationService.issue(employee=previous.employee, actor_user=request.user, delivery_address=previous.delivery_address)
-        except DjangoValidationError as exc: raise validation_response(exc)
-        return Response({**self.get_serializer(invitation).data, "activation_token": raw})
+        raise serializers.ValidationError("Перевыпускайте приглашение через объектную регистрацию.")
 
     @action(detail=True, methods=["post"])
     def revoke(self, request, pk=None):

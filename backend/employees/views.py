@@ -35,12 +35,18 @@ class PersonalDashboardView(APIView):
     def get(self, request):
         user = request.user
         active = Task.objects.filter(Q(assignee=user) | Q(collaborators=user)).distinct().exclude(status__in=[Task.Status.CLOSED, Task.Status.COMPLETED, Task.Status.CANCELLED])
+        from accounts.registration_boundary import legacy_access_allowed
+        legacy_allowed = legacy_access_allowed(user)
+        if not legacy_allowed:
+            active = Task.objects.none()
         now = timezone.now()
         local_now = timezone.localtime(now)
         day_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
         day_end = day_start + timedelta(days=1)
         today = active.filter(deadline__lt=day_end).select_related("assignee", "creator", "facility")[:8]
         review = Task.objects.filter(creator=user, status=Task.Status.REVIEW)
+        if not legacy_allowed:
+            review = Task.objects.none()
         counts = {
             "active": active.count(),
             "today": active.filter(deadline__gte=day_start, deadline__lt=day_end).count(),

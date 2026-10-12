@@ -1,3 +1,19 @@
+## 12.10.2026 — Registration / object-scoped invitations
+
+Изолированная ветка `codex/registration`, база main `5d9da353ee552af3b0c2182c374f132d0e91e2ce`.
+Реализованы самостоятельная регистрация/email confirmation/согласование, одноразовые
+объектные приглашения, отдельные employment/responsibility/access, делегация, lifecycle,
+Audit/Outbox consumers, desktop/mobile UI и пять добавочных миграций. Старые UUID,
+пользователи и grants не преобразуются; legacy mapping не создаётся. Новым обычным
+аккаунтам закрыты legacy API без утверждённого Location scope.
+
+Synthetic acceptance **PASS: PostgreSQL 626/626, 355.661s**. Browser 6/6 (15.3s), TypeScript/build/check/drift/repeat plan PASS.
+Реальная restored DB и внешний SMTP/inbox NOT VERIFIED; production NOT PERFORMED,
+iikoCard отдельно. Матрица и команды: [REGISTRATION_ACCEPTANCE.md](REGISTRATION_ACCEPTANCE.md).
+Архитектура/release plan: [REGISTRATION_IMPLEMENTATION.md](REGISTRATION_IMPLEMENTATION.md);
+[инструкция](REGISTRATION_USER_GUIDE.md). Исходные 13 dirty-файлов и Objects CRLF-only
+views.py сохранены в прежних checkout и не входят в diff этой ветки.
+
 ## 09.10.2026 — Objects production release PASS; PR #1
 
 Storage gate **PASS для действующего backup/restore контура**: 24 исходных файла скопированы на LUKS2 с полным совпадением path/size/SHA-256/UID/GID/mode/mtime; guard отказал на обычном ext4 (exit 78, ноль новых файлов), missing bind source — exit 125 без fallback. Новый periodic backup 12:33:16 UTC корректен, история сохранена; retention отключён. Исходные 24 файла остаются отдельно на незашифрованном `ays-connect-production_backup_data`: **не вся история зашифрована**, удаление не выполнялось. Persistent crypttab/fstab manual unlock/noauto и Compose bind create_host_path=false проверены; reboot не выполнялся. Отдельная DPAPI key copy восстановлена и проверена. Guard и обязательный override опубликованы в deployment; source/backend/frontend runtime и схема относительно RC220ffac не изменены.

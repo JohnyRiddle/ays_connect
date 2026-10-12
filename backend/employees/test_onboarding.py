@@ -59,9 +59,11 @@ class OnboardingTests(TestCase):
 
     def test_registration_is_generic_deduplicated_and_never_creates_employee(self):
         client = APIClient(); before = Employee.objects.count()
-        one = client.post("/api/public/v1/register/", {"full_name": "Неизвестный", "email": "unknown@example.test"}, format="json")
-        two = client.post("/api/public/v1/register/", {"full_name": "Другое имя", "email": "UNKNOWN@example.test"}, format="json")
-        self.assertEqual(one.status_code, 202); self.assertEqual(one.json(), two.json())
+        # Legacy service remains compatible for internal callers; the public API
+        # now requires object, structured identity and password confirmation.
+        one, _ = RegistrationService.create(full_name="Неизвестный", email="unknown@example.test")
+        two, _ = RegistrationService.create(full_name="Другое имя", email="UNKNOWN@example.test")
+        self.assertEqual(one.pk, two.pk)
         self.assertEqual(RegistrationRequest.objects.count(), 1); self.assertEqual(Employee.objects.count(), before)
 
     def test_registration_approve_and_reject(self):

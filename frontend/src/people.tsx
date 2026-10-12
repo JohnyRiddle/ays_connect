@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { EmployeeObjectPanel } from "./registration";
 const ROOT = (import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1").replace(/\/api\/v1\/?$/, "");
 async function request(path: string, options: RequestInit = {}) {
   const token = sessionStorage.getItem("access");
@@ -88,6 +89,7 @@ export function PeopleRouter({path,navigate}:{path:string;navigate:(x:string)=>v
     </section>
     {error&&<div className="error">{error}</div>}
     <div className="people-columns">
+      <EmployeeObjectPanel employeeId={id}/>
       <section className="people-card people-info-card">
         <header><span>01</span><div><h2>Рабочий профиль</h2><p>Организационные данные сотрудника</p></div></header>
         <dl>
@@ -105,7 +107,7 @@ export function PeopleRouter({path,navigate}:{path:string;navigate:(x:string)=>v
           <span className="people-account-icon">@</span>
           <div><small>Рабочая электронная почта</small><strong>{data.account?.email||data.work_email||"Не указана"}</strong></div>
         </div>
-        <div className="action-row">{!data.account&&<button className="primary" onClick={()=>{const email=prompt("Рабочая электронная почта");if(email)employeeAction("invite",{email})}}>Пригласить</button>}{data.account_status==="INVITED"&&<><button onClick={()=>employeeAction("invite",{email:prompt("Рабочая электронная почта")})}>Отправить повторно</button><button className="secondary-danger" onClick={()=>employeeAction("revoke-invitation")}>Отозвать</button></>}{data.account_status==="ACTIVE"&&<button className="secondary-danger" onClick={()=>employeeAction("account/block")}>Заблокировать</button>}{data.account_status==="BLOCKED"&&<button onClick={()=>employeeAction("account/unblock")}>Разблокировать</button>}</div>
+        <div className="action-row">{!data.account&&<button className="primary" onClick={()=>navigate("/people/registration")}>Создать приглашение</button>}{data.account_status==="INVITED"&&<button onClick={()=>navigate("/people/registration")}>Управлять приглашениями</button>}{data.account_status==="ACTIVE"&&<button className="secondary-danger" onClick={()=>employeeAction("account/block")}>Заблокировать</button>}{data.account_status==="BLOCKED"&&<button onClick={()=>employeeAction("account/unblock")}>Разблокировать</button>}</div>
       </section>
       <section className="people-card people-access-card">
         <header><span>03</span><div><h2>Доступ и группы</h2><p>Роли и функциональные связи</p></div></header>
