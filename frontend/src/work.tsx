@@ -617,6 +617,7 @@ function TaskActions({ task, busy, onAction }: { task: any; busy: boolean; onAct
 }
 
 function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
+  const [discussion, setDiscussion] = useState<"comments" | "history">("comments");
   const [task, setTask] = useState<any>();
   const [comments, setComments] = useState<any[]>([]);
   const [attachments, setAttachments] = useState<any[]>([]);
@@ -727,7 +728,7 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
       </main>
     );
   return (
-    <main className="work-page">
+    <main className="work-page task-page">
       <button className="back" onClick={() => navigate("/tasks")}>
         ← К задачам
       </button>
@@ -762,45 +763,69 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
           </button>
         </div>
       )}
-      <div className="work-detail-grid">
-        <section className="work-card">
-          <h2>Основная информация</h2>
+      <div className="task-layout">
+        <aside className="task-sidebar">
+        <section className="work-card task-parameters">
+          <h2>Параметры задачи</h2>
           <p>Ответственное подразделение: {task.responsible_department_display || 'Требует административного заполнения'}</p>
           {task.available_actions?.includes('edit') && <TaskSettings key={`${task.id}-${task.version}`} task={task} reload={load} onError={setError} />}
           <dl>
             <div>
+              <dt>Срок выполнения</dt>
+              <dd className={task.is_overdue ? "overdue" : ""}>{fmt(task.due_at)}</dd>
+            </div>
+            <div>
               <dt>Ответственный</dt>
               <dd>
                 {task.responsible_employee_display ||
-                  person(task.responsible_employee)}
+                  (task.responsible_employee ? person(task.responsible_employee) : task.responsible_target_display || "Не назначен")}
               </dd>
             </div>
             <div>
               <dt>Исполнитель</dt>
               <dd>
                 {task.executor_employee_display ||
-                  person(task.executor_employee)}
+                  (task.executor_employee ? person(task.executor_employee) : task.executor_target_display || "Не назначен")}
               </dd>
             </div>
-            <div>
-              <dt>Срок</dt>
-              <dd className={task.is_overdue ? "overdue" : ""}>
-                {fmt(task.due_at)}
-              </dd>
-            </div>
-            <div>
-              <dt>Версия</dt>
-              <dd>{task.version}</dd>
-            </div>
+            {task.active_priority !== null && <div>
+              <dt>Приоритет</dt><dd>{labels[task.priority] || task.priority}</dd>
+            </div>}
           </dl>
-          <p className="description">
-            {task.description || "Описание не добавлено."}
-          </p>
+        </section>
+        <section className="work-card task-watchers">
+          <h2>Наблюдатели</h2>
+          {canManageWatchers && <><ParticipantPicker taskId={id} mode="watcher" selected={newWatchers} onChange={setNewWatchers} /><button disabled={busy || !newWatchers.length} onClick={async () => { setBusy(true); try { for (const employee of newWatchers) await workRequest(`/tasks/${id}/watchers/`, {method: 'POST', body: JSON.stringify({employee})}); setNewWatchers([]); await load(); } catch (e) { setError(e); } finally { setBusy(false); } }}>Добавить выбранных</button></>}
+          {watchers.length ? (
+            watchers.map((watcher) => (
+              <div className="person-row" key={watcher.id}>
+                {watcher.employee_display || person(watcher.employee)}
+                {canManageWatchers && <button disabled={busy} onClick={async () => { try { await workRequest(`/tasks/${id}/watchers/${watcher.employee}/`, {method: 'DELETE'}); await load(); } catch(e) { setError(e); } }}>Удалить</button>}
+              </div>
+            ))
+          ) : (
+            <p className="muted">Наблюдателей нет.</p>
+          )}
+        </section>
+        <details className="work-card task-assignment-details">
+          <summary>Сведения о назначении</summary>
+          <dl>
+            <div><dt>Назначен ответственным</dt><dd>{task.responsible_target_display || person(task.responsible_target)}</dd></div>
+            <div><dt>Фактический ответственный</dt><dd>{task.responsible_employee_display || person(task.responsible_employee)}</dd></div>
+            <div><dt>Назначен исполнителем</dt><dd>{task.executor_target_display || person(task.executor_target)}</dd></div>
+            <div><dt>Фактический исполнитель</dt><dd>{task.executor_employee_display || person(task.executor_employee)}</dd></div>
+            <div><dt>Версия задачи</dt><dd>{task.version}</dd></div>
+          </dl>
+        </details>
+        </aside>
+        <div className="task-content">
+        <section className="work-card">
+          <h2>Описание</h2>
+          <p className="description">{task.description || "Описание не добавлено."}</p>
         </section>
         <section className="work-card">
           <h2>
-            Чек-листы · {task.checklist_progress?.completed || 0}/
-            {task.checklist_progress?.total || 0}
+            Чек-листы {checklists.length > 0 && <>· {task.checklist_progress?.completed || 0}/{task.checklist_progress?.total || 0}</>}
           </h2>
           {checklists.length ? (
             checklists.map((c) => (
@@ -813,12 +838,7 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
                       checked={i.is_completed}
                       disabled={busy}
                       onChange={async () => {
-                        await tasksApi.toggleItem(
-                          id,
-                          c.id,
-                          i.id,
-                          !i.is_completed,
-                        );
+                        await tasksApi.toggleItem(id, c.id, i.id, !i.is_completed);
                         setChecklists(await tasksApi.checklists(id));
                       }}
                     />
@@ -828,12 +848,30 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
                 ))}
               </div>
             ))
-          ) : (
-            <p className="muted">Чек-листов нет.</p>
-          )}
+          ) : <p className="muted">Чек-листов пока нет.</p>}
+        </section>
+        <section className="work-card task-files">
+          <div className="task-section-heading">
+            <h2>Вложения · {attachments.length}</h2>
+            <label className="upload">
+              {busy ? "Загрузка…" : "Прикрепить файл"}
+              <input type="file" disabled={busy} onChange={(e) => upload(e.target.files?.[0])} />
+            </label>
+          </div>
+          {attachments.length ? attachments.map((a) => (
+            <div className="attachment" key={a.id}>
+              <button className="link-button" onClick={() => tasksApi.download(id, a.id, a.original_filename).catch(setError)}>{a.original_filename}</button>
+              <span>{Math.ceil(a.size / 1024)} КБ · {fmt(a.created_at)}</span>
+            </div>
+          )) : <p className="muted">Файлы не прикреплены.</p>}
         </section>
         <section className="work-card">
-          <h2>Комментарии</h2>
+          <div className="detail-tabs" role="group" aria-label="Обсуждение задачи">
+            <button type="button" aria-pressed={discussion === "comments"} onClick={() => setDiscussion("comments")}>Комментарии · {comments.length}</button>
+            <button type="button" aria-pressed={discussion === "history"} onClick={() => setDiscussion("history")}>История изменений</button>
+          </div>
+          <div hidden={discussion !== "comments"}>
+          {!comments.length && <p className="muted">Комментариев пока нет.</p>}
           <form className="comment-form" onSubmit={addComment}>
             <textarea
               aria-label="Новый комментарий"
@@ -852,51 +890,8 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
               <small>{fmt(c.created_at)}</small>
             </article>
           ))}
-        </section>
-        <section className="work-card">
-          <h2>Вложения</h2>
-          <label className="upload">
-            {busy ? "Загрузка…" : "Прикрепить файл"}
-            <input
-              type="file"
-              disabled={busy}
-              onChange={(e) => upload(e.target.files?.[0])}
-            />
-          </label>
-          {attachments.map((a) => (
-            <div className="attachment" key={a.id}>
-              <button
-                className="link-button"
-                onClick={() =>
-                  tasksApi
-                    .download(id, a.id, a.original_filename)
-                    .catch(setError)
-                }
-              >
-                {a.original_filename}
-              </button>
-              <span>
-                {Math.ceil(a.size / 1024)} КБ · {fmt(a.created_at)}
-              </span>
-            </div>
-          ))}
-        </section>
-        <section className="work-card">
-          <h2>Наблюдатели</h2>
-          {canManageWatchers && <><ParticipantPicker taskId={id} mode="watcher" selected={newWatchers} onChange={setNewWatchers} /><button disabled={busy || !newWatchers.length} onClick={async () => { setBusy(true); try { for (const employee of newWatchers) await workRequest(`/tasks/${id}/watchers/`, {method: 'POST', body: JSON.stringify({employee})}); setNewWatchers([]); await load(); } catch (e) { setError(e); } finally { setBusy(false); } }}>Добавить выбранных</button></>}
-          {watchers.length ? (
-            watchers.map((watcher) => (
-              <div className="person-row" key={watcher.id}>
-                {watcher.employee_display || person(watcher.employee)}
-                {canManageWatchers && <button disabled={busy} onClick={async () => { try { await workRequest(`/tasks/${id}/watchers/${watcher.employee}/`, {method: 'DELETE'}); await load(); } catch(e) { setError(e); } }}>Удалить</button>}
-              </div>
-            ))
-          ) : (
-            <p className="muted">Наблюдателей нет.</p>
-          )}
-        </section>
-        <section className="work-card wide">
-          <h2>Активность</h2>
+          </div>
+          <div hidden={discussion !== "history"}>
           {(activity?.results || activity?.items || []).map(
             (a: any, i: number) => (
               <div className="timeline" key={a.id || i}>
@@ -906,7 +901,10 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
               </div>
             ),
           )}
+          {!(activity?.results || activity?.items || []).length && <p className="muted">Событий пока нет.</p>}
+          </div>
         </section>
+        </div>
       </div>
       {action && !["publish", "start", "resume", "accept"].includes(action) && (
           <ActionDialog

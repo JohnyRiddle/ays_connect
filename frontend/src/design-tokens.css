@@ -1,0 +1,65 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+:root {
+  color-scheme: light;
+  --page: #f5f4f2;
+  --surface: #ffffff;
+  --surface-soft: #f0eeeb;
+  --surface-hover: #f8f6f3;
+  --text: #252525;
+  --text-secondary: #56534e;
+  --text-muted: #706d68;
+  --border: #e5e2de;
+  --border-strong: #ccc7c0;
+  --brand: #ff7e46;
+  --brand-hover: #f56d34;
+  --brand-text: #ad4012;
+  --brand-soft: #fff0e8;
+  --on-brand: #252525;
+  --inverse: #252523;
+  --inverse-soft: #33332f;
+  --on-inverse: #ffffff;
+  --inverse-muted: #c5c0b8;
+  --success: #24744f;
+  --success-soft: #eaf6ef;
+  --warning: #895510;
+  --warning-soft: #fff4df;
+  --danger: #b83240;
+  --danger-soft: #fdeef0;
+  --purple: #7051a2;
+  --purple-soft: #f1edf8;
+  --scrim: #18181780;
+  --shadow: #25252512;
+  --focus: #b54515;
+  --logo-ink: #383838;
+  --radius: 8px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #181817;
+  --surface: #222220;
+  --surface-soft: #2c2b28;
+  --surface-hover: #302e2a;
+  --text: #f4f2ee;
+  --text-secondary: #cfcbc4;
+  --text-muted: #b1ada6;
+  --border: #3a3834;
+  --border-strong: #605b53;
+  --brand-text: #ff9a6d;
+  --brand-soft: #422b20;
+  --inverse: #111110;
+  --inverse-soft: #2c2b28;
+  --success: #8cdbb0;
+  --success-soft: #20392c;
+  --warning: #efc778;
+  --warning-soft: #3d311f;
+  --danger: #ff9ba5;
+  --danger-soft: #42262b;
+  --purple: #c8adef;
+  --purple-soft: #342b43;
+  --scrim: #00000099;
+  --shadow: #00000030;
+  --focus: #ff9a6d;
+  --logo-ink: #ffffff;
+}

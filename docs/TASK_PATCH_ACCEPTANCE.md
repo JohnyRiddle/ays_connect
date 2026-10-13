@@ -86,3 +86,6 @@ gate log (указан в manifest); browser screenshots/traces — отдель
 Release readiness — **CONDITIONAL**. Обязательные непроверенные gates, интеграция
 с опубликованным дизайном, административный preflight, startup/recovery и
 ограничения: [TASK_PATCH_RELEASE.md](TASK_PATCH_RELEASE.md).
+
+## Уточнение 13.10.2026: карточка объекта
+Убраны вкладка сервисных заявок и кнопка их создания из карточки объекта. Старый параметр tab=requests переключается на зоны; исторический API и данные сохранены. Production ещё использует версию до PR #3.
