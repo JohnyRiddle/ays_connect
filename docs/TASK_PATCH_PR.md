@@ -25,9 +25,14 @@ legacy Tasks или автоматического переноса заявок
 credentials, DB/media или production writes. Base — актуальный `origin/main` 62c61ed;
 незакоммиченный опубликованный дизайн должен быть интегрирован отдельно перед выпуском.
 
-**Release readiness CONDITIONAL:** фактическая Telegram delivery — NOT VERIFIED;
-staging URL, fresh production-copy rehearsal и защищённая frozen rollback-точка
-нужны до разрешения выпуска. Merge/deployment требуют отдельного подтверждения этого RC.
-Проектные даты, отделы/руководители, права и старые recurrence templates требуют
-реального preflight. Подробный retry/unknown контракт не обещает абсолютного отсутствия
-дублей при сбое между Telegram send и API ack.
+**Release readiness CONDITIONAL:** fresh production-copy init/preservation 201 таблицы,
+38/38 focused и защищённый frozen DB/media/frontend restore PASS. Реальный Telegram
+transport: два сообщения (15024/15025), получатель @ivan_ays подтвердил; API harness
+проверил link/claim/begin/ack, role dedup и revoke. Полный серверный 672 repeat
+resource-limited; прежний local 672/672 и browser 6/6 PASS сохраняются отдельно.
+
+До выпуска нужны реальные departments/heads (сейчас 0 units/4 old tasks без department),
+интеграция опубликованного дизайна, HTTPS staging и постоянный bot adapter.
+Текущая версия production возобновлена без deployment; финальная frozen точка
+и merge/deployment требуют отдельного согласованного RC.
+Даты/SHA/границы: `docs/TASK_PATCH_REHEARSAL.md`.

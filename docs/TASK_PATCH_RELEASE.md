@@ -88,8 +88,12 @@ Migration downgrade применяется лишь в изолированно�
 
 ## Ограничения
 
-Production deployment, fresh production-copy rehearsal, frozen protected rollback
-point и реальная доставка Telegram пока **NOT PERFORMED / NOT VERIFIED**.
+Fresh production-copy init/preservation, frozen protected DB/media/frontend restore
+и два реальных Telegram сообщения через copy API harness — **PASS** 13.10.2026.
+Production deployment и постоянный HTTPS bot adapter — **NOT PERFORMED / NOT VERIFIED**.
+Полный серверный repeat resource-limited; 38/38 focused PASS. До выпуска остаются
+реальная оргструктура, интеграция опубликованного дизайна и внешний adapter.
+[Даты, SHA, границы и blockers](TASK_PATCH_REHEARSAL.md).
 Staging URL не предоставлен. Токен Telegram получен в чате, но не используется
 пакетом и не хранится в репозитории. Перед production следует перевыпустить его
 и передать разработчику защищённо; AYS service credential выпускается отдельно.

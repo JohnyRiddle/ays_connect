@@ -1,7 +1,7 @@
 # Патч задач / Telegram API — результаты приёмки
 
 13.10.2026. Изолированный workspace `codex/task-telegram-patch`.
-Base `origin/main` 62c61ed; runtime идентичен production checkpoint 713be6b.
+Base `origin/main` 62c61ed; базовый runtime идентичен checkpoint 713be6b; код патча 98dfafa.
 Незакоммиченный опубликованный дизайн и исходные dirty-файлы других worktrees
 не включались и не редактировались. Commit/push и черновой PR разрешены пользователем 13.10.2026. Merge/deployment не выполнялись.
 
@@ -15,8 +15,8 @@ Base `origin/main` 62c61ed; runtime идентичен production checkpoint 713
 | Browser desktop 1280 / mobile 390 | PASS, **6/6** | Chromium, реальный изолированный Django API и PostgreSQL |
 | OpenAPI export | PASS, **8 реализованных paths** | profile JWT и 5 service-only методов, не предлагаемые URL |
 | git diff --check | PASS | без исходных сторонних dirty-файлов |
-| Реальная доставка через @AYS_ai_expert_bot | **NOT VERIFIED** | бот ещё не интегрирован с API патча |
-| Fresh production-copy / protected frozen rollback point | **NOT PERFORMED** | обязательны перед отдельным разрешением выпуска |
+| Реальная доставка через @AYS_ai_expert_bot | **PASS, 2 сообщения**, получатель подтвердил | API copy harness + real transport; постоянный HTTPS adapter NOT VERIFIED |
+| Fresh production-copy / protected frozen rollback point | **PASS**, 201 таблица / restore DB+media+frontend | 38/38 focused; полный серверный повтор resource-limited; [evidence и blockers](TASK_PATCH_REHEARSAL.md) |
 
 ## Проверенные случаи
 

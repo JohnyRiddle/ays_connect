@@ -1,3 +1,19 @@
+## 13.10.2026 — PR 3 production copy и Telegram test
+
+Backend RC 98dfafa, [draft PR 3](https://github.com/JohnyRiddle/ays_connect/pull/3).
+Свежий snapshot 09:56:06 UTC: штатный init пяти migrations 112→117 и
+сохранность всех 201 исходной таблицы/реальных grants PASS; 12/12 historical
+scope detail, 38/38 focused PostgreSQL PASS. Полный серверный 672 repeat не завершён
+из-за ресурса filesystem; прежний synthetic 672/672 и browser 6/6 остаются отдельными gates.
+Два реальных сообщения @AYS_ai_expert_bot → @ivan_ays (15024/15025), claim/begin/ack,
+роли-дубли, одноразовая привязка и revoke до begin PASS; получатель подтвердил.
+Это copy API harness + transport, постоянный HTTPS adapter пока NOT VERIFIED.
+Frozen 10:27:59 UTC DB/media/frontend: EFS/LUKS, SHA и off-host restore 201 таблицы PASS.
+Maintenance суммарно 66.938 с; прежние images/backup возобновлены, HTTPS 6/6 и health PASS.
+Merge/deployment не выполнялись. До выпуска: 0 departments/4 old tasks без department,
+окончательный опубликованный дизайн, постоянный bot adapter/staging, финальный RC и
+актуальная frozen точка. [Полное evidence](TASK_PATCH_REHEARSAL.md).
+
 ## 13.10.2026 — патч задач и API корпоративного Telegram-бота (review)
 
 Изолированная ветка `codex/task-telegram-patch`, base `origin/main` 62c61ed;
@@ -21,8 +37,8 @@ diff --check и export 8 OpenAPI routes PASS. Полный evidence/границ
 [TASK_PATCH_USER_GUIDE.md](TASK_PATCH_USER_GUIDE.md), выпуск/restore:
 [TASK_PATCH_RELEASE.md](TASK_PATCH_RELEASE.md).
 
-Bot delivery NOT VERIFIED; staging URL, fresh working-DB rehearsal и protected
-frozen rollback point ещё не подготовлены. Before release интегрировать с
+Последующие production-copy/frozen/real transport gates описаны в
+[TASK_PATCH_REHEARSAL.md](TASK_PATCH_REHEARSAL.md); постоянный HTTPS adapter NOT VERIFIED. Before release интегрировать с
 финальным commit опубликованного дизайна и проверить exact RC. Исходные dirty-файлы
 других checkout не включены. Commit/push и черновой PR разрешены пользователем 13.10.2026; merge/deployment
 требуют отдельного разрешения именно этого патча.
