@@ -1,3 +1,13 @@
+## 13.10.2026 — подготовка импорта ЦФО
+
+Подготовлен защищённый review пакет: 60 исходных строк, 55 включены
+(50 Location, 2 OrgUnit, 3 организационные службы), 5 пользовательских исключений;
+54 связи с 21 юрлицом, один intentional null. Source-preservation, cross references,
+user corrections, XLSX counts/visual QA и ZIP/EFS проверки PASS.
+Подготовка согласована пользователем 13.10.2026; фиксируется отдельным commit.
+Формат custom review-only, не fixture/HTTP body; UUID руководителей/позиций
+не заполнены, production apply не выполнялся. [Контракт и ограничения](CFO_IMPORT_PREPARATION.md).
+
 ## 13.10.2026 — PR 3 production copy и Telegram test
 
 Backend RC 98dfafa, [draft PR 3](https://github.com/JohnyRiddle/ays_connect/pull/3).
