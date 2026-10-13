@@ -4,6 +4,8 @@ from operations.heartbeat import record_worker_cycle
 class Command(BaseCommand):
     def add_arguments(self,p):p.add_argument("--batch-size",type=int,default=100);p.add_argument("--reconcile",action="store_true")
     def handle(self,*a,**o):
+        from work_tasks.overdue import process_overdue
+        process_overdue(max(1, o['batch_size']))
         from employees.registration_mail import process_mail
         from employees.registration_events import process_state_events
         registration_state = process_state_events(max(1, o["batch_size"]))

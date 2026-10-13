@@ -20,6 +20,24 @@ from .state_machine import TaskStateMachine
 
 class TaskService:
     @staticmethod
+    def _work_ready(task):
+        from .routing import department_head, validate_member
+        if not task.responsible_department:
+            raise TaskValidationError('Администратор должен явно заполнить ответственное подразделение.', code='task_department_required')
+        if not task.responsible_employee or department_head(task.responsible_department).pk != task.responsible_employee_id:
+            raise TaskValidationError('До передачи в работу определите текущего руководителя подразделения.', code='task_department_responsible_invalid')
+        validate_member(task.responsible_employee, task.responsible_department, task.location)
+        if task.executor_employee:
+            validate_member(task.executor_employee, task.responsible_department, task.location)
+    @staticmethod
+    def _assignment_administrator(actor, actor_user, task):
+        if actor_user and actor_user.is_superuser:
+            return True
+        if PermissionService.has_permission(employee=actor, permission='task.admin', obj=task):
+            return True
+        from access_control.models import Scope
+        return any(grant.role.permission_grants.filter(permission__code='task.reassign', scope=Scope.GLOBAL).exists() for grant in TaskAccessPolicy._grants(actor, 'task.reassign'))
+    @staticmethod
     def _authorize(*, actor, actor_user, permission, task=None):
         if actor_user and actor_user.is_superuser:
             return
@@ -89,7 +107,14 @@ class TaskService:
 
     @staticmethod
     def _locked(task, version):
+        from projects.models import ProjectTaskLink
+        from projects.services import project_lock
+        project_id = ProjectTaskLink.objects.filter(task_id=task.pk, is_active=True).values_list('project_id', flat=True).first()
+        if project_id:
+            project_lock(project_id)
         locked = Task.objects.select_for_update().get(pk=task.pk)
+        if ProjectTaskLink.objects.filter(task_id=task.pk, is_active=True).values_list('project_id', flat=True).first() != project_id:
+            raise TaskVersionConflict('Связь задачи с проектом изменилась; повторите операцию.')
         if version != locked.version:
             raise TaskVersionConflict(f"Версия задачи изменилась: ожидалась {version}, текущая {locked.version}.")
         return locked
@@ -98,6 +123,8 @@ class TaskService:
     def _transition(cls, task, to_status, actor, reason=""):
         old = task.status
         TaskStateMachine.validate(old, to_status)
+        if to_status == TaskStatus.IN_PROGRESS:
+            cls._work_ready(task)
         task.status = to_status
         task.version += 1
         TaskStatusHistory.objects.create(task=task, from_status=old, to_status=to_status, actor=actor, reason=reason)
@@ -112,7 +139,32 @@ class TaskService:
         require_available_location(data.get("location"), actor_user)
         cls._validate_dates(data.get("planned_start_at"), data.get("due_at"))
         cls._validate_parent(None, data.get("parent"))
+        from .routing import department_head, employee_target, validate_member, calculate_deadline
+        department = data.get('responsible_department')
+        if department:
+            head = department_head(department)
+            validate_member(head, department, data.get('location'))
+            if responsible_target and cls._resolve_one(responsible_target).pk != head.pk:
+                raise TaskValidationError('Ответственный — руководитель выбранного подразделения.', code='task_department_responsible_invalid')
+            responsible_target = employee_target(head)
+            data['responsible_employee'] = head
+            if executor_target:
+                executor = cls._resolve_one(executor_target)
+                validate_member(executor, department, data.get('location'))
+                data['executor_employee'] = executor
+            if not actor_user.is_superuser:
+                from employees.assignment_targets import assignment_visibility
+                visible = assignment_visibility(actor_user)[0]
+                if not visible.filter(pk=head.pk).exists() or (executor_target and not visible.filter(pk=data['executor_employee'].pk).exists()) or not PermissionService.has_permission(employee=actor, permission='org_unit.view', obj=department):
+                    raise TaskBusinessError('Подразделение или сотрудник недоступны.', code='task_permission_denied')
+            if data.get('source_type') != 'project':
+                data['due_at'] = calculate_deadline(data.get('priority', 'normal'), timezone.now(), data.get('due_at'))
+                data['deadline_is_manual'] = data.get('priority') == 'blocking'
+        cls._validate_dates(data.get('planned_start_at'), data.get('due_at'))
         task = Task.objects.create(number=cls._next_number(), title=title, description=description, author=author, responsible_target=responsible_target, executor_target=executor_target, created_by=actor_user, updated_by=actor_user, **data)
+        if department and task.source_type != 'project':
+            task.due_at = calculate_deadline(task.priority, task.created_at, task.due_at)
+            task.save(update_fields=['due_at'])
         TaskStatusHistory.objects.create(task=task, to_status=TaskStatus.DRAFT, actor=actor)
         cls._record(task, actor, actor_user, "task.created", new={"status": task.status}, correlation_id=correlation_id)
         return task
@@ -132,7 +184,7 @@ class TaskService:
         from organizations.object_services import require_available_location
         if "location" in changes and changes["location"] != task.location:
             require_available_location(changes["location"], actor_user)
-        allowed = {"title", "description", "priority", "planned_start_at", "parent", "org_unit", "legal_entity", "location", "acceptance_policy", "completion_policy"}
+        allowed = {"title", "description", "priority", "planned_start_at", "parent", "org_unit", "legal_entity", "location", "acceptance_policy", "completion_policy", "responsible_department"}
         if set(changes) - allowed:
             raise TaskValidationError("Попытка изменить защищённые поля задачи.", code="task_field_read_only")
         if task.status in {TaskStatus.COMPLETED, TaskStatus.CANCELLED}:
@@ -140,6 +192,41 @@ class TaskService:
         cls._validate_dates(changes.get("planned_start_at", task.planned_start_at), task.due_at)
         cls._validate_parent(task, changes.get("parent", task.parent))
         old = {field: str(getattr(task, field)) for field in changes}
+        from .routing import project_for, calculate_deadline, department_head, employee_target, validate_member
+        project = project_for(task)
+        if project and 'priority' in changes:
+            raise TaskValidationError('У проектной задачи нет активного приоритета.', code='task_project_priority_disabled')
+        if 'responsible_department' in changes:
+            cls._authorize(actor=actor, actor_user=actor_user, permission='task.reassign', task=task)
+            if not cls._assignment_administrator(actor, actor_user, task):
+                raise TaskBusinessError('Ответственное подразделение меняет уполномоченный администратор.', code='task_permission_denied')
+            department = changes['responsible_department']
+            if not department:
+                raise TaskValidationError('Укажите ответственное подразделение.')
+            head = department_head(department)
+            if not actor_user.is_superuser:
+                from employees.assignment_targets import assignment_visibility
+                if not assignment_visibility(actor_user)[0].filter(pk=head.pk).exists() or not PermissionService.has_permission(employee=actor, permission='org_unit.view', obj=department):
+                    raise TaskBusinessError('Подразделение или руководитель недоступны.', code='task_permission_denied')
+            validate_member(head, department, changes.get('location', task.location))
+            if task.executor_employee:
+                validate_member(task.executor_employee, department, changes.get('location', task.location))
+            target = employee_target(head)
+            TaskAssignmentHistory.objects.create(task=task, assignment_type='responsible', old_target=task.responsible_target, old_employee=task.responsible_employee, new_target=target, new_employee=head, changed_by=actor, reason='Изменение ответственного подразделения')
+            changes.update(responsible_target=target, responsible_employee=head)
+        if 'location' in changes and task.responsible_department:
+            for member in (task.responsible_employee, task.executor_employee):
+                if member:
+                    validate_member(member, changes.get('responsible_department', task.responsible_department), changes['location'])
+        if 'priority' in changes and changes['priority'] != task.priority:
+            cls._authorize(actor=actor, actor_user=actor_user, permission='task.change_deadline', task=task)
+            if changes['priority'] == 'blocking' and not task.deadline_is_manual:
+                raise TaskValidationError('Сначала задайте явный дедлайн с причиной.', code='task_blocking_deadline_required')
+            new_due = calculate_deadline(changes['priority'], task.created_at, task.due_at)
+            TaskDeadlineHistory.objects.create(task=task, old_due_at=task.due_at, new_due_at=new_due, changed_by=actor, reason='Пересчёт приоритета от создания')
+            changes['due_at'] = new_due
+            changes['deadline_is_manual'] = changes['priority'] == 'blocking'
+        cls._validate_dates(changes.get('planned_start_at', task.planned_start_at), changes.get('due_at', task.due_at))
         for field, value in changes.items():
             setattr(task, field, value)
         task.version += 1
@@ -153,6 +240,19 @@ class TaskService:
     def publish(cls, *, task, actor, actor_user, version, correlation_id=None):
         task = cls._locked(task, version)
         cls._authorize(actor=actor, actor_user=actor_user, permission="task.assign", task=task)
+        if not task.title or not task.author_id or not task.responsible_target_id:
+            raise TaskValidationError('Для публикации нужны название, автор и ответственный.', code='task_publish_invalid')
+        resolved = cls._resolve_one(task.responsible_target)
+        from .routing import department_head, validate_member
+        if not task.responsible_department:
+            raise TaskValidationError('Администратор должен явно заполнить подразделение старой задачи.', code='task_department_required')
+        if task.responsible_department:
+            head = department_head(task.responsible_department)
+            if resolved.pk != head.pk:
+                raise TaskValidationError('Проверьте руководителя подразделения.', code='task_department_responsible_invalid')
+            validate_member(head, task.responsible_department, task.location)
+            if task.executor_target:
+                validate_member(cls._resolve_one(task.executor_target), task.responsible_department, task.location)
         if not task.title or not task.author_id or not task.responsible_target_id:
             raise TaskValidationError("Для публикации нужны название, автор и ответственный.", code="task_publish_invalid")
         task.responsible_employee = cls._resolve_one(task.responsible_target)
@@ -170,6 +270,12 @@ class TaskService:
     def start(cls, *, task, actor, actor_user, version, correlation_id=None):
         task = cls._locked(task, version)
         cls._authorize(actor=actor, actor_user=actor_user, permission="task.start", task=task)
+        if not task.responsible_employee_id:
+            raise TaskValidationError('До начала работы определите ответственного руководителя.')
+        from .routing import department_head, validate_member
+        if not task.responsible_department or department_head(task.responsible_department).pk != task.responsible_employee_id:
+            raise TaskValidationError('До начала работы заполните подразделение и его ответственного руководителя.', code='task_department_required')
+        validate_member(task.responsible_employee, task.responsible_department, task.location)
         old = cls._transition(task, TaskStatus.IN_PROGRESS, actor)
         task.started_at = task.started_at or timezone.now()
         task.updated_by = actor_user
@@ -337,18 +443,27 @@ class TaskService:
     @transaction.atomic
     def change_deadline(cls, *, task, actor, actor_user, version, new_due_at, reason="", correlation_id=None):
         task = cls._locked(task, version)
+        from .routing import project_for, validate_project_deadline
+        project = project_for(task)
+        if project:
+            validate_project_deadline(project, new_due_at)
+            task.deadline_from_project = new_due_at is None
+            new_due_at = new_due_at or project.planned_end_at
         cls._authorize(actor=actor, actor_user=actor_user, permission="task.change_deadline", task=task)
+        if not project and task.priority == 'blocking' and not new_due_at:
+            raise TaskValidationError('Блокирующей задаче нужен явный дедлайн.', code='task_blocking_deadline_required')
         cls._validate_dates(task.planned_start_at, new_due_at)
-        requires_reason = task.status in {TaskStatus.IN_PROGRESS, TaskStatus.WAITING, TaskStatus.REVIEW} or task.is_overdue or (task.due_at and new_due_at and new_due_at > task.due_at)
+        requires_reason = True
         if requires_reason and not reason.strip():
             raise TaskValidationError("Для изменения срока обязательна причина.", code="task_deadline_reason_required")
         if task.status in {TaskStatus.COMPLETED, TaskStatus.CANCELLED}:
             raise TaskValidationError("Срок финальной задачи изменить нельзя.", code="task_deadline_invalid")
         old_due = task.due_at
         task.due_at = new_due_at
+        task.deadline_is_manual = not task.deadline_from_project and new_due_at is not None
         task.version += 1
         task.updated_by = actor_user
-        task.save(update_fields=["due_at", "version", "updated_by", "updated_at"])
+        task.save(update_fields=["due_at", "deadline_from_project", "deadline_is_manual", "version", "updated_by", "updated_at"])
         TaskDeadlineHistory.objects.create(task=task, old_due_at=old_due, new_due_at=new_due_at, changed_by=actor, reason=reason)
         cls._record(task, actor, actor_user, "task.deadline_changed", old={"due_at": old_due}, new={"due_at": new_due_at}, correlation_id=correlation_id, old_due_at=old_due, new_due_at=new_due_at, reason=reason)
         return task
@@ -358,6 +473,8 @@ class TaskService:
     def reassign(cls, *, task, actor, actor_user, version, assignment_type, new_target, reason="", correlation_id=None):
         task = cls._locked(task, version)
         cls._authorize(actor=actor, actor_user=actor_user, permission="task.reassign", task=task)
+        if not task.responsible_department:
+            raise TaskValidationError('Перед переназначением администратор должен заполнить подразделение.', code='task_department_required')
         if task.status in {TaskStatus.COMPLETED, TaskStatus.CANCELLED}:
             raise TaskValidationError("Финальную задачу нельзя переназначить.", code="task_assignment_invalid")
         requires_reason = task.status in {TaskStatus.IN_PROGRESS, TaskStatus.WAITING, TaskStatus.REVIEW} or task.is_overdue
@@ -366,6 +483,18 @@ class TaskService:
         if assignment_type not in TaskAssignmentHistory.Type.values:
             raise TaskValidationError("Неизвестный тип назначения.", code="task_assignment_invalid")
         new_employee = cls._resolve_one(new_target)
+        from .routing import department_head, validate_member
+        if task.responsible_department:
+            validate_member(new_employee, task.responsible_department, task.location)
+            if assignment_type == 'responsible' and new_employee.pk != department_head(task.responsible_department).pk:
+                raise TaskValidationError('Ответственный — руководитель подразделения.', code='task_department_responsible_invalid')
+            administrative = cls._assignment_administrator(actor, actor_user, task)
+            if not actor_user.is_superuser and actor.pk != task.responsible_employee_id and not administrative:
+                raise TaskBusinessError('Исполнителя назначает ответственный руководитель или уполномоченный администратор.', code='task_permission_denied')
+            if not actor_user.is_superuser:
+                from employees.assignment_targets import assignment_visibility
+                if not assignment_visibility(actor_user)[0].filter(pk=new_employee.pk).exists():
+                    raise TaskBusinessError('Сотрудник недоступен.', code='task_permission_denied')
         target_field = f"{assignment_type}_target"
         employee_field = f"{assignment_type}_employee"
         old_target, old_employee = getattr(task, target_field), getattr(task, employee_field)

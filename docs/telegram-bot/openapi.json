@@ -1,0 +1,1043 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "AYS Connect corporate Telegram integration",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/integrations/corporate-telegram/v1/bindings/redeem/": {
+      "post": {
+        "operationId": "api_integrations_corporate_telegram_v1_bindings_redeem_create",
+        "tags": [
+          "api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Redeem"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Redeem"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Redeem"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "CorporateBotBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BindingResult"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/integrations/corporate-telegram/v1/deliveries/{id}/ack/": {
+      "post": {
+        "operationId": "api_integrations_corporate_telegram_v1_deliveries_ack_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": {
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "tags": [
+          "api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Ack"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Ack"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Ack"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "CorporateBotBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryResult"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/integrations/corporate-telegram/v1/deliveries/{id}/begin/": {
+      "post": {
+        "operationId": "api_integrations_corporate_telegram_v1_deliveries_begin_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": {
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "tags": [
+          "api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Lease"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Lease"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Lease"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "CorporateBotBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BeginResult"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/integrations/corporate-telegram/v1/deliveries/{id}/fail/": {
+      "post": {
+        "operationId": "api_integrations_corporate_telegram_v1_deliveries_fail_create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": {
+              "type": "integer"
+            },
+            "required": true
+          }
+        ],
+        "tags": [
+          "api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Fail"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Fail"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Fail"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "CorporateBotBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryResult"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/integrations/corporate-telegram/v1/deliveries/claim/": {
+      "post": {
+        "operationId": "api_integrations_corporate_telegram_v1_deliveries_claim_create",
+        "tags": [
+          "api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Claim"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Claim"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Claim"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CorporateBotBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimResult"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/internal/v1/notification-channels/telegram/": {
+      "get": {
+        "operationId": "api_internal_v1_notification_channels_telegram_retrieve",
+        "tags": [
+          "api"
+        ],
+        "security": [
+          {
+            "EmployeeJWT": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramStatus"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/internal/v1/notification-channels/telegram/link/": {
+      "post": {
+        "operationId": "api_internal_v1_notification_channels_telegram_link_create",
+        "tags": [
+          "api"
+        ],
+        "security": [
+          {
+            "EmployeeJWT": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramLink"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/internal/v1/notification-channels/telegram/unlink/": {
+      "post": {
+        "operationId": "api_internal_v1_notification_channels_telegram_unlink_create",
+        "tags": [
+          "api"
+        ],
+        "security": [
+          {
+            "EmployeeJWT": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramUnlink"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Validation / credential / policy / rate error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Ack": {
+        "type": "object",
+        "properties": {
+          "lease_token": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "telegram_message_id": {
+            "type": "string",
+            "maxLength": 160
+          }
+        },
+        "required": [
+          "lease_token",
+          "telegram_message_id"
+        ]
+      },
+      "BeginResult": {
+        "type": "object",
+        "properties": {
+          "send_allowed": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "send_allowed"
+        ]
+      },
+      "BindingResult": {
+        "type": "object",
+        "properties": {
+          "linked": {
+            "type": "boolean"
+          },
+          "employee_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "employee_id",
+          "linked"
+        ]
+      },
+      "CategoryEnum": {
+        "enum": [
+          "retryable",
+          "blocked",
+          "permanent",
+          "ambiguous"
+        ],
+        "type": "string",
+        "description": "* `retryable` - retryable\n* `blocked` - blocked\n* `permanent` - permanent\n* `ambiguous` - ambiguous"
+      },
+      "Claim": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "maximum": 100,
+            "minimum": 1,
+            "default": 25
+          }
+        }
+      },
+      "ClaimResult": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Packet"
+            }
+          }
+        },
+        "required": [
+          "results"
+        ]
+      },
+      "DeliveryResult": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/StatusEnum"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "Fail": {
+        "type": "object",
+        "properties": {
+          "lease_token": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "category": {
+            "$ref": "#/components/schemas/CategoryEnum"
+          },
+          "retry_after_seconds": {
+            "type": "integer",
+            "maximum": 86400,
+            "minimum": 1
+          }
+        },
+        "required": [
+          "category",
+          "lease_token"
+        ]
+      },
+      "Lease": {
+        "type": "object",
+        "properties": {
+          "lease_token": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "lease_token"
+        ]
+      },
+      "Packet": {
+        "type": "object",
+        "properties": {
+          "notification_id": {
+            "type": "integer"
+          },
+          "delivery_id": {
+            "type": "integer"
+          },
+          "event_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "event_type": {
+            "type": "string"
+          },
+          "event_version": {
+            "type": "integer"
+          },
+          "recipient_employee_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "telegram_chat_id": {
+            "type": "integer"
+          },
+          "task_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "task_number": {
+            "type": "string"
+          },
+          "task_title": {
+            "type": "string"
+          },
+          "location": {
+            "type": "object",
+            "additionalProperties": {},
+            "nullable": true
+          },
+          "change": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string",
+            "nullable": true
+          },
+          "deadline": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "actor": {
+            "type": "object",
+            "additionalProperties": {},
+            "nullable": true
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lease_token": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "lease_expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "actor",
+          "change",
+          "deadline",
+          "delivery_id",
+          "event_id",
+          "event_type",
+          "event_version",
+          "lease_expires_at",
+          "lease_token",
+          "location",
+          "notification_id",
+          "occurred_at",
+          "priority",
+          "recipient_employee_id",
+          "task_id",
+          "task_number",
+          "task_title",
+          "telegram_chat_id",
+          "url"
+        ]
+      },
+      "Redeem": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "telegram_user_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "private_chat_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "username": {
+            "type": "string",
+            "maxLength": 80
+          }
+        },
+        "required": [
+          "code",
+          "private_chat_id",
+          "telegram_user_id"
+        ]
+      },
+      "StatusEnum": {
+        "enum": [
+          "delivered",
+          "unknown",
+          "retry",
+          "failed"
+        ],
+        "type": "string",
+        "description": "* `delivered` - delivered\n* `unknown` - unknown\n* `retry` - retry\n* `failed` - failed"
+      },
+      "TelegramLink": {
+        "type": "object",
+        "properties": {
+          "bot_username": {
+            "type": "string"
+          },
+          "start_parameter": {
+            "type": "string"
+          },
+          "deep_link": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "bot_username",
+          "deep_link",
+          "expires_at",
+          "start_parameter"
+        ]
+      },
+      "TelegramStatus": {
+        "type": "object",
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "linked": {
+            "type": "boolean"
+          },
+          "username": {
+            "type": "string"
+          },
+          "linked_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "blocked": {
+            "type": "boolean"
+          },
+          "last_failure_code": {
+            "type": "string"
+          },
+          "last_delivery": {
+            "type": "object",
+            "additionalProperties": {},
+            "nullable": true
+          }
+        },
+        "required": [
+          "available",
+          "blocked",
+          "last_delivery",
+          "last_failure_code",
+          "linked",
+          "linked_at",
+          "username"
+        ]
+      },
+      "TelegramUnlink": {
+        "type": "object",
+        "properties": {
+          "unlinked": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "unlinked"
+        ]
+      },
+      "PublicError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {}
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "CorporateBotBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Dedicated service credential. Never a Telegram bot token or employee JWT."
+      },
+      "EmployeeJWT": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Authenticated employee access token. Only self-binding endpoints."
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Isolated local acceptance only"
+    },
+    {
+      "url": "https://ays-connect.ru",
+      "description": "Production base; patch NOT DEPLOYED. Staging URL must be supplied by operator."
+    }
+  ]
+}

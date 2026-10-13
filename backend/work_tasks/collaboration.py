@@ -31,9 +31,10 @@ class CollaborationService:
 
     @classmethod
     def _validate_mentions(cls, *, actor, actor_user, employees):
+        from employees.assignment_targets import assignable_employees
         unique = {employee.pk: employee for employee in employees}.values()
         for employee in unique:
-            if not employee.is_active:
+            if not assignable_employees().filter(pk=employee.pk).exists():
                 raise TaskValidationError("Нельзя упомянуть неактивного сотрудника.", code="task_mention_invalid")
             if not (actor_user and actor_user.is_superuser) and employee.pk != actor.pk and not PermissionService.has_permission(employee=actor, permission="employee.view", obj=employee):
                 raise TaskValidationError("Сотрудник недоступен для упоминания.", code="task_mention_invalid")
@@ -135,8 +136,12 @@ class CollaborationService:
     def add_watcher(cls, *, task, employee, actor, actor_user, correlation_id=None):
         permission = "task.watch" if employee.pk == actor.pk else "task.watcher_manage"
         cls._authorize(actor=actor, actor_user=actor_user, permission=permission, task=task)
-        if not employee.is_active:
+        from employees.assignment_targets import assignable_employees, assignment_visibility
+        from .routing import eligible_for_location
+        if not assignable_employees().filter(pk=employee.pk).exists():
             raise TaskValidationError("Нельзя добавить неактивного наблюдателя.", code="task_watcher_invalid")
+        if not assignment_visibility(actor_user)[0].filter(pk=employee.pk).exists() or not eligible_for_location(employee, task.location):
+            raise TaskValidationError('Наблюдатель должен быть доступен и иметь доступ к объекту и вложениям.', code='task_watcher_invalid')
         # A missing watcher row cannot be locked. Serialize additions through the
         # stable parent row so concurrent requests return the same active watcher.
         Task.objects.select_for_update().get(pk=task.pk)

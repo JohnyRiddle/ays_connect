@@ -13,6 +13,7 @@ class StrictSerializer(serializers.Serializer):
 
 
 class ProjectSerializer(serializers.ModelSerializer):
+    planned_end_at = serializers.DateTimeField(required=True, allow_null=False)
     manager_name = serializers.CharField(source="manager.display_name", read_only=True, allow_null=True)
 
     class Meta:
@@ -134,12 +135,12 @@ class MoveProjectSerializer(StrictSerializer):
 
 
 class ProjectTaskCreateSerializer(StrictSerializer):
+    responsible_department = serializers.PrimaryKeyRelatedField(queryset=Task._meta.get_field('responsible_department').remote_field.model.objects.all(), required=False)
     project_version = serializers.IntegerField(min_value=1)
     stage = serializers.UUIDField(required=False, allow_null=True)
     template = serializers.UUIDField(required=False)
     title = serializers.CharField(max_length=240, required=False)
     description = serializers.CharField(required=False, allow_blank=True)
-    priority = serializers.ChoiceField(choices=Task._meta.get_field("priority").choices, required=False)
     planned_start_at = serializers.DateTimeField(required=False, allow_null=True)
     responsible_target = serializers.UUIDField(required=False, allow_null=True)
     executor_target = serializers.UUIDField(required=False, allow_null=True)

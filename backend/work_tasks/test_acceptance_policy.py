@@ -15,8 +15,13 @@ class AcceptancePolicyTests(TaskCoreTestCase):
         from employees.models import Employee, AssignmentTarget
         replacement=Employee.objects.create(first_name='Replacement reviewer')
         target=AssignmentTarget.objects.create(target_type='employee',employee=replacement)
+        position = self.executor.position_ref
         for policy in ('author','responsible'):
+            replacement.position_ref = None; replacement.save()
+            self.executor.position_ref = position; self.executor.save()
             task=self.publish_start(self.create_task(acceptance_policy=policy))
+            self.executor.position_ref = None; self.executor.save()
+            replacement.org_unit = self.org_unit; replacement.position_ref = position; replacement.save()
             task=TaskService.reassign(task=task,actor=self.actor,actor_user=self.user,version=task.version,
                 assignment_type='responsible',new_target=target,reason='Synthetic reassignment')
             task.refresh_from_db()

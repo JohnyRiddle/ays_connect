@@ -1,0 +1,52 @@
+{
+  "package": "AYS Connect corporate Telegram API v1",
+  "base": "62c61ed18b6edc2bab47871720e23946c7c95d9a",
+  "date": "2026-10-13",
+  "deployment": "NOT DEPLOYED",
+  "telegram_delivery": "NOT VERIFIED",
+  "files": [
+    {
+      "path": "docs/telegram-bot/README.md",
+      "bytes": 17833,
+      "sha256": "3038a290502ddc3bf53934c8b3b91988aadc9dd1eae6b8ce4e4665fb3f461aaf"
+    },
+    {
+      "path": "docs/telegram-bot/openapi.json",
+      "bytes": 28196,
+      "sha256": "b722274026392402634101a02861dbdc4df1e9ab4e14528cd8eee0a202b6fc1b"
+    },
+    {
+      "path": "docs/TASK_PATCH_USER_GUIDE.md",
+      "bytes": 7542,
+      "sha256": "3be08b7e5a98bbfe9252dd89671c592baafad59b724eb1c173bff72ec5a94570"
+    },
+    {
+      "path": "docs/TASK_PATCH_RELEASE.md",
+      "bytes": 10127,
+      "sha256": "ba487e0642b89ce695f2ff5d745b4ef2bac432da5f2116cccb1214e272a2b9cc"
+    },
+    {
+      "path": "docs/TASK_PATCH_ACCEPTANCE.md",
+      "bytes": 7863,
+      "sha256": "e3e03791f7a27df62dd72c95af28898edccd312cbfd82811cab24302856a546b"
+    }
+  ],
+  "validation": {
+    "backend": {
+      "tests_passed": 672,
+      "new_patch_tests": 38,
+      "parallel_workers": 3,
+      "evidence_log": "task-patch-pass-all.log",
+      "evidence_sha256": "786293acfae8fb5b908eb5e19084ddb94808c016ffa93ccff69999fd3ca8f21a"
+    },
+    "browser": {
+      "tests_passed": 6,
+      "widths": [
+        1280,
+        390
+      ]
+    },
+    "telegram_delivery": "NOT VERIFIED",
+    "fresh_production_copy": "NOT PERFORMED"
+  }
+}

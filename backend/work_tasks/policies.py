@@ -18,7 +18,8 @@ class TaskAccessPolicy:
 
     @classmethod
     def allows(cls, *, employee, permission, task=None):
-        if not employee or not employee.is_active:
+        from employees.assignment_targets import assignable_employees
+        if not employee or not assignable_employees().filter(pk=employee.pk).exists():
             return False
         for grant in cls._grants(employee, permission):
             scopes = grant.role.permission_grants.filter(permission__code=permission).values_list("scope", flat=True)
@@ -27,7 +28,7 @@ class TaskAccessPolicy:
                     return True
                 if scope == Scope.GLOBAL:
                     return True
-                participating = employee.pk in {task.author_id, task.responsible_employee_id, task.executor_employee_id} or task.watcher_records.filter(employee=employee, removed_at__isnull=True).exists()
+                participating = employee.pk in {task.author_id, task.responsible_employee_id, task.executor_employee_id} or (permission in {'task.view', 'task.comment', 'task.watch', 'task.attachment_add'} and task.watcher_records.filter(employee=employee, removed_at__isnull=True).exists())
                 if scope == Scope.PARTICIPATING and participating:
                     return True
                 if scope == Scope.OWN and employee.pk in {task.responsible_employee_id, task.executor_employee_id}:
@@ -42,13 +43,18 @@ class TaskAccessPolicy:
 
     @classmethod
     def visibility_query(cls, *, employee, permission="task.view"):
+        from employees.assignment_targets import assignable_employees
+        if not employee or not assignable_employees().filter(pk=employee.pk).exists():
+            return Q(pk__in=[])
         query = Q(pk__in=[])
         for grant in cls._grants(employee, permission):
             for scope in grant.role.permission_grants.filter(permission__code=permission).values_list("scope", flat=True):
                 if scope == Scope.GLOBAL:
                     return Q()
                 if scope == Scope.PARTICIPATING:
-                    query |= Q(author=employee) | Q(responsible_employee=employee) | Q(executor_employee=employee) | Q(watcher_records__employee=employee, watcher_records__removed_at__isnull=True)
+                    query |= Q(author=employee) | Q(responsible_employee=employee) | Q(executor_employee=employee)
+                    if permission in {'task.view', 'task.comment', 'task.watch', 'task.attachment_add'}:
+                        query |= Q(watcher_records__employee=employee, watcher_records__removed_at__isnull=True)
                 elif scope == Scope.OWN:
                     query |= Q(responsible_employee=employee) | Q(executor_employee=employee)
                 elif scope == Scope.ORG_UNIT:

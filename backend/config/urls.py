@@ -27,6 +27,7 @@ def readiness(request):
     return Response({"status": "ready", "database": "ok"})
 
 urlpatterns = [
+    path('api/integrations/corporate-telegram/v1/', include('notifications.bot_urls')),
     path("api/internal/v1/registration/", include("employees.registration_urls")),
     path("admin/", admin.site.urls),
     path("api/v1/health/", health),

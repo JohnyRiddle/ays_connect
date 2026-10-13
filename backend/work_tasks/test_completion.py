@@ -30,9 +30,11 @@ class CompletionPhaseTestCase(TestCase):
         self.actor = Employee.objects.create(user=self.user, first_name="Автор", legal_entity=self.le, org_unit=self.unit)
         self.executor = Employee.objects.create(first_name="Исполнитель", legal_entity=self.le, org_unit=self.unit)
         self.target = AssignmentTarget.objects.create(target_type=AssignmentTarget.Type.EMPLOYEE, employee=self.executor)
+        from .patch_test_fixtures import department_for
+        department_for(self.executor)
 
     def template(self, **kwargs):
-        data = {"name": "Template", "task_title": "From template", "responsible_target": self.target, "legal_entity": self.le, "org_unit": self.unit}
+        data = {"name": "Template", "task_title": "From template", "responsible_target": self.target, "legal_entity": self.le, "org_unit": self.unit, "responsible_department": self.unit}
         data.update(kwargs)
         return TaskTemplateService.create(actor=self.actor, actor_user=self.user, **data)
 
@@ -63,10 +65,10 @@ class TaskTemplateTests(CompletionPhaseTestCase):
 
     def test_deadline_rules_and_deactivated_template(self):
         none = TaskTemplateService.create_task(template=self.template(deadline_rule=DeadlineRule.NONE), actor=self.actor, actor_user=self.user)
-        self.assertIsNone(none.due_at)
+        self.assertEqual(none.due_at - none.created_at, timedelta(days=3))
         planned_template = self.template(name="Planned", deadline_rule=DeadlineRule.AFTER_PLANNED_START, deadline_offset=timedelta(hours=2), planned_start_offset=timedelta(hours=1))
         planned = TaskTemplateService.create_task(template=planned_template, actor=self.actor, actor_user=self.user)
-        self.assertEqual(planned.due_at - planned.planned_start_at, timedelta(hours=2))
+        self.assertEqual(planned.due_at - planned.created_at, timedelta(days=3))
         TaskTemplateService.deactivate(template=planned_template, actor=self.actor, actor_user=self.user)
         with self.assertRaises(TaskValidationError):
             TaskTemplateService.create_task(template=planned_template, actor=self.actor, actor_user=self.user)
@@ -194,7 +196,7 @@ class SavedViewsAndUXTests(CompletionPhaseTestCase):
         )
         self.assertEqual(
             TaskUXService.action_blockers(self.mine, self.actor, is_superuser=True),
-            {"publish": "Для публикации укажите ответственного."},
+            {"publish": "Для публикации укажите ответственного, ответственное подразделение (административное заполнение)."},
         )
 
     def test_completion_blocker_is_exposed_only_while_required_item_is_incomplete(self):
@@ -233,6 +235,7 @@ class CompletionApiTests(CompletionPhaseTestCase):
     def test_templates_recurrence_saved_views_and_ux_endpoints(self):
         response = self.client.post("/api/internal/v1/task-templates/", {
             "name": "API Template", "task_title": "API generated",
+            "responsible_department": str(self.unit.pk),
             "responsible_target": str(self.target.pk), "default_priority": "high",
             "deadline_rule": "after_creation", "deadline_offset": "01:00:00",
         }, format="json")

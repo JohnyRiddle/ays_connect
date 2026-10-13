@@ -177,6 +177,8 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
         ordering=params.get("ordering","-created_at");allowed={"created_at","updated_at","priority","number","resolved_at"};field=ordering.lstrip("-")
         return qs.order_by(ordering if field in allowed else "-created_at")
     def create(self,request,*args,**kwargs):
+        from rest_framework.exceptions import PermissionDenied
+        raise PermissionDenied('Новые обращения оформляются задачами.', code='request_creation_disabled')
         s=RequestCreateSerializer(data=request.data);s.is_valid(raise_exception=True);obj=ServiceRequestService.create(actor=self.actor(),actor_user=request.user,**s.validated_data);return Response(ServiceRequestSerializer(obj,context=self.get_serializer_context()).data,status=201)
     def partial_update(self,request,*args,**kwargs):
         allowed={"subject","description","priority","payload","version"}

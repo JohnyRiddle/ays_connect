@@ -1,3 +1,32 @@
+## 13.10.2026 — патч задач и API корпоративного Telegram-бота (review)
+
+Изолированная ветка `codex/task-telegram-patch`, base `origin/main` 62c61ed;
+runtime совпадает с 713be6b, обновление базы ветки касается только документов
+регистрации. Новые обращения — Work Tasks; Request create UI/API закрыт,
+история не переносится и не удаляется. Добавлены department/head routing,
+object-scoped executor choices, пять приоритетов с calendar deadlines,
+project deadline inheritance без active priority, watchers/UUID mentions и
+service-only corporate Telegram claim/begin/ack/fail. Новые проектные задачи
+наследуют объект проекта; membership/primary_location не создают grants.
+
+Только пять additive migrations; old department null требует административного
+заполнения задач и templates. При передаче в работу проверяется текущий активный
+руководитель. Реальные grants/UUID/история и pending location.* не менялись.
+
+Проверки: 672/672 backend PostgreSQL, 38 новых сценариев включая races/upgrade,
+6/6 browser desktop/mobile с реальным isolated API, TypeScript/Vite, check/drift,
+diff --check и export 8 OpenAPI routes PASS. Полный evidence/границы:
+[TASK_PATCH_ACCEPTANCE.md](TASK_PATCH_ACCEPTANCE.md). Контракт:
+[telegram-bot/README.md](telegram-bot/README.md), инструкция:
+[TASK_PATCH_USER_GUIDE.md](TASK_PATCH_USER_GUIDE.md), выпуск/restore:
+[TASK_PATCH_RELEASE.md](TASK_PATCH_RELEASE.md).
+
+Bot delivery NOT VERIFIED; staging URL, fresh working-DB rehearsal и protected
+frozen rollback point ещё не подготовлены. Before release интегрировать с
+финальным commit опубликованного дизайна и проверить exact RC. Исходные dirty-файлы
+других checkout не включены. Commit/push и черновой PR разрешены пользователем 13.10.2026; merge/deployment
+требуют отдельного разрешения именно этого патча.
+
 ## 12.10.2026 — Registration production release PASS
 
 Runtime **713be6b755950fcce5f5bf22d9fc05743c8f0053** (AssignmentTarget integration included). Synthetic acceptance

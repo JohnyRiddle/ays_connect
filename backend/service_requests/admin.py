@@ -8,6 +8,8 @@ for model in (ServiceCategory,Service,RequestType,RequestTypeAccessRule,RequestF
 
 @admin.register(ServiceRequest)
 class ServiceRequestAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        return False
     list_display=("number","subject","status","priority","requester","assigned_employee","created_at")
     list_filter=("status","priority","request_type","service");search_fields=("number","subject","description")
     readonly_fields=("number","status","requester","created_by","schema_version","service","category","responsible_target","responsible_employee","assigned_target","assigned_employee","submitted_at","assigned_at","started_at","resolved_at","closed_at","cancelled_at","reopened_at","resolution_code","resolution_comment","cancellation_reason","version","created_at","updated_at","updated_by")

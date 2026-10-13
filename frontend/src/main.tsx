@@ -256,6 +256,8 @@ type ChannelStatus = {
     linked: boolean;
     username: string;
     linked_at: string | null;
+    blocked?: boolean;
+    last_delivery?: {status: string; error_code: string; delivered_at: string | null} | null;
   };
   email: { available: boolean; address_masked: string };
   in_app: { available: boolean };
@@ -569,7 +571,7 @@ type LegacyView = "dashboard"|"tasks"|"checklists"|"sensors"|"incidents"|"object
 function SidebarNav({profileId,path,view,navigate,openLegacy}:{profileId:number;path:string;view:string;navigate:(path:string)=>void;openLegacy:(view:LegacyView,hash:string)=>void}) {
   const route=`${path}|${view}`;
   const definitions=[
-    {id:"work",label:"Работа",items:[{label:"Задачи",href:"/tasks",icon:CheckCircle2,active:path.startsWith("/tasks")},{label:"Заявки",href:"/requests",icon:Wrench,active:path.startsWith("/requests")},{label:"Проекты",href:"/projects",icon:CalendarDays,active:path.startsWith("/projects")},{label:"Чек-листы",href:"/#checklists",icon:ClipboardCheck,legacy:["checklists","#checklists"],active:path==="/"&&view==="checklists"}]},
+    {id:"work",label:"Работа",items:[{label:"Задачи",href:"/tasks",icon:CheckCircle2,active:path.startsWith("/tasks")},{label:"Проекты",href:"/projects",icon:CalendarDays,active:path.startsWith("/projects")},{label:"Чек-листы",href:"/#checklists",icon:ClipboardCheck,legacy:["checklists","#checklists"],active:path==="/"&&view==="checklists"}]},
     {id:"team",label:"Команда",items:[{label:"Сотрудники",href:"/people/employees",icon:Users,active:path.startsWith("/people/")&&!path.startsWith("/people/me")},{label:"Мой онбординг",href:"/people/me/onboarding",icon:ClipboardCheck,active:path==="/people/me/onboarding"}]},
     {id:"knowledge",label:"Знания",items:[{label:"Обучение",href:"/#learning",icon:GraduationCap,legacy:["learning","#learning"],active:path==="/"&&view==="learning"},{label:"Рабочие материалы",href:"/#knowledge",icon:BookOpen,legacy:["knowledge","#knowledge"],active:path==="/"&&view==="knowledge"}]},
     {id:"control",label:"Объекты и контроль",items:[{label:"Объекты",href:"/objects",icon:Building2,legacy:["objects","#objects"],active:path.startsWith("/objects")||(path==="/"&&view==="objects")},{label:"Датчики",href:"/#sensors",icon:Activity,legacy:["sensors","#sensors"],active:path==="/"&&view==="sensors"},{label:"Инциденты",href:"/#incidents",icon:Bell,legacy:["incidents","#incidents"],active:path==="/"&&view==="incidents"}]},
@@ -2145,6 +2147,8 @@ function NotificationSettingsView() {
       </div>
       <section className="notification-settings-card">
         <h2>Telegram</h2>
+        {status?.telegram.blocked && <p role="alert">Бот заблокирован. Разблокируйте корпоративного бота и выполните повторную привязку.</p>}
+        {status?.telegram.last_delivery && <p>Последняя доставка: {status.telegram.last_delivery.status}{status.telegram.last_delivery.error_code ? ` · ${status.telegram.last_delivery.error_code}` : ''}</p>}
         <p>
           {status?.telegram.linked
             ? `Подключён${status.telegram.username ? ` · @${status.telegram.username}` : ""}`

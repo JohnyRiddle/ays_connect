@@ -34,6 +34,7 @@ class TaskReviewHistorySerializer(serializers.ModelSerializer):
 
 
 class TaskSerializer(serializers.ModelSerializer):
+    due_at = serializers.DateTimeField(source='effective_due_at', read_only=True, allow_null=True)
     is_overdue = serializers.BooleanField(read_only=True)
     completed_late = serializers.BooleanField(read_only=True)
     responsible_target_display = serializers.SerializerMethodField()
@@ -42,6 +43,12 @@ class TaskSerializer(serializers.ModelSerializer):
     executor_employee_display = serializers.CharField(source="executor_employee.display_name", read_only=True, allow_null=True)
     author_display = serializers.CharField(source="author.display_name", read_only=True, allow_null=True)
     project = serializers.SerializerMethodField()
+    responsible_department_display = serializers.CharField(source='responsible_department.name', read_only=True, allow_null=True)
+    active_priority = serializers.SerializerMethodField()
+
+    def get_active_priority(self, obj):
+        from .routing import project_for
+        return None if project_for(obj) else obj.priority
 
     def get_project(self, obj):
         from projects.models import ProjectTaskLink
@@ -77,10 +84,23 @@ class TaskSerializer(serializers.ModelSerializer):
             "initial_due_at", "started_at", "completed_at", "cancelled_at", "waiting_reason",
             "waiting_comment", "expected_resume_at", "cancellation_reason", "completion_comment",
             "version", "created_by", "updated_by", "created_at", "updated_at",
+            'deadline_from_project', 'deadline_is_manual',
         )
 
 
 class TaskDetailSerializer(TaskSerializer):
+    can_change_department = serializers.SerializerMethodField()
+
+    def get_can_change_department(self, obj):
+        from .services import TaskService
+        from .policies import TaskAccessPolicy
+        request = self.context.get('request')
+        if not request or obj.status in {'completed', 'cancelled'}:
+            return False
+        actor = getattr(request.user, 'employee', None)
+        if request.user.is_superuser:
+            return True
+        return TaskService._assignment_administrator(actor, request.user, obj) and all(TaskAccessPolicy.allows(employee=actor, permission=code, task=obj) for code in ['task.edit', 'task.reassign'])
     status_history = TaskStatusHistorySerializer(many=True, read_only=True)
     waiting_periods = TaskWaitingPeriodSerializer(many=True, read_only=True)
     deadline_history = TaskDeadlineHistorySerializer(many=True, read_only=True)
@@ -129,16 +149,24 @@ class TaskDetailSerializer(TaskSerializer):
 
 
 class TaskCreateSerializer(serializers.ModelSerializer):
+    def validate(self, attrs):
+        if attrs.get('source_type', 'manual') not in {'manual', 'api'}:
+            raise serializers.ValidationError({'source_type': 'Связанные задачи создаются командой соответствующего домена.'})
+        if not attrs.get('responsible_department'):
+            raise serializers.ValidationError({'responsible_department': 'Выберите ответственное подразделение.'})
+        return attrs
+
     class Meta:
         model = Task
         fields = (
             "title", "description", "responsible_target", "executor_target", "priority",
             "planned_start_at", "due_at", "parent", "org_unit", "legal_entity", "location",
-            "completion_policy", "acceptance_policy", "source_type", "source_id",
+            "completion_policy", "acceptance_policy", "source_type", "source_id", "responsible_department",
         )
 
 
 class TaskPatchSerializer(serializers.Serializer):
+    responsible_department = serializers.PrimaryKeyRelatedField(queryset=Task._meta.get_field('responsible_department').remote_field.model.objects.all(), required=False)
     version = serializers.IntegerField(min_value=1)
     title = serializers.CharField(max_length=240, required=False)
     description = serializers.CharField(required=False, allow_blank=True)

@@ -115,10 +115,13 @@ class PostgreSQLTaskConcurrencyTests(TransactionTestCase):
         self.assertEqual(task.version, 2)
 
     def test_concurrent_occurrence_processing_creates_one_task(self):
+        from .patch_test_fixtures import department_for
+        unit = department_for(self.executor)
         template = TaskTemplateService.create(
             actor=self.actor,
             actor_user=self.user,
             name="Recurring template",
+            responsible_department=unit,
             task_title="Recurring task",
             responsible_target=self.target,
         )

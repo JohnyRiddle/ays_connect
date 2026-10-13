@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { DepartmentFields, ParticipantPicker, TaskSettings } from './TaskParticipants';
 import {
   AssignmentTarget,
   lookupApi,
@@ -23,10 +24,11 @@ const labels: Record<string, string> = {
   waiting_external: "Внешнее ожидание",
   resolved: "Решена",
   closed: "Закрыта",
-  low: "Низкий",
-  normal: "Обычный",
-  high: "Высокий",
-  critical: "Критический",
+  low: "Низкая",
+  normal: "Обычная",
+  high: "Высокая",
+  critical: "Критическая",
+  blocking: "Блокирующая",
 };
 const actionLabels: Record<string, string> = {
   publish: "Опубликовать",
@@ -164,7 +166,7 @@ export function WorkHome({ navigate }: { navigate: Navigate }) {
         <div>
           <p>Work Core</p>
           <h1>Рабочий центр</h1>
-          <span>Производственные задачи и заявки</span>
+          <span>Обращения сотрудников и рабочие задачи</span>
         </div>
       </header>
       <div className="work-home-grid">
@@ -173,11 +175,7 @@ export function WorkHome({ navigate }: { navigate: Navigate }) {
           <strong>{tasks?.count ?? "—"}</strong>
           <button onClick={() => navigate("/tasks")}>Открыть задачи</button>
         </section>
-        <section className="work-card">
-          <h2>Заявки</h2>
-          <strong>{requests?.count ?? "—"}</strong>
-          <button onClick={() => navigate("/requests")}>Открыть заявки</button>
-        </section>
+
       </div>
     </main>
   );
@@ -263,7 +261,7 @@ function TaskList({ navigate }: { navigate: Navigate }) {
           onChange={(e) => setPriority(e.target.value)}
         >
           <option value="">Все приоритеты</option>
-          {["low", "normal", "high", "critical"].map((x) => (
+          {["blocking", "critical", "high", "normal", "low"].map((x) => (
             <option key={x} value={x}>
               {labels[x]}
             </option>
@@ -307,7 +305,7 @@ function TaskList({ navigate }: { navigate: Navigate }) {
                     {t.number} · {t.title}
                   </strong>
                   <small>
-                    {labels[t.priority] || t.priority} · обновлено{" "}
+                    {t.active_priority === null ? "Проектная задача" : labels[t.priority] || t.priority} · обновлено{" "}
                     {fmt(t.updated_at)}
                   </small>
                 </button>
@@ -343,6 +341,7 @@ function TaskCreate({ navigate }: { navigate: Navigate }) {
     description: "",
     priority: "normal",
     responsible_target: "",
+    responsible_department: "",
     executor_target: "",
     due_at: "",
     location: initialLocation,
@@ -411,7 +410,7 @@ function TaskCreate({ navigate }: { navigate: Navigate }) {
               value={form.priority}
               onChange={(e) => setForm({ ...form, priority: e.target.value })}
             >
-              {["low", "normal", "high", "critical"].map((x) => (
+              {["blocking", "critical", "high", "normal", "low"].map((x) => (
                 <option key={x} value={x}>
                   {labels[x]}
                 </option>
@@ -419,25 +418,18 @@ function TaskCreate({ navigate }: { navigate: Navigate }) {
             </select>
           </label>
           <label className="work-field">
-            <span>Срок</span>
+            <span>{form.priority === 'blocking' ? 'Явный дедлайн *' : 'Срок рассчитывается по приоритету'}</span>
             <input
               type="datetime-local"
+              required={form.priority === 'blocking'}
+              disabled={form.priority !== 'blocking'}
               value={form.due_at}
               onChange={(e) => setForm({ ...form, due_at: e.target.value })}
             />
           </label>
         </div>
         <label className="work-field"><span>Объект / локация</span><select value={form.location} onChange={event=>setForm({...form,location:event.target.value})}><option value="">Не указано</option>{initialLocation&&!locations.some(x=>x.id===initialLocation)&&<option value={initialLocation}>Выбранный объект</option>}{locations.filter(x=>!x.is_archived).map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
-        <AssignmentSelector
-          label="Ответственный target"
-          value={form.responsible_target}
-          onChange={(x) => setForm({ ...form, responsible_target: x })}
-        />
-        <AssignmentSelector
-          label="Исполнитель target"
-          value={form.executor_target}
-          onChange={(x) => setForm({ ...form, executor_target: x })}
-        />
+        <DepartmentFields value={form.responsible_department} location={form.location} onChange={value => setForm((old: any) => ({...old, responsible_department: value}))} executor={form.executor_target} onExecutor={value => setForm((old: any) => ({...old, executor_target: value}))} />
         <button className="primary" disabled={busy}>
           {busy ? "Создаём…" : "Создать задачу"}
         </button>
@@ -453,17 +445,21 @@ function ActionDialog({
   onSubmit,
   busy,
   reviewRequired = false,
+  taskContext,
 }: {
   action: string;
   onCancel: () => void;
   onSubmit: (data: any) => void;
   busy: boolean;
   reviewRequired?: boolean;
+  taskContext?: any;
 }) {
   const [reason, setReason] = useState("");
   const [waitingReason, setWaitingReason] = useState("waiting_other");
   const [target, setTarget] = useState("");
+  const [assignmentType, setAssignmentType] = useState(taskContext?.responsible_department ? 'executor' : 'responsible');
   const [due, setDue] = useState("");
+  const [inheritDeadline, setInheritDeadline] = useState(false);
   const [completionComment, setCompletionComment] = useState("");
   const needsReason = [
     "reject",
@@ -474,6 +470,7 @@ function ActionDialog({
     "wait_external",
     "resolve",
     "reassign",
+    "change_deadline",
   ].includes(action);
   return (
     <div className="work-modal" role="dialog" aria-modal="true">
@@ -496,32 +493,37 @@ function ActionDialog({
           if (action === "resolve") data.resolution_code = "RESOLVED";
           if (action === "reassign") {
             data.target = target;
-            data.assignment_type = "responsible";
+            data.assignment_type = assignmentType;
           }
           if (action === "change_deadline")
-            data.due_at = new Date(due).toISOString();
+            data.due_at = inheritDeadline ? null : new Date(due).toISOString();
           if (action === "complete") data.completion_comment = completionComment;
           onSubmit(data);
         }}
       >
         <h2>{actionLabels[action] || action}</h2>
+        {action === 'reassign' && taskContext?.responsible_department && <label className="work-field"><span>Тип назначения</span><select value={assignmentType} onChange={e => {setAssignmentType(e.target.value); setTarget('');}}><option value="executor">Исполнитель</option><option value="responsible">Ответственный руководитель</option></select></label>}
         {action === "reassign" && (
-          <AssignmentSelector
+          taskContext?.responsible_department ? <DepartmentFields fixed assignmentType={assignmentType} value={taskContext.responsible_department} location={taskContext.location || ''} onChange={() => {}} executor={target} onExecutor={setTarget} /> : <AssignmentSelector
             label="Новое назначение"
             value={target}
             onChange={setTarget}
           />
         )}{" "}
         {action === "change_deadline" && (
+          <div>
+            {taskContext?.active_priority === null && <label><input type="checkbox" checked={inheritDeadline} onChange={e => setInheritDeadline(e.target.checked)} /> Использовать дедлайн проекта</label>}
           <label className="work-field">
             <span>Новый срок</span>
             <input
-              required
+              required={!inheritDeadline}
+              disabled={inheritDeadline}
               type="datetime-local"
               value={due}
               onChange={(e) => setDue(e.target.value)}
             />
           </label>
+          </div>
         )}
         {action === "pause" && (
           <label className="work-field">
@@ -619,6 +621,9 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
   const [comments, setComments] = useState<any[]>([]);
   const [attachments, setAttachments] = useState<any[]>([]);
   const [watchers, setWatchers] = useState<any[]>([]);
+  const [mentions, setMentions] = useState<string[]>([]);
+  const [newWatchers, setNewWatchers] = useState<string[]>([]);
+  const canManageWatchers = task?.available_actions?.includes('watcher_manage');
   const [checklists, setChecklists] = useState<any[]>([]);
   const [activity, setActivity] = useState<any>();
   const [comment, setComment] = useState("");
@@ -687,7 +692,8 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
     if (!comment.trim() || busy) return;
     setBusy(true);
     try {
-      await tasksApi.addComment(id, { body: comment });
+      await tasksApi.addComment(id, { body: comment, mentions });
+      setMentions([]);
       setComment("");
       setComments(await tasksApi.comments(id));
     } catch (x) {
@@ -734,7 +740,7 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
             <span className={`work-status ${task.status}`}>
               {labels[task.status] || task.status}
             </span>
-            <span className={`work-priority ${task.priority}`}>{labels[task.priority] || task.priority}</span>
+            {task.active_priority !== null && <span className={`work-priority ${task.priority}`}>{labels[task.priority] || task.priority}</span>}
           </div>
         </div>
         <TaskActions task={task} busy={busy} onAction={(name) =>
@@ -759,29 +765,18 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
       <div className="work-detail-grid">
         <section className="work-card">
           <h2>Основная информация</h2>
+          <p>Ответственное подразделение: {task.responsible_department_display || 'Требует административного заполнения'}</p>
+          {task.available_actions?.includes('edit') && <TaskSettings key={`${task.id}-${task.version}`} task={task} reload={load} onError={setError} />}
           <dl>
             <div>
-              <dt>Ответственный target</dt>
-              <dd>
-                {task.responsible_target_display ||
-                  person(task.responsible_target)}
-              </dd>
-            </div>
-            <div>
-              <dt>Фактический ответственный</dt>
+              <dt>Ответственный</dt>
               <dd>
                 {task.responsible_employee_display ||
                   person(task.responsible_employee)}
               </dd>
             </div>
             <div>
-              <dt>Исполнитель target</dt>
-              <dd>
-                {task.executor_target_display || person(task.executor_target)}
-              </dd>
-            </div>
-            <div>
-              <dt>Фактический исполнитель</dt>
+              <dt>Исполнитель</dt>
               <dd>
                 {task.executor_employee_display ||
                   person(task.executor_employee)}
@@ -846,6 +841,7 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
               onChange={(e) => setComment(e.target.value)}
               placeholder="Написать комментарий"
             />
+            <ParticipantPicker taskId={id} selected={mentions} onChange={setMentions} />
             <button disabled={busy || !comment.trim()}>Отправить</button>
           </form>
           {comments.map((c) => (
@@ -887,10 +883,12 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
         </section>
         <section className="work-card">
           <h2>Наблюдатели</h2>
+          {canManageWatchers && <><ParticipantPicker taskId={id} mode="watcher" selected={newWatchers} onChange={setNewWatchers} /><button disabled={busy || !newWatchers.length} onClick={async () => { setBusy(true); try { for (const employee of newWatchers) await workRequest(`/tasks/${id}/watchers/`, {method: 'POST', body: JSON.stringify({employee})}); setNewWatchers([]); await load(); } catch (e) { setError(e); } finally { setBusy(false); } }}>Добавить выбранных</button></>}
           {watchers.length ? (
             watchers.map((watcher) => (
               <div className="person-row" key={watcher.id}>
                 {watcher.employee_display || person(watcher.employee)}
+                {canManageWatchers && <button disabled={busy} onClick={async () => { try { await workRequest(`/tasks/${id}/watchers/${watcher.employee}/`, {method: 'DELETE'}); await load(); } catch(e) { setError(e); } }}>Удалить</button>}
               </div>
             ))
           ) : (
@@ -913,6 +911,7 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
       {action && !["publish", "start", "resume", "accept"].includes(action) && (
           <ActionDialog
             action={action}
+            taskContext={task}
             busy={busy}
             reviewRequired={task.acceptance_policy !== "none"}
             onCancel={() => setAction("")}
@@ -1082,9 +1081,7 @@ function RequestList({ navigate }: { navigate: Navigate }) {
           <h1>Заявки</h1>
           <span>Production Service Requests</span>
         </div>
-        <button className="primary" onClick={() => navigate("/requests/new")}>
-          Создать заявку
-        </button>
+        <button className="primary" onClick={() => navigate("/tasks/new")}>Создать задачу</button>
       </header>
       <div className="work-filters">
         <input
@@ -1828,7 +1825,7 @@ export function ProductionWorkRouter({
     return <TaskList navigate={navigate} />;
   }
   if (parts[0] === "requests") {
-    if (parts[1] === "new") return <RequestCreate navigate={navigate} />;
+    if (parts[1] === "new") return <main className="work-page"><h1>Новые обращения оформляются задачами</h1><button onClick={() => navigate('/tasks/new')}>Создать задачу</button></main>;
     if (parts[1]) return <RequestDetail id={parts[1]} navigate={navigate} />;
     return <RequestList navigate={navigate} />;
   }

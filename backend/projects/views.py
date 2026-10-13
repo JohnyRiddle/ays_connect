@@ -393,6 +393,8 @@ class ProjectViewSet(viewsets.GenericViewSet):
         template=get_object_or_404(TaskTemplate.objects.all(),pk=template_id) if template_id else None
         if not template:
             if not values.get("title"):raise ValidationError("Укажите название задачи.")
+            if not values.get('responsible_department'):
+                raise ValidationError('Выберите ответственное подразделение.')
             for field in ("responsible_target","executor_target"):
                 if values.get(field): values[field]=get_object_or_404(AssignmentTarget.objects.all(),pk=values[field])
             values["source_type"]=SourceType.PROJECT
