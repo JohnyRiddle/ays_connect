@@ -17,6 +17,7 @@ class TaskStatus(models.TextChoices):
 
 
 class TaskPriority(models.TextChoices):
+    BLOCKING = "blocking", "Блокирующая"
     LOW = "low", "Низкий"
     NORMAL = "normal", "Обычный"
     HIGH = "high", "Высокий"
@@ -99,6 +100,9 @@ class Task(models.Model):
     completion_comment = models.TextField(blank=True)
     parent = models.ForeignKey("self", on_delete=models.PROTECT, null=True, blank=True, related_name="children")
     org_unit = models.ForeignKey("organizations.OrgUnit", on_delete=models.PROTECT, null=True, blank=True, related_name="work_tasks")
+    responsible_department = models.ForeignKey("organizations.OrgUnit", on_delete=models.PROTECT, null=True, blank=True, related_name="department_work_tasks")
+    deadline_from_project = models.BooleanField(default=False)
+    deadline_is_manual = models.BooleanField(default=False)
     legal_entity = models.ForeignKey("organizations.LegalEntity", on_delete=models.PROTECT, null=True, blank=True, related_name="work_tasks")
     location = models.ForeignKey("organizations.Location", on_delete=models.PROTECT, null=True, blank=True, related_name="work_tasks")
     completion_policy = models.CharField(max_length=32, choices=CompletionPolicy.choices, default=CompletionPolicy.MANUAL)
@@ -131,7 +135,16 @@ class Task(models.Model):
 
     @property
     def is_overdue(self):
-        return bool(self.due_at and self.due_at < timezone.now() and self.status not in {TaskStatus.COMPLETED, TaskStatus.CANCELLED})
+        due = self.effective_due_at
+        return bool(due and due < timezone.now() and self.status not in {TaskStatus.COMPLETED, TaskStatus.CANCELLED})
+
+    @property
+    def effective_due_at(self):
+        if self.due_at:
+            return self.due_at
+        from .routing import project_for
+        project = project_for(self)
+        return project.planned_end_at if project else None
 
     @property
     def completed_late(self):
@@ -160,6 +173,15 @@ class TaskStatusHistory(models.Model):
 
     class Meta:
         ordering = ("created_at",)
+
+
+class TaskOverdueNotice(models.Model):
+    task = models.ForeignKey(Task, on_delete=models.PROTECT, related_name='overdue_notices')
+    due_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['task', 'due_at'], name='work_task_overdue_once_per_deadline')]
 
 
 class TaskWaitingPeriod(models.Model):
@@ -358,6 +380,7 @@ class DeadlineRule(models.TextChoices):
 
 
 class TaskTemplate(models.Model):
+    responsible_department = models.ForeignKey('organizations.OrgUnit', on_delete=models.PROTECT, null=True, blank=True, related_name='department_task_templates')
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)

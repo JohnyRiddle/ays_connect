@@ -6,7 +6,7 @@ from .models import ChecklistTemplate, ChecklistTemplateItem, Task, TaskAssignme
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
     def get_readonly_fields(self, request, obj=None):
-        fields=super().get_readonly_fields(request,obj)+('acceptance_policy_locked',)
+        fields=super().get_readonly_fields(request,obj)+('acceptance_policy_locked', 'priority', 'responsible_department', 'deadline_from_project', 'deadline_is_manual')
         if obj and (obj.acceptance_policy_locked or obj.status!='draft'):
             fields+=('acceptance_policy',)
         return fields

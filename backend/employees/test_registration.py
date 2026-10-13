@@ -318,7 +318,7 @@ class RegistrationTests(Setup, TestCase):
         from service_requests.services import SchemaService, ServiceRequestService
         owner_employee = self.owner.employee
         task = TaskService.create(actor=owner_employee, actor_user=self.owner, title="Hidden Work", location=self.location)
-        project = ProjectService.create(actor=owner_employee, actor_user=self.owner, name="Hidden Project", location=self.location)
+        project = ProjectService.create(actor=owner_employee, actor_user=self.owner, name="Hidden Project", location=self.location, planned_end_at=timezone.now()+timedelta(days=9))
         category = ServiceCategory.objects.create(name="Synthetic")
         service = Service.objects.create(category=category, name="Synthetic")
         request_type = RequestType.objects.create(service=service, name="Synthetic", code="REGISTRATION", created_by=owner_employee)

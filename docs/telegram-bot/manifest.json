@@ -1,0 +1,60 @@
+{
+  "package": "AYS Connect corporate Telegram API v1",
+  "base": "62c61ed18b6edc2bab47871720e23946c7c95d9a",
+  "date": "2026-10-13",
+  "deployment": "NOT DEPLOYED",
+  "telegram_delivery": "PASS: 2 real messages via copy API harness; persistent HTTPS adapter NOT VERIFIED",
+  "files": [
+    {
+      "path": "docs/telegram-bot/README.md",
+      "bytes": 18172,
+      "sha256": "3114a811abc83ade0b344814c8705228032e60823b69a18fe01458aa3c9fcdc1"
+    },
+    {
+      "path": "docs/telegram-bot/openapi.json",
+      "bytes": 28196,
+      "sha256": "b722274026392402634101a02861dbdc4df1e9ab4e14528cd8eee0a202b6fc1b"
+    },
+    {
+      "path": "docs/TASK_PATCH_USER_GUIDE.md",
+      "bytes": 7542,
+      "sha256": "3be08b7e5a98bbfe9252dd89671c592baafad59b724eb1c173bff72ec5a94570"
+    },
+    {
+      "path": "docs/TASK_PATCH_RELEASE.md",
+      "bytes": 10569,
+      "sha256": "578ca8fcb7ada79c2b091284c2da8ae4ea53934b87c9a67ebf6875d8f939d477"
+    },
+    {
+      "path": "docs/TASK_PATCH_ACCEPTANCE.md",
+      "bytes": 8046,
+      "sha256": "0c455ce7150a8a9aa01845fe917cf0e72d15cb61f8202a0d1679699ba8839864"
+    },
+    {
+      "path": "docs/TASK_PATCH_REHEARSAL.md",
+      "bytes": 10802,
+      "sha256": "fb8c4e19d26bfc83c43dea542f3a90db5cd1ac01fb38a59eacd6101cc19b9940"
+    }
+  ],
+  "validation": {
+    "backend": {
+      "tests_passed": 672,
+      "new_patch_tests": 38,
+      "parallel_workers": 3,
+      "evidence_log": "task-patch-pass-all.log",
+      "evidence_sha256": "786293acfae8fb5b908eb5e19084ddb94808c016ffa93ccff69999fd3ca8f21a"
+    },
+    "browser": {
+      "tests_passed": 6,
+      "widths": [
+        1280,
+        390
+      ]
+    },
+    "telegram_delivery": "PASS: 2 real messages via copy API harness; persistent HTTPS adapter NOT VERIFIED",
+    "fresh_production_copy": "PASS: full init and 201 existing tables preserved",
+    "server_focused_tests": 38,
+    "server_full_repeat": "RESOURCE-LIMITED; NOT PASS",
+    "frozen_restore": "PASS: DB/media/frontend; 201 tables"
+  }
+}

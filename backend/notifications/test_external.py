@@ -33,7 +33,7 @@ class TelegramLinkingTests(TestCase):
         user,emp=employee();client=APIClient();client.force_authenticate(user);response=client.post("/api/internal/v1/notification-channels/telegram/link/");raw=response.data["start_parameter"]
         self.assertNotEqual(TelegramLinkToken.objects.get().token_hash,raw);client.force_authenticate(user=None)
         with override_settings(TELEGRAM_WEBHOOK_SECRET="secret"):
-            payload={"update_id":1,"message":{"text":f"/start {raw}","from":{"id":123,"username":"person"},"chat":{"id":456}}};headers={"HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN":"secret"}
+            payload={"update_id":1,"message":{"text":f"/start {raw}","from":{"id":123,"username":"person"},"chat":{"id":123,"type":"private"}}};headers={"HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN":"secret"}
             self.assertEqual(client.post("/api/integrations/telegram/webhook/",payload,format="json",**headers).status_code,200);self.assertTrue(TelegramAccount.objects.filter(employee=emp,telegram_user_id=123,is_active=True).exists())
             self.assertTrue(client.post("/api/integrations/telegram/webhook/",payload,format="json",**headers).data["duplicate"]);self.assertEqual(TelegramWebhookEvent.objects.count(),1)
     @override_settings(TELEGRAM_WEBHOOK_SECRET="secret")

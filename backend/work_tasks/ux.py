@@ -77,14 +77,15 @@ class SystemViewService:
 
     @classmethod
     def apply(cls, queryset, employee, code):
+        queryset = TaskSelector.with_effective_deadline(queryset)
         code = code.lower()
         if code not in cls.VALUES: raise TaskValidationError("Неизвестное системное представление.", code="task_system_view_invalid")
         if code == "my_tasks": return queryset.filter(Q(responsible_employee=employee) | Q(executor_employee=employee)).distinct()
         if code == "created_by_me": return queryset.filter(author=employee)
         if code == "watching": return queryset.filter(watcher_records__employee=employee, watcher_records__removed_at__isnull=True).distinct()
-        if code == "overdue": return queryset.filter(due_at__lt=timezone.now()).exclude(status__in=(TaskStatus.COMPLETED, TaskStatus.CANCELLED))
+        if code == "overdue": return queryset.filter(effective_deadline__lt=timezone.now()).exclude(status__in=(TaskStatus.COMPLETED, TaskStatus.CANCELLED))
         if code == "completed": return queryset.filter(status=TaskStatus.COMPLETED)
-        return queryset.filter(due_at__isnull=True)
+        return queryset.filter(effective_deadline__isnull=True)
 
 
 class TaskUXService:
@@ -95,6 +96,7 @@ class TaskUXService:
         "cancel": "task.cancel", "reassign": "task.reassign",
         "change_deadline": "task.change_deadline", "comment": "task.comment",
         "watch": "task.watch", "unwatch": "task.watch",
+        "watcher_manage": "task.watcher_manage",
     }
     TRANSITIONS = {
         "publish": TaskStatus.OPEN, "start": TaskStatus.IN_PROGRESS,
@@ -144,6 +146,7 @@ class TaskUXService:
             if not task.title: missing.append("название")
             if not task.author_id: missing.append("автора")
             if not task.responsible_target_id: missing.append("ответственного")
+            if not task.responsible_department_id: missing.append('ответственное подразделение (административное заполнение)')
             if missing:
                 return {"publish": f"Для публикации укажите {', '.join(missing)}."}
         may_complete = is_superuser or TaskAccessPolicy.allows(
@@ -160,9 +163,10 @@ class TaskUXService:
     @staticmethod
     def counters(employee, queryset=None):
         queryset = queryset if queryset is not None else TaskSelector.visible_to(employee)
+        queryset = TaskSelector.with_effective_deadline(queryset)
         return queryset.aggregate(
             my_tasks=Count("id", filter=Q(responsible_employee=employee) | Q(executor_employee=employee), distinct=True),
-            overdue=Count("id", filter=Q(due_at__lt=timezone.now()) & ~Q(status__in=(TaskStatus.COMPLETED, TaskStatus.CANCELLED)), distinct=True),
+            overdue=Count("id", filter=Q(effective_deadline__lt=timezone.now()) & ~Q(status__in=(TaskStatus.COMPLETED, TaskStatus.CANCELLED)), distinct=True),
             waiting=Count("id", filter=Q(status=TaskStatus.WAITING), distinct=True),
             review=Count("id", filter=Q(status=TaskStatus.REVIEW), distinct=True),
             created_by_me=Count("id", filter=Q(author=employee), distinct=True),

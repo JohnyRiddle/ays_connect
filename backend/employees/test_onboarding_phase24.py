@@ -1,3 +1,4 @@
+from work_tasks.patch_test_fixtures import configured_template
 from concurrent.futures import ThreadPoolExecutor
 
 from django.contrib.auth import get_user_model
@@ -82,7 +83,7 @@ class Phase24Tests(TestCase):
     def test_task_step_creates_one_production_task(self):
         from work_tasks.models import TaskTemplate
         target=AssignmentTarget.objects.create(target_type="employee",employee=self.employee)
-        task_template=TaskTemplate.objects.create(name="Welcome",task_title="Welcome task",responsible_target=target,created_by=self.employee)
+        task_template=configured_template(name="Welcome",task_title="Welcome task",responsible_target=target,created_by=self.employee)
         template=self.template([{"key":"task","title":"Task","step_type":"task","task_template":task_template,"responsible_strategy":"self"}])
         instance=OnboardingService.assign(employee=self.employee,actor_user=self.admin,template=template);step=instance.steps.get()
         first=OnboardingService.create_task(step=step,actor_employee=self.employee,actor_user=self.admin)
@@ -175,7 +176,7 @@ class Phase24ConcurrencyTests(TransactionTestCase):
     def test_parallel_task_step_creation_reuses_one_task(self):
         from work_tasks.models import TaskTemplate
         target=AssignmentTarget.objects.create(target_type="employee",employee=self.employee)
-        task_template=TaskTemplate.objects.create(name="Parallel",task_title="Parallel",responsible_target=target,created_by=self.employee)
+        task_template=configured_template(name="Parallel",task_title="Parallel",responsible_target=target,created_by=self.employee)
         template=OnboardingTemplateService.create(actor_user=self.admin,name="Task parallel")
         OnboardingTemplateService.publish(template=template,actor_user=self.admin,expected_version=1,steps=[{"key":"task","title":"Task","step_type":"task","task_template":task_template,"responsible_strategy":"self"}]);template.refresh_from_db()
         step=OnboardingService.assign(employee=self.employee,actor_user=self.admin,template=template).steps.get()

@@ -1,3 +1,5 @@
+from datetime import timedelta
+from django.utils import timezone
 from concurrent.futures import ThreadPoolExecutor
 import threading
 from unittest.mock import patch
@@ -310,8 +312,8 @@ class ObjectsTests(ObjectsSetup, TestCase):
         item = self.create_object()
         zone = ObjectService.zone(parent=item, user=self.user, version=1, name="Zone")
         task = TaskService.create(actor=self.actor, actor_user=self.user, title="Hidden Work", location=zone)
-        direct = ProjectService.create(actor=self.actor, actor_user=self.user, name="Direct", location=item)
-        participating = ProjectService.create(actor=self.actor, actor_user=self.user, name="Participating")
+        direct = ProjectService.create(actor=self.actor, actor_user=self.user, name="Direct", location=item, planned_end_at=timezone.now()+timedelta(days=9))
+        participating = ProjectService.create(actor=self.actor, actor_user=self.user, name="Participating", planned_end_at=timezone.now()+timedelta(days=9))
         ProjectTaskLink.objects.create(project=participating, task=task, linked_by=self.user)
         category = ServiceCategory.objects.create(name="Synthetic")
         service = Service.objects.create(category=category, name="Synthetic")

@@ -122,23 +122,31 @@ class TaskTemplateService(TemplatePermissionMixin):
 
     @classmethod
     @transaction.atomic
-    def create_task(cls, *, template, actor, actor_user, create_and_publish=False, occurrence_at=None, recurrence_rule=None, correlation_id=None):
+    def create_task(cls, *, template, actor, actor_user, create_and_publish=False, occurrence_at=None, recurrence_rule=None, correlation_id=None, project=None):
         template = TaskTemplate.objects.select_for_update().get(pk=template.pk)
         cls.authorize(actor, actor_user, "task_template.use", template)
         if not template.is_active:
             raise TaskValidationError("Шаблон деактивирован.", code="task_template_inactive")
-        responsible = TaskService._resolve_one(template.responsible_target)
+        if not template.responsible_department:
+            raise TaskValidationError('Администратор должен явно заполнить подразделение шаблона.', code='task_department_required')
+        from .routing import department_head, employee_target
+        responsible = department_head(template.responsible_department)
+        responsible_target = employee_target(responsible)
         executor = TaskService._resolve_one(template.executor_target, required=False)
         planned, due = cls._dates(template, occurrence_at=occurrence_at)
-        source_type = SourceType.RECURRENCE if recurrence_rule else SourceType.TEMPLATE
+        source_type = SourceType.PROJECT if project else (SourceType.RECURRENCE if recurrence_rule else SourceType.TEMPLATE)
+        if project:
+            from .routing import validate_project_deadline
+            validate_project_deadline(project, due)
         task = TaskService.create(
             actor=actor, actor_user=actor_user, title=template.task_title,
-            description=template.task_description, responsible_target=template.responsible_target,
+            description=template.task_description, responsible_target=responsible_target,
             executor_target=template.executor_target, responsible_employee=responsible,
             executor_employee=executor, priority=template.default_priority,
             acceptance_policy=template.acceptance_policy, completion_policy=template.completion_policy,
             planned_start_at=planned, due_at=due, org_unit=template.org_unit,
-            legal_entity=template.legal_entity, location=template.location,
+            responsible_department=template.responsible_department,
+            legal_entity=template.legal_entity, location=template.location or (project.location if project else None),
             source_type=source_type, source_template=template, recurrence_rule=recurrence_rule,
             correlation_id=correlation_id,
         )

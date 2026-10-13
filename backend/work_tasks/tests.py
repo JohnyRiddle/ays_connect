@@ -26,11 +26,16 @@ class TaskCoreTestCase(TestCase):
         self.actor = Employee.objects.create(user=self.user, first_name="Иван", last_name="Автор", legal_entity=self.legal_entity, org_unit=self.org_unit)
         self.executor = Employee.objects.create(first_name="Пётр", last_name="Исполнитель", legal_entity=self.legal_entity, org_unit=self.org_unit)
         self.target = AssignmentTarget.objects.create(target_type=AssignmentTarget.Type.EMPLOYEE, employee=self.executor)
+        from .patch_test_fixtures import department_for
+        department_for(self.executor)
 
     def create_task(self, **kwargs):
         data = {"actor": self.actor, "actor_user": self.user, "title": "Production task", "responsible_target": self.target, "legal_entity": self.legal_entity, "org_unit": self.org_unit}
         data.update(kwargs)
-        return TaskService.create(**data)
+        task = TaskService.create(**data)
+        task.responsible_department = self.org_unit
+        task.save(update_fields=['responsible_department'])
+        return task
 
     def publish_start(self, task):
         task = TaskService.publish(task=task, actor=self.actor, actor_user=self.user, version=task.version)
@@ -171,6 +176,9 @@ class TaskApiSecurityTests(TestCase):
         self.user = User.objects.create_user(username="employee", email="employee@task.test", password="pass")
         self.employee = Employee.objects.create(user=self.user, first_name="Viewer", legal_entity=self.le1, org_unit=self.u1)
         self.other = Employee.objects.create(first_name="Other", legal_entity=self.le2, org_unit=self.u2)
+        position = Position.objects.create(name='Head', org_unit=self.u1)
+        self.u1.manager_position = position; self.u1.save()
+        self.employee.position_ref = position; self.employee.save()
         self.target1 = AssignmentTarget.objects.create(target_type=AssignmentTarget.Type.EMPLOYEE, employee=self.employee)
         self.target2 = AssignmentTarget.objects.create(target_type=AssignmentTarget.Type.EMPLOYEE, employee=self.other)
         role = Role.objects.create(code="participant", name="Participant")
@@ -181,6 +189,9 @@ class TaskApiSecurityTests(TestCase):
         ):
             permission = Permission.objects.create(code=code, name=code)
             RolePermission.objects.create(role=role, permission=permission, scope=Scope.PARTICIPATING)
+        for code in ('employee.view', 'org_unit.view'):
+            permission, _ = Permission.objects.get_or_create(code=code, defaults={'name': code})
+            RolePermission.objects.create(role=role, permission=permission, scope=Scope.GLOBAL)
         EmployeeRole.objects.create(employee=self.employee, role=role)
         self.own = Task.objects.create(number="TASK-100001", title="Own", author=self.employee, responsible_target=self.target1, responsible_employee=self.employee, created_by=self.user, updated_by=self.user)
         other_user = User.objects.create_user(username="other", email="other@task.test")
@@ -197,13 +208,13 @@ class TaskApiSecurityTests(TestCase):
         self.assertEqual(self.client.get(f"/api/internal/v1/tasks/{self.foreign.pk}/").status_code, 404)
 
     def test_create_api_produces_draft(self):
-        response = self.client.post("/api/internal/v1/tasks/", {"title": "API task", "responsible_target": str(self.target1.pk)}, format="json")
+        response = self.client.post("/api/internal/v1/tasks/", {"title": "API task", "responsible_target": str(self.target1.pk), "responsible_department": str(self.u1.pk)}, format="json")
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(response.data["status"], TaskStatus.DRAFT)
 
     def test_api_lifecycle_patch_assignment_deadline_review_and_cancel(self):
         response = self.client.post("/api/internal/v1/tasks/", {
-            "title": "Lifecycle", "responsible_target": str(self.target1.pk),
+            "title": "Lifecycle", "responsible_target": str(self.target1.pk), "responsible_department": str(self.u1.pk),
             "acceptance_policy": AcceptancePolicy.AUTHOR,
             "due_at": (timezone.now() + timedelta(days=1)).isoformat(),
         }, format="json")
@@ -225,7 +236,7 @@ class TaskApiSecurityTests(TestCase):
         response = self.client.post(f"/api/internal/v1/tasks/{task_id}/deadline/", {"version": version, "due_at": (timezone.now() + timedelta(days=2)).isoformat(), "reason": "Новый срок"}, format="json")
         self.assertEqual(response.status_code, 200, response.data)
         version = response.data["version"]
-        response = self.client.post(f"/api/internal/v1/tasks/{task_id}/reassign/", {"version": version, "assignment_type": "responsible", "target": str(self.target2.pk), "reason": "Передача"}, format="json")
+        response = self.client.post(f"/api/internal/v1/tasks/{task_id}/reassign/", {"version": version, "assignment_type": "executor", "target": str(self.target1.pk), "reason": "Передача"}, format="json")
         self.assertEqual(response.status_code, 200, response.data)
         version = response.data["version"]
 

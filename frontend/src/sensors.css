@@ -10,8 +10,8 @@
   gap: 12px;
 }
 .sensor-grid > button {
-  border: 1px solid #e1e8ef;
-  background: #fff;
+  border: 1px solid var(--border);
+  background: var(--surface);
   border-radius: 12px;
   padding: 18px;
   text-align: left;
@@ -23,8 +23,8 @@
 }
 .sensor-grid p {
   margin: 0;
-  color: #8794a5;
-  font-size: 9px;
+  color: var(--text-muted);
+  font-size: 12px;
 }
 .sensor-grid strong {
   display: block;
@@ -37,36 +37,36 @@
 .sensor-grid > button > div {
   display: flex;
   justify-content: space-between;
-  border-top: 1px solid #edf1f4;
+  border-top: 1px solid var(--border);
   padding-top: 12px;
-  font-size: 9px;
+  font-size: 12px;
 }
 .sensor-label {
   font-style: normal;
   padding: 5px 8px;
   border-radius: 12px;
-  background: #e9f7f0;
-  color: #277d58;
-  font-size: 8px;
-  font-weight: 800;
+  background: var(--success-soft);
+  color: var(--success);
+  font-size: 12px;
+  font-weight: 600;
 }
 .sensor-label.warning {
-  background: #fff3e4;
-  color: #b96a27;
+  background: var(--warning-soft);
+  color: var(--warning);
 }
 .sensor-label.critical {
-  background: #ffedef;
-  color: #be343c;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 .sensor-label.offline {
-  background: #eef1f4;
-  color: #687585;
+  background: var(--surface-soft);
+  color: var(--text-muted);
 }
 .sensor-current {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #f5f8fb;
+  background: var(--surface);
   border-radius: 10px;
   padding: 18px;
   margin: 20px 0;
@@ -82,15 +82,15 @@
 .thresholds span {
   display: grid;
   gap: 5px;
-  background: #f7f9fb;
+  background: var(--surface);
   padding: 12px;
   border-radius: 8px;
-  font-size: 9px;
+  font-size: 12px;
 }
 .sensor-chart {
   height: 190px;
   position: relative;
-  border: 1px solid #e4eaf0;
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px;
 }
@@ -100,38 +100,38 @@
   overflow: visible;
 }
 .sensor-chart line {
-  stroke: #dfe6ed;
+  stroke: var(--text-muted);
 }
 .sensor-chart polyline {
   fill: none;
-  stroke: #2779c8;
+  stroke: var(--brand-text);
   stroke-width: 3;
   vector-effect: non-scaling-stroke;
 }
 .sensor-chart > span {
-  font-size: 8px;
-  color: #7d8a9a;
+  font-size: 12px;
+  color: var(--text-muted);
   margin-right: 15px;
 }
 .sensor-events > div {
   display: flex;
   gap: 10px;
   padding: 10px;
-  border-bottom: 1px solid #edf1f4;
+  border-bottom: 1px solid var(--border);
 }
 .sensor-events i {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #e0484e;
+  background: var(--danger);
   margin-top: 4px;
 }
 .sensor-events span {
   display: grid;
-  font-size: 10px;
+  font-size: 12px;
 }
 .sensor-events small {
-  color: #8794a5;
+  color: var(--text-muted);
 }
 @media (max-width: 850px) {
   .sensor-grid {

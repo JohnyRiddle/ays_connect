@@ -1,3 +1,4 @@
+from work_tasks.patch_test_fixtures import configured_template, department_for
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.test import TestCase
@@ -30,6 +31,11 @@ from .collaboration import ProjectCollaborationService
 from .management.commands.process_milestone_due import process_due_milestones
 
 
+def create_project(**kwargs):
+    kwargs.setdefault('planned_end_at', timezone.now() + timedelta(days=30))
+    return ProjectService.create(**kwargs)
+
+
 class ProjectsCoreTests(TestCase):
     def setUp(self):
         self.media=TemporaryDirectory()
@@ -42,12 +48,14 @@ class ProjectsCoreTests(TestCase):
         role=Role.objects.create(code="synthetic-project-manager",name="Synthetic project manager")
         for code in ("project.view","project.create","project.edit","project.members_manage","project.structure_manage",
                      "project.task_link_manage","project.lifecycle","project.comment","project.attachment_add",
-                     "project.attachment_delete","task.view","task.edit","task.create","task.reopen","task_template.use"):
+                     "project.attachment_delete","task.view","task.edit","task.create","task.reopen","task_template.use","employee.view","org_unit.view"):
             permission=Permission.objects.create(code=code,name=code)
             RolePermission.objects.create(role=role,permission=permission,scope="global")
         EmployeeRole.objects.create(employee=self.actor,role=role)
-        self.project=ProjectService.create(actor=self.actor,actor_user=self.user,name="Synthetic project",manager=self.actor)
-        self.task=Task.objects.create(number="TASK-PROJECT-SYNTHETIC",title="Synthetic linked task",author=self.actor,
+        self.department = department_for(self.actor)
+        self.project=create_project(actor=self.actor,actor_user=self.user,name="Synthetic project",manager=self.actor)
+        target=AssignmentTarget.objects.create(target_type="employee",employee=self.actor)
+        self.task=Task.objects.create(number="TASK-PROJECT-SYNTHETIC",title="Synthetic linked task",author=self.actor,responsible_department=self.department,responsible_employee=self.actor,responsible_target=target,
                                       created_by=self.user,updated_by=self.user)
 
     def test_stage_and_milestone_edit_preserve_version_and_history(self):
@@ -146,12 +154,14 @@ class ProjectsCoreTests(TestCase):
         self.project.refresh_from_db()
         ProjectTaskService.link(project=self.project,task=self.task,actor=self.actor,actor_user=self.user,
                                 project_version=self.project.version,task_version=self.task.version,stage=stage)
+        self.task.refresh_from_db()
         self.project.refresh_from_db()
         self.assertEqual(ProjectTaskLink.objects.filter(task=self.task).count(),1)
         self.assertEqual(ProjectTaskLink.objects.get(task=self.task).project_id,self.project.pk)
         with self.assertRaises(ProjectBusinessError):
             ProjectTaskService.link(project=self.project,task=self.task,actor=self.actor,actor_user=self.user,
                                     project_version=self.project.version,task_version=self.task.version)
+            self.task.refresh_from_db()
         self.project=ProjectService.transition(project=self.project,actor=self.actor,actor_user=self.user,
                                                version=self.project.version,action="start")
         with self.assertRaises(ProjectBusinessError) as blocked:
@@ -168,11 +178,12 @@ class ProjectsCoreTests(TestCase):
         self.assertEqual(final.status,"completed")
 
     def test_stage_from_another_project_rejected_by_service_and_postgres(self):
-        other=ProjectService.create(actor=self.actor,actor_user=self.user,name="Other")
+        other=create_project(actor=self.actor,actor_user=self.user,name="Other")
         stage=ProjectService.create_stage(project=other,actor=self.actor,actor_user=self.user,version=other.version,name="Wrong")
         with self.assertRaises(ProjectBusinessError) as result:
             ProjectTaskService.link(project=self.project,task=self.task,actor=self.actor,actor_user=self.user,
                                     project_version=self.project.version,task_version=self.task.version,stage=stage)
+            self.task.refresh_from_db()
         self.assertEqual(result.exception.code,"project_stage_mismatch")
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
@@ -188,6 +199,7 @@ class ProjectsCoreTests(TestCase):
         EmployeeRole.objects.create(employee=outsider,role=role)
         ProjectTaskService.link(project=self.project,task=self.task,actor=self.actor,actor_user=self.user,
                                 project_version=self.project.version,task_version=self.task.version)
+        self.task.refresh_from_db()
         client=APIClient();client.force_authenticate(user=outsider_user)
         response=client.get(f"/api/internal/v1/projects/{self.project.pk}/counters/")
         self.assertEqual(response.status_code,200)
@@ -232,18 +244,18 @@ class ProjectsCoreTests(TestCase):
         client=APIClient();client.force_authenticate(user=self.user)
         key=str(uuid.uuid4())
         url="/api/internal/v1/projects/"
-        first=client.post(url,{"name":"Idempotent synthetic"},format="json",HTTP_IDEMPOTENCY_KEY=key)
+        first=client.post(url,{"name":"Idempotent synthetic","planned_end_at":self.project.planned_end_at.isoformat()},format="json",HTTP_IDEMPOTENCY_KEY=key)
         self.assertEqual(first.status_code,201,first.data)
         projects=Project.objects.count();events=OutboxEvent.objects.count()
-        repeat=client.post(url,{"name":"Idempotent synthetic"},format="json",HTTP_IDEMPOTENCY_KEY=key)
+        repeat=client.post(url,{"name":"Idempotent synthetic","planned_end_at":self.project.planned_end_at.isoformat()},format="json",HTTP_IDEMPOTENCY_KEY=key)
         self.assertEqual(repeat.status_code,200,repeat.data)
         self.assertEqual(first.data["id"],repeat.data["id"])
         self.assertEqual(Project.objects.count(),projects)
         self.assertEqual(OutboxEvent.objects.count(),events)
-        changed=client.post(url,{"name":"Changed"},format="json",HTTP_IDEMPOTENCY_KEY=key)
+        changed=client.post(url,{"name":"Changed","planned_end_at":self.project.planned_end_at.isoformat()},format="json",HTTP_IDEMPOTENCY_KEY=key)
         self.assertEqual(changed.status_code,409)
         task_url=f"/api/internal/v1/projects/{self.project.pk}/create-task/"
-        task_key=str(uuid.uuid4());payload={"project_version":self.project.version,"title":"Synthetic inside"}
+        task_key=str(uuid.uuid4());payload={"project_version":self.project.version,"title":"Synthetic inside","responsible_department":str(self.department.pk)}
         one=client.post(task_url,payload,format="json",HTTP_IDEMPOTENCY_KEY=task_key)
         self.assertEqual(one.status_code,201,one.data)
         tasks=Task.objects.count();events=OutboxEvent.objects.count()
@@ -277,7 +289,7 @@ class ProjectsCoreTests(TestCase):
     def test_org_unit_scope_and_observer_membership_do_not_grant_management(self):
         first_unit=OrgUnit.objects.create(name="Synthetic first unit")
         second_unit=OrgUnit.objects.create(name="Synthetic second unit")
-        scoped=ProjectService.create(actor=self.actor,actor_user=self.user,name="Scoped project",
+        scoped=create_project(actor=self.actor,actor_user=self.user,name="Scoped project",
             manager=self.actor,org_unit=first_unit)
         outside_user=get_user_model().objects.create_user(username="synthetic-scope-outside",email="scope-outside@example.test")
         outside=Employee.objects.create(user=outside_user,first_name="Synthetic outsider",org_unit=second_unit)
@@ -312,6 +324,7 @@ class ProjectsCoreTests(TestCase):
         self.project.refresh_from_db()
         ProjectTaskService.link(project=self.project,task=self.task,actor=self.actor,actor_user=self.user,
             project_version=self.project.version,task_version=self.task.version,stage=stage)
+        self.task.refresh_from_db()
         self.project.refresh_from_db()
         audits=AuditEvent.objects.count();events=OutboxEvent.objects.count()
         with self.assertRaises(ProjectBusinessError) as error:
@@ -340,6 +353,7 @@ class ProjectsCoreTests(TestCase):
         self.task.status="completed";self.task.completed_at=timezone.now();self.task.save(update_fields=["status","completed_at"])
         ProjectTaskService.link(project=self.project,task=self.task,actor=self.actor,actor_user=self.user,
                                 project_version=self.project.version,task_version=self.task.version)
+        self.task.refresh_from_db()
         self.project.refresh_from_db()
         self.project=ProjectService.transition(project=self.project,actor=self.actor,actor_user=self.user,
                                                version=self.project.version,action="start")
@@ -360,6 +374,7 @@ class ProjectsCoreTests(TestCase):
         self.task.status="completed";self.task.completed_at=timezone.now();self.task.save(update_fields=["status","completed_at"])
         ProjectTaskService.link(project=self.project,task=self.task,actor=self.actor,actor_user=self.user,
                                 project_version=self.project.version,task_version=self.task.version)
+        self.task.refresh_from_db()
         Project.objects.filter(pk=self.project.pk).update(is_archived=True)
         with self.assertRaises(TaskValidationError) as error:
             TaskService.reopen(task=self.task,actor=self.actor,actor_user=self.user,version=self.task.version,reason="Synthetic return")
@@ -372,7 +387,7 @@ class ProjectsCoreTests(TestCase):
         self.project.refresh_from_db()
         self.assertEqual(direct.project_link.project_id,self.project.pk)
         target=AssignmentTarget.objects.create(target_type="employee",employee=self.actor)
-        template=TaskTemplate.objects.create(name="Project template",task_title="From template",
+        template=configured_template(name="Project template",task_title="From template",
             responsible_target=target,created_by=self.actor)
         generated=ProjectTaskService.create_task(project=self.project,actor=self.actor,actor_user=self.user,
             project_version=self.project.version,template=template)
@@ -402,6 +417,7 @@ class ProjectsCoreTests(TestCase):
         self.project.refresh_from_db()
         ProjectTaskService.link(project=self.project,task=self.task,actor=self.actor,actor_user=self.user,
             project_version=self.project.version,task_version=self.task.version,stage=first)
+        self.task.refresh_from_db()
         self.project.refresh_from_db()
         ProjectTaskService.move_stage(task=self.task,stage=second,actor=self.actor,actor_user=self.user,
             task_version=self.task.version,project_version=self.project.version)
@@ -413,17 +429,19 @@ class ProjectsCoreTests(TestCase):
         self.assertFalse(ProjectTaskLink.objects.get(task=self.task).is_active)
         ProjectTaskService.link(project=self.project,task=self.task,actor=self.actor,actor_user=self.user,
             project_version=self.project.version,task_version=self.task.version)
+        self.task.refresh_from_db()
         self.assertEqual(ProjectTaskLinkHistory.objects.filter(task=self.task).count(),4)
         self.assertEqual(ProjectTaskLinkHistory.objects.filter(task=self.task).values_list("action",flat=True).count(),4)
         self.assertEqual(ProjectTaskLink.objects.get(task=self.task).stage_id,None)
 
     def test_explicit_move_between_projects_keeps_same_work_task(self):
-        target=ProjectService.create(actor=self.actor,actor_user=self.user,name="Target project",manager=self.actor)
+        target=create_project(actor=self.actor,actor_user=self.user,name="Target project",manager=self.actor)
         stage=ProjectService.create_stage(project=target,actor=self.actor,actor_user=self.user,
             version=target.version,name="Target stage")
         target.refresh_from_db()
         ProjectTaskService.link(project=self.project,task=self.task,actor=self.actor,actor_user=self.user,
             project_version=self.project.version,task_version=self.task.version)
+        self.task.refresh_from_db()
         self.project.refresh_from_db()
         moved=ProjectTaskService.move_project(task=self.task,target_project=target,target_stage=stage,
             actor=self.actor,actor_user=self.user,task_version=self.task.version,
@@ -477,7 +495,7 @@ class ProjectsCoreTests(TestCase):
             intent__reason="PROJECT_MILESTONE_DUE").count(),1)
 
     def test_milestone_stage_must_belong_to_its_project_in_sql(self):
-        other=ProjectService.create(actor=self.actor,actor_user=self.user,name="Other")
+        other=create_project(actor=self.actor,actor_user=self.user,name="Other")
         stage=ProjectService.create_stage(project=other,actor=self.actor,actor_user=self.user,
             version=other.version,name="Other stage")
         with self.assertRaises(ProjectBusinessError):
@@ -531,9 +549,11 @@ class ProjectsConcurrencyTests(TransactionTestCase):
     def setUp(self):
         self.user=get_user_model().objects.create_superuser(username="synthetic-project-concurrency",email="concurrency@example.test",password="synthetic-only")
         self.actor=Employee.objects.create(user=self.user,first_name="Synthetic concurrent actor")
-        self.first=ProjectService.create(actor=self.actor,actor_user=self.user,name="Concurrent first",manager=self.actor)
-        self.second=ProjectService.create(actor=self.actor,actor_user=self.user,name="Concurrent second",manager=self.actor)
-        self.task=Task.objects.create(number="TASK-CONCURRENT-PRJ",title="Concurrent Work task",author=self.actor,created_by=self.user,updated_by=self.user)
+        self.first=create_project(actor=self.actor,actor_user=self.user,name="Concurrent first",manager=self.actor)
+        self.second=create_project(actor=self.actor,actor_user=self.user,name="Concurrent second",manager=self.actor)
+        department = department_for(self.actor)
+        target = AssignmentTarget.objects.create(target_type="employee",employee=self.actor)
+        self.task=Task.objects.create(number="TASK-CONCURRENT-PRJ",title="Concurrent Work task",author=self.actor,responsible_department=department,responsible_employee=self.actor,responsible_target=target,created_by=self.user,updated_by=self.user)
 
     def _race(self, callbacks):
         barrier=Barrier(2)
@@ -555,7 +575,7 @@ class ProjectsConcurrencyTests(TransactionTestCase):
         results=self._race([lambda:link(self.first),lambda:link(self.second)])
         self.assertEqual(ProjectTaskLink.objects.filter(task=self.task,is_active=True).count(),1)
         self.assertEqual(ProjectTaskLinkHistory.objects.filter(task=self.task,action="link").count(),1)
-        self.assertIn("project_task_already_linked",results)
+        self.assertTrue(any(result in {"project_task_already_linked", "task_version_conflict"} for result in results))
 
     def test_complete_and_link_do_not_leave_completed_project_with_open_task(self):
         first=ProjectService.transition(project=self.first,actor=self.actor,actor_user=self.user,
@@ -592,7 +612,7 @@ class ProjectsConcurrencyTests(TransactionTestCase):
 
     def test_project_number_sequence_survives_parallel_creation(self):
         def create():
-            return ProjectService.create(actor=self.actor,actor_user=self.user,
+            return create_project(actor=self.actor,actor_user=self.user,
                 name="Parallel numbered",manager=self.actor).number
         numbers=self._race([create,create])
         self.assertEqual(len(set(numbers)),2)
@@ -603,6 +623,7 @@ class ProjectsConcurrencyTests(TransactionTestCase):
         self.task.save(update_fields=["status","completed_at"])
         ProjectTaskService.link(project=self.first,task=self.task,actor=self.actor,actor_user=self.user,
             project_version=self.first.version,task_version=self.task.version)
+        self.task.refresh_from_db()
         self.first.refresh_from_db()
         first=ProjectService.transition(project=self.first,actor=self.actor,actor_user=self.user,
             version=self.first.version,action="start")

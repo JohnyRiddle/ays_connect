@@ -32,6 +32,10 @@ import {
   CreditCard,
   X,
 } from "lucide-react";
+import { BrandLogo } from "./BrandLogo";
+import { ThemeSwitch } from "./theme";
+import { ReleaseNotes } from "./ReleaseNotes";
+import "./design-tokens.css";
 import "./styles.css";
 import "./tasks.css";
 import "./navigation.css";
@@ -52,6 +56,7 @@ import { RegistrationPage, RegistrationManagement } from "./registration";
 import IikoCardsPage from "./IikoCardsPage";
 import { CardsDashboard } from "./CardsDashboard";
 import { isCardsDashboard } from "./cardsDashboardData";
+import "./design-system.css";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
 const APP_VERSION = import.meta.env.VITE_APP_VERSION || "1.0.0-rc1";
@@ -256,6 +261,8 @@ type ChannelStatus = {
     linked: boolean;
     username: string;
     linked_at: string | null;
+    blocked?: boolean;
+    last_delivery?: {status: string; error_code: string; delivered_at: string | null} | null;
   };
   email: { available: boolean; address_masked: string };
   in_app: { available: boolean };
@@ -490,7 +497,7 @@ function Login({ onLogin }: { onLogin: (p: Profile) => void }) {
     <main className="login-page">
       <section className="login-brand">
         <div className="logo large">
-          <span>A</span> AYS Connect
+          <BrandLogo inverse />
         </div>
         <div>
           <p className="eyebrow">Единая рабочая среда</p>
@@ -502,9 +509,10 @@ function Login({ onLogin }: { onLogin: (p: Profile) => void }) {
         </div>
       </section>
       <section className="login-panel">
+        <div className="login-theme"><ThemeSwitch /></div>
         <form className="login-card" onSubmit={submit}>
           <div className="mobile-logo logo">
-            <span>A</span> AYS Connect
+            <BrandLogo />
           </div>
           <p className="eyebrow blue">Добро пожаловать</p>
           <h2>Вход в систему</h2>
@@ -569,7 +577,7 @@ type LegacyView = "dashboard"|"tasks"|"checklists"|"sensors"|"incidents"|"object
 function SidebarNav({profileId,path,view,navigate,openLegacy}:{profileId:number;path:string;view:string;navigate:(path:string)=>void;openLegacy:(view:LegacyView,hash:string)=>void}) {
   const route=`${path}|${view}`;
   const definitions=[
-    {id:"work",label:"Работа",items:[{label:"Задачи",href:"/tasks",icon:CheckCircle2,active:path.startsWith("/tasks")},{label:"Заявки",href:"/requests",icon:Wrench,active:path.startsWith("/requests")},{label:"Проекты",href:"/projects",icon:CalendarDays,active:path.startsWith("/projects")},{label:"Чек-листы",href:"/#checklists",icon:ClipboardCheck,legacy:["checklists","#checklists"],active:path==="/"&&view==="checklists"}]},
+    {id:"work",label:"Работа",items:[{label:"Задачи",href:"/tasks",icon:CheckCircle2,active:path.startsWith("/tasks")},{label:"Проекты",href:"/projects",icon:CalendarDays,active:path.startsWith("/projects")},{label:"Чек-листы",href:"/#checklists",icon:ClipboardCheck,legacy:["checklists","#checklists"],active:path==="/"&&view==="checklists"}]},
     {id:"team",label:"Команда",items:[{label:"Сотрудники",href:"/people/employees",icon:Users,active:path.startsWith("/people/")&&!path.startsWith("/people/me")},{label:"Мой онбординг",href:"/people/me/onboarding",icon:ClipboardCheck,active:path==="/people/me/onboarding"}]},
     {id:"knowledge",label:"Знания",items:[{label:"Обучение",href:"/#learning",icon:GraduationCap,legacy:["learning","#learning"],active:path==="/"&&view==="learning"},{label:"Рабочие материалы",href:"/#knowledge",icon:BookOpen,legacy:["knowledge","#knowledge"],active:path==="/"&&view==="knowledge"}]},
     {id:"control",label:"Объекты и контроль",items:[{label:"Объекты",href:"/objects",icon:Building2,legacy:["objects","#objects"],active:path.startsWith("/objects")||(path==="/"&&view==="objects")},{label:"Датчики",href:"/#sensors",icon:Activity,legacy:["sensors","#sensors"],active:path==="/"&&view==="sensors"},{label:"Инциденты",href:"/#incidents",icon:Bell,legacy:["incidents","#incidents"],active:path==="/"&&view==="incidents"}]},
@@ -604,8 +612,8 @@ function App() {
     return () => window.removeEventListener("popstate", syncPath);
   }, []);
   useEffect(()=>{if(!mobile)return;const close=(event:KeyboardEvent)=>{if(event.key==="Escape"){setMobile(false);mobileTrigger.current?.focus()}};document.addEventListener("keydown",close);return()=>document.removeEventListener("keydown",close)},[mobile]);
-  if (path === "/register") return <RegistrationPage />;
-  if (path.startsWith("/activate/")) return <ActivationPage token={decodeURIComponent(path.slice("/activate/".length))} />;
+  if (path === "/register") return <div className="public-entry"><div className="public-entry-theme"><ThemeSwitch /></div><RegistrationPage /></div>;
+  if (path.startsWith("/activate/")) return <div className="public-entry"><div className="public-entry-theme"><ThemeSwitch /></div><ActivationPage token={decodeURIComponent(path.slice("/activate/".length))} /></div>;
   const [view, setView] = useState<
     | "dashboard"
     | "tasks"
@@ -712,7 +720,7 @@ function App() {
     <div className={isCardsDashboard({ pathname: path, hash: window.location.hash }) ? "app-shell cards-shell" : "app-shell"}>
       <aside className={mobile ? "sidebar open" : "sidebar"}>
         <div className="logo">
-          <span>A</span> AYS Connect
+          <BrandLogo />
           <button className="close" onClick={() => setMobile(false)}>
             <X />
           </button>
@@ -726,7 +734,7 @@ function App() {
         </div>
         <SidebarNav profileId={profile.id} path={path} view={view} navigate={navigate} openLegacy={openLegacyView}/>
         <div className="sidebar-bottom">
-          <small className="build-version">Work Core {APP_VERSION}</small>
+          <ReleaseNotes version={APP_VERSION} />
           <button
             onClick={() => openLegacyView("notification-settings", "#notification-settings")}
           >
@@ -754,6 +762,7 @@ function App() {
             <kbd>⌘ K</kbd>
           </div>
           <div className="header-actions">
+            <ThemeSwitch />
             <NotificationBell />
             <AccountMenu profile={profile} navigate={navigate} logout={logout}/>
           </div>
@@ -2145,6 +2154,8 @@ function NotificationSettingsView() {
       </div>
       <section className="notification-settings-card">
         <h2>Telegram</h2>
+        {status?.telegram.blocked && <p role="alert">Бот заблокирован. Разблокируйте корпоративного бота и выполните повторную привязку.</p>}
+        {status?.telegram.last_delivery && <p>Последняя доставка: {status.telegram.last_delivery.status}{status.telegram.last_delivery.error_code ? ` · ${status.telegram.last_delivery.error_code}` : ''}</p>}
         <p>
           {status?.telegram.linked
             ? `Подключён${status.telegram.username ? ` · @${status.telegram.username}` : ""}`

@@ -14,15 +14,30 @@ class TelegramLinkService:
     @staticmethod
     @transaction.atomic
     def issue(employee,actor_user):
+        from employees.models import Employee
+        from employees.assignment_targets import assignable_employees
+        Employee.objects.select_for_update().get(pk=employee.pk)
+        if not assignable_employees().filter(pk=employee.pk, user__is_active=True).exists():
+            raise ValidationError({'code': 'telegram_employee_inactive'})
         now=timezone.now();TelegramLinkToken.objects.filter(employee=employee,used_at__isnull=True,revoked_at__isnull=True,expires_at__gt=now).update(revoked_at=now);raw=secrets.token_urlsafe(32);obj=TelegramLinkToken.objects.create(employee=employee,token_hash=token_hash(raw),expires_at=now+timedelta(seconds=settings.TELEGRAM_LINK_TOKEN_TTL));AuditService.record(action="notification.telegram.link_requested",entity=obj,actor_user=actor_user,actor_employee=employee);return raw,obj
     @staticmethod
     @transaction.atomic
     def consume(raw,user_id,chat_id,profile):
+        if not isinstance(user_id, int) or isinstance(user_id, bool) or user_id <= 0 or chat_id != user_id:
+            raise ValidationError({'code': 'telegram_private_chat_required'})
         now=timezone.now()
+        from employees.models import Employee
+        employee_id = TelegramLinkToken.objects.filter(token_hash=token_hash(raw)).values_list('employee_id', flat=True).first()
+        if employee_id:
+            Employee.objects.select_for_update().get(pk=employee_id)
         try:obj=TelegramLinkToken.objects.select_for_update().select_related("employee").get(token_hash=token_hash(raw))
         except TelegramLinkToken.DoesNotExist:raise ValidationError({"code":"telegram_link_token_invalid"})
         if obj.used_at:raise ValidationError({"code":"telegram_link_token_used"})
         if obj.revoked_at or obj.expires_at<=now:raise ValidationError({"code":"telegram_link_token_expired"})
+        from employees.models import Employee
+        from employees.assignment_targets import assignable_employees
+        if not assignable_employees().filter(pk=obj.employee_id, user__is_active=True).exists():
+            raise ValidationError({'code': 'telegram_employee_inactive'})
         conflict=TelegramAccount.objects.select_for_update().filter(telegram_user_id=user_id,is_active=True).exclude(employee=obj.employee).exists()
         if conflict:raise ValidationError({"code":"telegram_account_already_linked"})
         TelegramAccount.objects.select_for_update().filter(employee=obj.employee,is_active=True).update(is_active=False,unlinked_at=now)
@@ -32,6 +47,10 @@ class TelegramLinkService:
     @staticmethod
     @transaction.atomic
     def unlink(employee,actor_user=None):
-        now=timezone.now();account=TelegramAccount.objects.select_for_update().filter(employee=employee,is_active=True).first()
+        from employees.models import Employee
+        Employee.objects.select_for_update().get(pk=employee.pk)
+        now=timezone.now()
+        TelegramLinkToken.objects.filter(employee=employee, used_at__isnull=True, revoked_at__isnull=True).update(revoked_at=now)
+        account=TelegramAccount.objects.select_for_update().filter(employee=employee,is_active=True).first()
         if not account:return False
         account.is_active=False;account.unlinked_at=now;account.save(update_fields=["is_active","unlinked_at","updated_at"]);AuditService.record(action="notification.telegram.unlinked",entity=account,actor_user=actor_user,actor_employee=employee);DomainEventService.publish(event_type="notification.channel.telegram_unlinked",entity=account,actor=actor_user,payload={"employee_id":str(employee.pk)});return True

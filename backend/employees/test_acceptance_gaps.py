@@ -1,3 +1,4 @@
+from work_tasks.patch_test_fixtures import configured_template
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase
@@ -114,7 +115,7 @@ class PeopleAcceptanceGapTests(TestCase):
         from events.models import OutboxEvent
         setup=get_user_model().objects.create_superuser(username='gap-setup',email='gap-setup@example.test')
         target=AssignmentTarget.objects.create(target_type='employee',employee=self.employee)
-        work=TaskTemplate.objects.create(name='Synthetic',task_title='Synthetic',responsible_target=target,created_by=self.employee)
+        work=configured_template(name='Synthetic',task_title='Synthetic',responsible_target=target,created_by=self.employee)
         template=OnboardingTemplateService.create(actor_user=setup,name='Synthetic')
         OnboardingTemplateService.publish(template=template,actor_user=setup,expected_version=1,steps=[{'key':'task','title':'Task','step_type':'task','task_template':work}])
         template.refresh_from_db()

@@ -1,3 +1,4 @@
+from work_tasks.patch_test_fixtures import configured_template
 """Acceptance regressions: assert the contract, never turn unexpected errors into wins."""
 from datetime import timedelta
 from concurrent.futures import ThreadPoolExecutor
@@ -90,7 +91,7 @@ class PeopleStagingContractTests(TestCase):
         from .models import AssignmentTarget
         from work_tasks.models import TaskTemplate
         target = AssignmentTarget.objects.create(target_type="employee", employee=self.employee)
-        work_template = TaskTemplate.objects.create(
+        work_template = configured_template(
             name="Acceptance", task_title="Acceptance", responsible_target=target,
             created_by=self.employee,
         )

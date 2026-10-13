@@ -62,3 +62,23 @@ recurrence idempotency; rollback tests cover Task/Audit/Outbox atomicity. Concur
 watcher creation is serialized by locking the parent Task before checking the partial
 unique constraint. Production file policy should still connect the existing scanner
 hook to malware scanning where required.
+
+
+## 13.10.2026 — patch Work routing/collaboration/Telegram
+
+Responsible department references existing OrgUnit and resolves its active manager position.
+The original org_unit remains the access/context field; no role is inferred from employment,
+object responsibility or membership. Department filling/change needs task.admin in scope
+or explicit global reassign plus edit/reassign permissions. Watchers participate in read/
+comment policies, not automatically in sensitive mutations. Old drafts/templates require
+explicit setup, including every transition back to IN_PROGRESS.
+
+Standalone deadlines use configured priority durations from original creation; blocking
+requires a manual deadline. Active project priority is null while its raw historical value
+remains. Project dates are mandatory and conflicts reject edits transactionally. New project
+tasks use the project object unless a template explicitly specifies another.
+
+Bot contracts reuse NotificationIntent/Delivery/Attempt and Outbox; see
+[telegram-bot/README.md](telegram-bot/README.md),
+[acceptance](TASK_PATCH_ACCEPTANCE.md) and [release gates](TASK_PATCH_RELEASE.md).
+No production deployment or real Telegram delivery is claimed.

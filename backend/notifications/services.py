@@ -8,7 +8,8 @@ from rest_framework.exceptions import ValidationError
 from employees.models import Employee
 from events.models import OutboxEvent
 from .models import Notification,NotificationDelivery,NotificationDeliveryAttempt,NotificationIntent,NotificationPreference,NotificationQuietHours,NotificationTemplate,TelegramAccount
-ALLOWED_EVENTS={"notification.requested"};MANDATORY_IN_APP={"SLA_ESCALATION"};MAX_ATTEMPTS=5
+from .task_events import TASK_EVENTS
+ALLOWED_EVENTS={"notification.requested"} | TASK_EVENTS;MANDATORY_IN_APP={"SLA_ESCALATION"};MAX_ATTEMPTS=5
 DEFAULT_TEMPLATE={"title":"SLA: заявка {request_id}","body":"Нарушение SLA, уровень {level}. Событие: {event_type}.","allowed":["request_id","level","event_type"]}
 PEOPLE_TEMPLATES={
     "WORK_TASK_REOPENED":{"title":"Задача возвращена в работу","body":"{task_number}. Инициатор: {actor_name}. Причина: {reason_text}","allowed":["task_number","actor_name","reason_text"]},
@@ -47,7 +48,7 @@ class NotificationChannelRouter:
         from django.conf import settings
         employee=notification.recipient_employee;channels=["in_app"]
         if reason in {"WORK_TASK_REOPENED","WORK_TASK_REJECTED","PEOPLE_INVITATION_EXPIRED","PEOPLE_STEP_OVERDUE","PEOPLE_ONBOARDING_REOPEN_BLOCKED","PROJECT_LIFECYCLE","PROJECT_MEMBER_ADDED","PROJECT_MANAGER_CHANGED","PROJECT_MILESTONE_ASSIGNED","PROJECT_MILESTONE_DUE","PROJECT_TASK_REOPENED","PROJECT_COMMENT_MENTIONED"}: channels.append("email")
-        if notification.priority in {"warning","critical"}:channels.append("telegram")
+        if notification.priority in {"warning","critical"} or reason == 'WORK_TASK_EVENT':channels.append("telegram")
         if notification.priority=="critical":channels.append("email")
         for channel in channels:
             snapshot={"reason":reason,"priority":notification.priority,"preference_enabled":preference_enabled(employee,reason,channel),"mandatory_in_app":channel=="in_app" and reason in MANDATORY_IN_APP}
@@ -63,6 +64,9 @@ class NotificationChannelRouter:
             NotificationDelivery.objects.get_or_create(notification=notification,channel=channel,defaults={"status":status,"last_error_code":code,"next_attempt_at":next_at,"routing_snapshot":snapshot})
 @transaction.atomic
 def ingest_event(event):
+    if event.event_type in TASK_EVENTS:
+        from .task_events import ingest_task_event
+        return ingest_task_event(event)
     if event.event_type not in ALLOWED_EVENTS:return None
     payload=event.payload or {};reason=payload.get("reason","");intent,created=NotificationIntent.objects.get_or_create(source_event_id=event.event_id,defaults={"event_type":event.event_type,"reason":reason,"payload":payload})
     if not created and intent.status==NotificationIntent.Status.MATERIALIZED:return intent
@@ -105,6 +109,13 @@ def ingest_pending(batch_size=100,reconcile=False):
             if event.status=="pending":event.status="failed";event.attempts+=1;event.last_error=str(exc)[:2000];event.save(update_fields=["status","attempts","last_error"])
     return done
 def deliver_one(delivery,handler=None):
+    if delivery.notification.intent and delivery.notification.intent.reason == 'WORK_TASK_EVENT':
+        from .bot_api import allowed_delivery
+        code = allowed_delivery(delivery)
+        if code:
+            delivery.status = 'suppressed'; delivery.last_error_code = code; delivery.processing_started_at = None
+            delivery.save(update_fields=['status', 'last_error_code', 'processing_started_at', 'updated_at'])
+            return
     from .channels import CHANNEL_HANDLERS,ProviderFailure
     if not Employee.objects.filter(pk=delivery.notification.recipient_employee_id,is_active=True,user__is_active=True).exclude(status='terminated').exists():
         delivery.status='suppressed';delivery.last_error_code='RECIPIENT_INACTIVE';delivery.processing_started_at=None
@@ -133,17 +144,23 @@ def deliver_one(delivery,handler=None):
         NotificationDeliveryAttempt.objects.create(delivery=delivery,attempt_number=delivery.attempts,outcome=outcome,error=delivery.last_error,error_code=exc.code);raise
     finally:delivery.processing_started_at=None;delivery.save(update_fields=["attempts","status","delivered_at","processing_started_at","provider_started_at","last_error","last_error_code","next_attempt_at","provider_message_id","provider_metadata","updated_at"])
 def reconcile_deliveries(now=None):
+    from .bot_api import reconcile_leases
+    reconcile_leases()
     now=now or timezone.now();stale=now-timedelta(minutes=5);count=0
-    for item in NotificationDelivery.objects.filter(status="processing",processing_started_at__lt=stale):
+    for item in NotificationDelivery.objects.filter(status="processing",processing_started_at__lt=stale,lease_token__isnull=True):
         if item.provider_started_at:item.status="unknown";item.last_error_code="DELIVERY_OUTCOME_UNKNOWN"
         else:item.status="retry";item.next_attempt_at=now
         item.processing_started_at=None;item.save(update_fields=["status","last_error_code","next_attempt_at","processing_started_at","updated_at"]);count+=1
     NotificationDelivery.objects.filter(status="pending",next_attempt_at__lte=now).update(next_attempt_at=None);return count
 def process_deliveries(batch_size=100):
+    from django.conf import settings
     done=0
     while done<batch_size:
         with transaction.atomic():
-            item=NotificationDelivery.objects.select_for_update(skip_locked=True).filter(status__in=["pending","retry"]).filter(Q(next_attempt_at__isnull=True)|Q(next_attempt_at__lte=timezone.now())).order_by("created_at").first()
+            candidates=NotificationDelivery.objects.select_for_update(skip_locked=True, of=('self',)).filter(status__in=["pending","retry"]).filter(Q(next_attempt_at__isnull=True)|Q(next_attempt_at__lte=timezone.now()))
+            if settings.TELEGRAM_DELIVERY_TRANSPORT == 'pull':
+                candidates=candidates.exclude(channel='telegram', notification__intent__reason='WORK_TASK_EVENT')
+            item=candidates.order_by("created_at").first()
             if not item:break
             item.status="processing";item.processing_started_at=timezone.now();item.provider_started_at=None;item.save(update_fields=["status","processing_started_at","provider_started_at","updated_at"]);pk=item.pk
         try:deliver_one(NotificationDelivery.objects.select_related("notification__recipient","notification__recipient_employee","notification__intent","notification__template").get(pk=pk))

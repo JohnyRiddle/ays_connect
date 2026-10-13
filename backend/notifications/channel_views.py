@@ -1,4 +1,6 @@
 import secrets
+from drf_spectacular.utils import extend_schema
+from .binding_serializers import TelegramStatusSerializer, TelegramLinkSerializer, TelegramUnlinkSerializer
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
@@ -20,17 +22,25 @@ def current_employee(request):
 def masked_email(value):
     if not value or "@" not in value:return ""
     local,domain=value.split("@",1);return f"{local[:1]}***@{domain}"
+
+def telegram_status(employee):
+    account=TelegramAccount.objects.filter(employee=employee,is_active=True).first()
+    latest=NotificationDelivery.objects.filter(notification__recipient_employee=employee,channel='telegram').order_by('-updated_at').first()
+    return {'available':settings.NOTIFICATIONS_TELEGRAM_ENABLED,'linked':bool(account),'username':account.username if account else '', 'linked_at':account.linked_at if account else None, 'blocked':bool(account and account.delivery_disabled_at), 'last_failure_code':account.last_failure_code if account else '', 'last_delivery':{'status':latest.status,'error_code':latest.last_error_code,'delivered_at':latest.delivered_at} if latest else None}
 class ChannelStatusView(APIView):
     def get(self,request):
-        employee=current_employee(request);account=TelegramAccount.objects.filter(employee=employee,is_active=True).first();return Response({"in_app":{"available":True},"telegram":{"available":settings.NOTIFICATIONS_TELEGRAM_ENABLED,"linked":bool(account),"username":account.username if account else "","linked_at":account.linked_at if account else None},"email":{"available":bool(request.user.email),"address_masked":masked_email(request.user.email)}})
+        employee=current_employee(request);return Response({"in_app":{"available":True},"telegram":telegram_status(employee),"email":{"available":bool(request.user.email),"address_masked":masked_email(request.user.email)}})
 class TelegramStatusView(APIView):
+    @extend_schema(responses=TelegramStatusSerializer)
     def get(self,request):
-        account=TelegramAccount.objects.filter(employee=current_employee(request),is_active=True).first();return Response({"linked":bool(account),"username":account.username if account else "","linked_at":account.linked_at if account else None})
+        return Response(telegram_status(current_employee(request)))
 class TelegramLinkView(APIView):
     throttle_scope="binding"
+    @extend_schema(request=None, responses=TelegramLinkSerializer)
     def post(self,request):
         raw,obj=TelegramLinkService.issue(current_employee(request),request.user);username=settings.TELEGRAM_BOT_USERNAME;return Response({"bot_username":username,"start_parameter":raw,"deep_link":f"https://t.me/{username}?start={raw}" if username else "","expires_at":obj.expires_at})
 class TelegramUnlinkView(APIView):
+    @extend_schema(request=None, responses=TelegramUnlinkSerializer)
     def post(self,request):return Response({"unlinked":TelegramLinkService.unlink(current_employee(request),request.user)})
 class SelfPreferencesView(APIView):
     def get(self,request):return Response(PreferenceSerializer(NotificationPreference.objects.filter(employee=current_employee(request)),many=True).data)

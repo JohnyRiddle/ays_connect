@@ -18,12 +18,12 @@
 
 .work-title p,
 .work-detail-head p {
-  color: #2f80ed;
+  color: var(--brand-text);
 }
 
 .work-title span {
   display: block;
-  color: #8190a2;
+  color: var(--text-muted);
   font-size: 12px;
 }
 
@@ -31,9 +31,9 @@
   min-height: 40px;
   padding: 11px 16px;
   border-radius: 9px;
-  background: #236fc7;
+  background: var(--brand);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .work-filters {
@@ -44,58 +44,58 @@
 .work-filters input,
 .work-filters select {
   min-height: 42px;
-  border-color: #dfe6ee;
+  border-color: var(--border);
   border-radius: 9px;
   padding: 0 12px;
-  color: #536175;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
 .work-filters input:focus,
 .work-filters select:focus {
-  border-color: #8bb9ea;
-  box-shadow: 0 0 0 3px #2f80ed14;
+  border-color: var(--border);
+  box-shadow: 0 0 0 3px var(--shadow);
   outline: 0;
 }
 
 .work-table {
-  border-color: #e2e8ef;
+  border-color: var(--border);
   border-radius: 12px;
 }
 
 .work-table > b {
   padding: 12px 17px;
-  background: #f8fafc;
-  color: #8995a4;
-  font-size: 9px;
-  font-weight: 800;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .work-table > span,
 .work-table > .work-object {
   min-height: 68px;
   padding: 14px 17px;
-  border-color: #edf1f4;
-  font-size: 11px;
+  border-color: var(--border);
+  font-size: 12px;
 }
 
 .work-object {
-  color: #536175;
+  color: var(--text-secondary);
 }
 
 .work-object:hover {
-  background: #f8fbff;
+  background: var(--brand-soft);
 }
 
 .work-object strong {
-  color: #1d293b;
+  color: var(--text);
   font-size: 12px;
 }
 
 .work-object small,
 .work-table span small {
-  color: #909cab;
-  font-size: 10px;
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
 .work-status {
@@ -105,26 +105,26 @@
   align-self: center;
   justify-self: start;
   padding: 5px 8px !important;
-  font-size: 9px;
-  font-weight: 800;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .work-pager {
-  color: #536175;
-  font-size: 11px;
+  color: var(--text-secondary);
+  font-size: 12px;
 }
 
 .work-pager button {
   padding: 8px 12px;
-  color: #536175;
-  font-size: 10px;
+  color: var(--text-secondary);
+  font-size: 12px;
 }
 
 .work-detail-head,
 .work-card,
 .work-form {
-  border-color: #e2e8ef;
-  box-shadow: 0 1px 2px #17203308;
+  border-color: var(--border);
+  box-shadow: 0 1px 2px var(--shadow);
 }
 
 .work-drawer-scrim {
@@ -133,7 +133,7 @@
   z-index: 40;
   width: 100%;
   border: 0;
-  background: #16233c66;
+  background: var(--scrim);
   cursor: default;
 }
 
@@ -146,8 +146,8 @@
   box-sizing: border-box;
   margin: 0;
   overflow-y: auto;
-  background: #f5f8fc;
-  box-shadow: -18px 0 60px #17203324;
+  background: var(--brand-soft);
+  box-shadow: -18px 0 60px var(--shadow);
   padding: 28px 30px 36px;
 }
 
@@ -161,12 +161,12 @@
 
 .work-drawer .work-title p {
   margin-bottom: 4px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .work-drawer .back {
   margin-bottom: 14px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .work-drawer .work-form {
@@ -180,7 +180,7 @@
 }
 
 .work-drawer .work-field > span {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .work-drawer .work-field input,
@@ -207,7 +207,7 @@
 .work-drawer .primary {
   min-height: 36px;
   padding: 9px 13px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 @media (max-width: 800px) {

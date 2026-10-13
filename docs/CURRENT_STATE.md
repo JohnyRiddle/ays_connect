@@ -1,3 +1,70 @@
+## 13.10.2026 — production импорт ЦФО выполнен
+
+По поручению «Приступай», после согласования новых UUID и timezone офиса,
+созданы 21 LegalEntity, 5 OrgUnit (4 department, 1 company), 50 Location.
+Новые UUID v4/FK — PASS; 54 связи с юрлицами, один intentional null, 5 исключений.
+201-table protected restore, rollback probe и replay без дублей PASS.
+Production Audit/Outbox +76/+76; исходные Location/Tasks/People/grants сохранены.
+Owner API 76/76, scoped deny 50/50, HTTPS health 6/6 PASS.
+Objects в preparation; реальные руководители/positions/roles не назначены,
+старые задачи не перепривязывались. Приложение/PR 3 не развёртывались.
+[Evidence и границы](CFO_IMPORT_ACCEPTANCE.md).
+
+## 13.10.2026 — подготовка импорта ЦФО
+
+Подготовлен защищённый review пакет: 60 исходных строк, 55 включены
+(50 Location, 2 OrgUnit, 3 организационные службы), 5 пользовательских исключений;
+54 связи с 21 юрлицом, один intentional null. Source-preservation, cross references,
+user corrections, XLSX counts/visual QA и ZIP/EFS проверки PASS.
+Подготовка согласована пользователем 13.10.2026; фиксируется отдельным commit.
+Формат custom review-only, не fixture/HTTP body; UUID руководителей/позиций
+не заполнены, production apply не выполнялся. [Контракт и ограничения](CFO_IMPORT_PREPARATION.md).
+
+## 13.10.2026 — PR 3 production copy и Telegram test
+
+Backend RC 98dfafa, [draft PR 3](https://github.com/JohnyRiddle/ays_connect/pull/3).
+Свежий snapshot 09:56:06 UTC: штатный init пяти migrations 112→117 и
+сохранность всех 201 исходной таблицы/реальных grants PASS; 12/12 historical
+scope detail, 38/38 focused PostgreSQL PASS. Полный серверный 672 repeat не завершён
+из-за ресурса filesystem; прежний synthetic 672/672 и browser 6/6 остаются отдельными gates.
+Два реальных сообщения @AYS_ai_expert_bot → @ivan_ays (15024/15025), claim/begin/ack,
+роли-дубли, одноразовая привязка и revoke до begin PASS; получатель подтвердил.
+Это copy API harness + transport, постоянный HTTPS adapter пока NOT VERIFIED.
+Frozen 10:27:59 UTC DB/media/frontend: EFS/LUKS, SHA и off-host restore 201 таблицы PASS.
+Maintenance суммарно 66.938 с; прежние images/backup возобновлены, HTTPS 6/6 и health PASS.
+Merge/deployment не выполнялись. До выпуска: 0 departments/4 old tasks без department,
+окончательный опубликованный дизайн, постоянный bot adapter/staging, финальный RC и
+актуальная frozen точка. [Полное evidence](TASK_PATCH_REHEARSAL.md).
+
+## 13.10.2026 — патч задач и API корпоративного Telegram-бота (review)
+
+Изолированная ветка `codex/task-telegram-patch`, base `origin/main` 62c61ed;
+runtime совпадает с 713be6b, обновление базы ветки касается только документов
+регистрации. Новые обращения — Work Tasks; Request create UI/API закрыт,
+история не переносится и не удаляется. Добавлены department/head routing,
+object-scoped executor choices, пять приоритетов с calendar deadlines,
+project deadline inheritance без active priority, watchers/UUID mentions и
+service-only corporate Telegram claim/begin/ack/fail. Новые проектные задачи
+наследуют объект проекта; membership/primary_location не создают grants.
+
+Только пять additive migrations; old department null требует административного
+заполнения задач и templates. При передаче в работу проверяется текущий активный
+руководитель. Реальные grants/UUID/история и pending location.* не менялись.
+
+Проверки: 672/672 backend PostgreSQL, 38 новых сценариев включая races/upgrade,
+6/6 browser desktop/mobile с реальным isolated API, TypeScript/Vite, check/drift,
+diff --check и export 8 OpenAPI routes PASS. Полный evidence/границы:
+[TASK_PATCH_ACCEPTANCE.md](TASK_PATCH_ACCEPTANCE.md). Контракт:
+[telegram-bot/README.md](telegram-bot/README.md), инструкция:
+[TASK_PATCH_USER_GUIDE.md](TASK_PATCH_USER_GUIDE.md), выпуск/restore:
+[TASK_PATCH_RELEASE.md](TASK_PATCH_RELEASE.md).
+
+Последующие production-copy/frozen/real transport gates описаны в
+[TASK_PATCH_REHEARSAL.md](TASK_PATCH_REHEARSAL.md); постоянный HTTPS adapter NOT VERIFIED. Before release интегрировать с
+финальным commit опубликованного дизайна и проверить exact RC. Исходные dirty-файлы
+других checkout не включены. Commit/push и черновой PR разрешены пользователем 13.10.2026; merge/deployment
+требуют отдельного разрешения именно этого патча.
+
 ## 12.10.2026 — Registration production release PASS
 
 Runtime **713be6b755950fcce5f5bf22d9fc05743c8f0053** (AssignmentTarget integration included). Synthetic acceptance
@@ -335,3 +402,12 @@ npm run build
 cd ..
 docker compose run --rm backend python manage.py test
 ```
+
+### Уточнение UI патча задач — 13.10.2026
+В ветке патча удалены оставшиеся вкладка заявок и кнопка создания в карточке объекта; неизвестные и старые параметры tab возвращают вкладку зон. Это исправление ещё не опубликовано; текущий production frontend остаётся до PR #3.
+
+## Production PR #3 — 13.10.2026
+
+Опубликован RC `d6b2a8126018856377064d6865b784837f05fb6a`: патч задач интегрирован с опубликованным дизайном, историей обновлений и компактным списком объектов. Убраны меню/вкладка/создание сервисных заявок; исторические данные сохранены. Fresh-copy PostgreSQL 672/672 и integrated browser 11/11 PASS; live HTTPS 12/12, authenticated read-only UI, 7/7 runtime healthy PASS. Сохранены импорт справочника, users/People/grants и 62 pending location.*. Frozen DB/media/frontend restore 202 таблиц PASS, успешное окно 77.532 с. Прежнее автоматическое возвращение к old runtime заняло 81.672 с, после чего точка обновлена; migration downgrade не выполнялся.
+
+Руководители подразделений ещё не назначены: новые задачи требуют настройки People; 4 старые задачи требуют department перед передачей в работу. Corporate Telegram API установлен, постоянный adapter и внешняя доставка выключены. Полный отчёт, immutable images, восстановление и границы: [TASK_PATCH_DEPLOYMENT.md](TASK_PATCH_DEPLOYMENT.md). После новых writes frozen point нельзя восстанавливать вслепую.

@@ -29,6 +29,59 @@ from .ux import TaskUXService
 
 
 class ProductionTaskViewSet(viewsets.GenericViewSet):
+    @action(detail=False, methods=['get'], url_path='assignment-options')
+    def assignment_options(self, request):
+        from django.db import transaction
+        from organizations.models import OrgUnit, Location
+        from .routing import department_head, employee_target, assignment_choices
+        from employees.assignment_targets import assignment_visibility
+        from access_control.services import PermissionService
+        from django.db.models import Q
+        from django.utils import timezone
+        now = timezone.now()
+        departments = OrgUnit.objects.filter(status='active', is_active=True, valid_from__lte=now).filter(Q(valid_to__isnull=True) | Q(valid_to__gt=now))
+        if not request.user.is_superuser:
+            departments = [d for d in departments if PermissionService.has_permission(employee=self._actor(), permission='org_unit.view', obj=d)]
+        raw = request.query_params.get('department')
+        if not raw:
+            return Response({'departments': [{'id': str(d.pk), 'name': d.name} for d in departments]})
+        department = next((d for d in departments if str(d.pk) == raw), None)
+        if not department:
+            from rest_framework.exceptions import NotFound
+            raise NotFound()
+        location = None
+        if request.query_params.get('location'):
+            from organizations.object_policies import LocationAccessPolicy
+            location = get_object_or_404(LocationAccessPolicy.visible(request.user), pk=request.query_params['location'])
+        with transaction.atomic():
+            head = department_head(department)
+            if not assignment_visibility(request.user)[0].filter(pk=head.pk).exists():
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied('Руководитель недоступен в справочнике сотрудников.')
+            choices = assignment_choices(request.user, department, location)
+            if head not in choices:
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError('Руководителю требуется доступ к выбранному объекту.')
+            def entry(employee):
+                return {'employee_id': str(employee.pk), 'target_id': str(employee_target(employee).pk), 'name': employee.display_name}
+            return Response({'department': str(department.pk), 'responsible': entry(head), 'executors': [entry(e) for e in choices]})
+
+    @action(detail=True, methods=['get'], url_path='participant-options')
+    def participant_options(self, request, pk=None):
+        from employees.assignment_targets import assignment_visibility
+        from .routing import eligible_for_location
+        task = self.get_object()
+        employees = assignment_visibility(request.user)[0]
+        search = request.query_params.get('search', '').strip()
+        if search:
+            from django.db.models import Q
+            employees = employees.filter(Q(first_name__icontains=search) | Q(last_name__icontains=search))
+        result = []
+        for e in employees.order_by('last_name', 'first_name', 'pk')[:100]:
+            if eligible_for_location(e, task.location):
+                result.append({'id': str(e.pk), 'name': e.display_name, 'has_access': TaskSelector.visible_to(e).filter(pk=task.pk).exists()})
+        return Response({'results': result})
+
     def _actor(self):
         return self.request.user.employee
 
@@ -65,6 +118,7 @@ class ProductionTaskViewSet(viewsets.GenericViewSet):
         return Response(TaskDetailSerializer(self.get_object(), context={"request": request}).data)
 
     def create(self, request):
+        TaskService._authorize(actor=self._actor(), actor_user=request.user, permission='task.create')
         serializer = TaskCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         task = TaskService.create(actor=self._actor(), actor_user=request.user, correlation_id=self._correlation_id(), **serializer.validated_data)

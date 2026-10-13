@@ -32,6 +32,9 @@ class CollaborationTestCase(TestCase):
         self.other = Employee.objects.create(first_name="Иван", last_name="Упомянутый", legal_entity=self.le, org_unit=self.unit)
         self.target = AssignmentTarget.objects.create(target_type=AssignmentTarget.Type.EMPLOYEE, employee=self.actor)
         self.task = TaskService.create(actor=self.actor, actor_user=self.user, title="Collaboration", responsible_target=self.target, legal_entity=self.le, org_unit=self.unit)
+        from .patch_test_fixtures import department_for
+        self.task.responsible_department = department_for(self.actor)
+        self.task.save(update_fields=['responsible_department'])
 
     def start_task(self, acceptance_policy=AcceptancePolicy.NONE):
         self.task.acceptance_policy = acceptance_policy

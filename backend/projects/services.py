@@ -71,6 +71,8 @@ class ProjectService:
         require_available_location(data.get("location"), actor_user)
         if not name.strip():
             raise ProjectBusinessError("Укажите название проекта.")
+        if not data.get('planned_end_at'):
+            raise ProjectBusinessError('Укажите обязательный дедлайн проекта.', 'project_deadline_required')
         if data.get("planned_start_at") and data.get("planned_end_at") and data["planned_start_at"] > data["planned_end_at"]:
             raise ProjectBusinessError("Плановая дата начала позже завершения.")
         if manager and not cls.available_employee(manager):
@@ -151,6 +153,11 @@ class ProjectService:
             raise ProjectBusinessError("Укажите название проекта.")
         start = changes.get("planned_start_at", project.planned_start_at)
         end = changes.get("planned_end_at", project.planned_end_at)
+        if not end:
+            raise ProjectBusinessError('Укажите обязательный дедлайн проекта.', 'project_deadline_required')
+        conflicts = ProjectTaskLink.objects.filter(project=project, is_active=True, task__deadline_from_project=False, task__due_at__gt=end).exclude(task__status__in=[TaskStatus.COMPLETED, TaskStatus.CANCELLED])
+        if conflicts.exists():
+            raise ProjectBusinessError('Сначала скорректируйте сроки незавершённых задач: ' + ', '.join(conflicts.values_list('task__number', flat=True)[:20]), 'task_project_deadline_conflict')
         if start and end and start > end:
             raise ProjectBusinessError("Плановая дата начала позже завершения.")
         old = {key: str(getattr(project, key)) for key in changes}
@@ -174,6 +181,10 @@ class ProjectService:
                 ProjectMember.objects.create(project=project, employee=new_manager, role=ProjectMember.Role.MANAGER, added_by=actor_user)
         project.version += 1; project.updated_by = actor_user
         project.save(update_fields=[*changes.keys(), "version", "updated_by", "updated_at"])
+        if 'planned_end_at' in changes:
+            from django.db.models import Q
+            for linked in Task.objects.select_for_update(of=('self',)).filter(project_link__project=project, project_link__is_active=True).filter(Q(deadline_from_project=True) | Q(due_at__isnull=True)).exclude(status__in=[TaskStatus.COMPLETED, TaskStatus.CANCELLED]):
+                TaskService.change_deadline(task=linked, actor=actor, actor_user=actor_user, version=linked.version, new_due_at=None, reason='Изменение срока проекта', correlation_id=correlation_id)
         cls.record(project, actor, actor_user, "project.edited", old=old,
                    new={key: str(getattr(project, key)) for key in changes}, correlation_id=correlation_id)
         if new_manager != old_manager:
@@ -395,6 +406,14 @@ class ProjectTaskService:
             raise ProjectBusinessError("Задача уже связана с проектом.", "project_task_already_linked")
         old_project = existing.project if existing else None
         old_stage = existing.stage if existing else None
+        from work_tasks.routing import validate_project_deadline
+        validate_project_deadline(project, task.due_at)
+        if not task.due_at:
+            task.due_at = project.planned_end_at
+            task.deadline_from_project = True
+            task.version += 1
+            task.save(update_fields=['due_at', 'deadline_from_project', 'version'])
+        AuditService.record(action='task.project_priority_disabled', entity=task, actor_user=actor_user, actor_employee=actor, old_value={'priority': task.priority}, new_value={'active_priority': None}, correlation_id=correlation_id)
         if existing:
             link = existing
             link.project=project;link.stage=stage;link.is_active=True;link.unlinked_at=None;link.version+=1
@@ -485,6 +504,10 @@ class ProjectTaskService:
         cls.validate_stage(target,target_stage)
         old_stage=link.stage
         link.project=target;link.stage=target_stage;link.version+=1
+        from work_tasks.routing import validate_project_deadline
+        validate_project_deadline(target, None if task.deadline_from_project else task.due_at)
+        if task.deadline_from_project:
+            task.due_at = target.planned_end_at; task.version += 1; task.save(update_fields=['due_at', 'version'])
         link.save(update_fields=["project","stage","version","updated_at"])
         ProjectTaskLinkHistory.objects.create(task=task,action=ProjectTaskLinkHistory.Action.PROJECT,
             old_project=source,new_project=target,old_stage=old_stage,new_stage=target_stage,actor=actor_user,reason=reason)
@@ -504,9 +527,14 @@ class ProjectTaskService:
         project_lock(project.pk)
         # Work creation and link are one outer transaction; a failed link removes the Task and its events.
         if template:
-            task = TaskTemplateService.create_task(template=template, actor=actor, actor_user=actor_user, correlation_id=correlation_id)
+            task = TaskTemplateService.create_task(template=template, actor=actor, actor_user=actor_user, correlation_id=correlation_id, project=project)
         else:
-            task = TaskService.create(actor=actor, actor_user=actor_user, correlation_id=correlation_id, **(task_data or {}))
+            data = dict(task_data or {})
+            data['source_type'] = 'project'
+            data.setdefault('location', project.location)
+            from work_tasks.routing import validate_project_deadline
+            validate_project_deadline(project, data.get('due_at'))
+            task = TaskService.create(actor=actor, actor_user=actor_user, correlation_id=correlation_id, **data)
         cls.link(project=project, task=task, actor=actor, actor_user=actor_user,
                  project_version=project_version, task_version=task.version, stage=stage, correlation_id=correlation_id)
         return task

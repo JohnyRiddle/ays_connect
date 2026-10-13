@@ -6,7 +6,14 @@ from .policies import TaskAccessPolicy
 
 
 class TaskSelector:
+    @staticmethod
+    def with_effective_deadline(queryset):
+        from django.db.models import Case, When, F, DateTimeField
+        from django.db.models.functions import Coalesce
+        inherited = Case(When(project_link__is_active=True, then=F('project_link__project__planned_end_at')), output_field=DateTimeField())
+        return queryset.annotate(effective_deadline=Coalesce('due_at', inherited))
     RELATED = (
+        'project_link__project',
         "author", "responsible_employee", "executor_employee", "org_unit", "legal_entity", "location", "parent",
         "responsible_target__employee", "responsible_target__position", "responsible_target__org_unit", "responsible_target__functional_group",
         "executor_target__employee", "executor_target__position", "executor_target__org_unit", "executor_target__functional_group",
@@ -14,10 +21,14 @@ class TaskSelector:
 
     @classmethod
     def visible_to(cls, employee):
+        from employees.assignment_targets import assignable_employees
+        if employee and assignable_employees().filter(pk=employee.pk, user__is_active=True, user__is_superuser=True).exists():
+            return Task.objects.select_related(*cls.RELATED)
         return Task.objects.select_related(*cls.RELATED).filter(TaskAccessPolicy.visibility_query(employee=employee)).distinct()
 
     @classmethod
     def apply_filters(cls, queryset, params):
+        queryset = cls.with_effective_deadline(queryset)
         direct = ("status", "priority", "author", "responsible_employee", "executor_employee", "org_unit", "legal_entity", "location", "parent")
         for field in direct:
             if params.get(field):
@@ -27,16 +38,18 @@ class TaskSelector:
         if params.get("stage"):
             queryset = queryset.filter(project_link__stage_id=params["stage"],project_link__is_active=True)
         if str(params.get("overdue", "")).lower() == "true":
-            queryset = queryset.filter(due_at__lt=timezone.now()).exclude(status__in=(TaskStatus.COMPLETED, TaskStatus.CANCELLED))
+            queryset = queryset.filter(effective_deadline__lt=timezone.now()).exclude(status__in=(TaskStatus.COMPLETED, TaskStatus.CANCELLED))
         if params.get("search"):
             value = params["search"]
             queryset = queryset.filter(Q(number__icontains=value) | Q(title__icontains=value) | Q(description__icontains=value))
         for key, lookup in (("created_from", "created_at__gte"), ("created_to", "created_at__lte"), ("due_from", "due_at__gte"), ("due_to", "due_at__lte")):
             if params.get(key):
+                lookup = lookup.replace('due_at__', 'effective_deadline__')
                 queryset = queryset.filter(**{lookup: params[key]})
         ordering = params.get("ordering", "-created_at")
         allowed = {"created_at", "updated_at", "due_at", "priority", "number"}
         if ordering.lstrip("-") in allowed:
+            if ordering.lstrip('-') == 'due_at': ordering = ordering.replace('due_at', 'effective_deadline')
             queryset = queryset.order_by(ordering)
         return queryset
 
