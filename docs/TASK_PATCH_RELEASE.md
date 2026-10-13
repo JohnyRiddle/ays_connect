@@ -1,5 +1,7 @@
 # Патч задач и corporate Telegram: выпуск и восстановление
 
+> Итоговый RC с дизайном опубликован 13.10.2026. Текущий результат и ограничения: [TASK_PATCH_DEPLOYMENT.md](TASK_PATCH_DEPLOYMENT.md). Ниже — история подготовки прежнего RC.
+
 Дата: 13.10.2026. Base: `origin/main` `62c61ed`; runtime checkpoint `713be6b`
 совпадает с ним, разница только в документации регистрации. Изолированный worktree
 `codex/task-telegram-patch`; commit/push и черновой PR разрешены пользователем 13.10.2026.

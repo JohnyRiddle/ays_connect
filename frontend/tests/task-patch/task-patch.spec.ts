@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 
 const fixturePath = process.env.AYS_TASK_PATCH_FIXTURE;
 const fixture = fixturePath ? JSON.parse(readFileSync(fixturePath, 'utf8')) : null;
-const api = 'http://127.0.0.1:8017';
+const api = process.env.AYS_TASK_PATCH_API || 'http://127.0.0.1:8017';
 let cachedAuth: any;
 
 test.beforeEach(async ({page, request}) => {
@@ -48,7 +48,7 @@ for (const width of [1280, 390]) {
     await watchers.getByRole('checkbox', {name: /Synthetic head/}).check();
     await watchers.getByRole('button', {name: 'Добавить выбранных'}).click();
     await expect(watchers.locator('.person-row').filter({hasText: 'Synthetic member'})).toBeVisible();
-    const comments = page.locator('section.work-card').filter({has: page.getByRole('heading', {name: 'Комментарии', exact: true})});
+    const comments = page.locator('section.work-card').filter({has: page.getByRole('group', {name: 'Обсуждение задачи', exact: true})});
     const message = `Synthetic mention ${width} ${Date.now()}`;
     await comments.getByLabel('Новый комментарий').fill(message);
     await comments.getByLabel('@Упоминания').fill('Synthetic member');

@@ -1,3 +1,15 @@
+## 13.10.2026 — production импорт ЦФО выполнен
+
+По поручению «Приступай», после согласования новых UUID и timezone офиса,
+созданы 21 LegalEntity, 5 OrgUnit (4 department, 1 company), 50 Location.
+Новые UUID v4/FK — PASS; 54 связи с юрлицами, один intentional null, 5 исключений.
+201-table protected restore, rollback probe и replay без дублей PASS.
+Production Audit/Outbox +76/+76; исходные Location/Tasks/People/grants сохранены.
+Owner API 76/76, scoped deny 50/50, HTTPS health 6/6 PASS.
+Objects в preparation; реальные руководители/positions/roles не назначены,
+старые задачи не перепривязывались. Приложение/PR 3 не развёртывались.
+[Evidence и границы](CFO_IMPORT_ACCEPTANCE.md).
+
 ## 13.10.2026 — подготовка импорта ЦФО
 
 Подготовлен защищённый review пакет: 60 исходных строк, 55 включены
@@ -390,3 +402,12 @@ npm run build
 cd ..
 docker compose run --rm backend python manage.py test
 ```
+
+### Уточнение UI патча задач — 13.10.2026
+В ветке патча удалены оставшиеся вкладка заявок и кнопка создания в карточке объекта; неизвестные и старые параметры tab возвращают вкладку зон. Это исправление ещё не опубликовано; текущий production frontend остаётся до PR #3.
+
+## Production PR #3 — 13.10.2026
+
+Опубликован RC `d6b2a8126018856377064d6865b784837f05fb6a`: патч задач интегрирован с опубликованным дизайном, историей обновлений и компактным списком объектов. Убраны меню/вкладка/создание сервисных заявок; исторические данные сохранены. Fresh-copy PostgreSQL 672/672 и integrated browser 11/11 PASS; live HTTPS 12/12, authenticated read-only UI, 7/7 runtime healthy PASS. Сохранены импорт справочника, users/People/grants и 62 pending location.*. Frozen DB/media/frontend restore 202 таблиц PASS, успешное окно 77.532 с. Прежнее автоматическое возвращение к old runtime заняло 81.672 с, после чего точка обновлена; migration downgrade не выполнялся.
+
+Руководители подразделений ещё не назначены: новые задачи требуют настройки People; 4 старые задачи требуют department перед передачей в работу. Corporate Telegram API установлен, постоянный adapter и внешняя доставка выключены. Полный отчёт, immutable images, восстановление и границы: [TASK_PATCH_DEPLOYMENT.md](TASK_PATCH_DEPLOYMENT.md). После новых writes frozen point нельзя восстанавливать вслепую.

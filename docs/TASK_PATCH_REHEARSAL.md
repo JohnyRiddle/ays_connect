@@ -1,5 +1,7 @@
 # Проверка PR 3 на production копии и готовность выпуска
 
+> Итоговый RC с дизайном опубликован 13.10.2026. Текущий результат и ограничения: [TASK_PATCH_DEPLOYMENT.md](TASK_PATCH_DEPLOYMENT.md). Ниже — история подготовки прежнего RC.
+
 13.10.2026. Проверяемый backend — `98dfafa112a0aa6cde30f31e473b03d4d81a0a4d`,
 [черновой PR 3](https://github.com/JohnyRiddle/ays_connect/pull/3).
 Свежая копия, защищённая frozen точка и реальная тестовая доставка подтверждены.

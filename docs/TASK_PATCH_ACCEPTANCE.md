@@ -1,5 +1,7 @@
 # Патч задач / Telegram API — результаты приёмки
 
+> Итоговый RC с дизайном опубликован 13.10.2026. Текущий результат и ограничения: [TASK_PATCH_DEPLOYMENT.md](TASK_PATCH_DEPLOYMENT.md). Ниже — история подготовки прежнего RC.
+
 13.10.2026. Изолированный workspace `codex/task-telegram-patch`.
 Base `origin/main` 62c61ed; базовый runtime идентичен checkpoint 713be6b; код патча 98dfafa.
 Незакоммиченный опубликованный дизайн и исходные dirty-файлы других worktrees

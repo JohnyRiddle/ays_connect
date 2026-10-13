@@ -65,3 +65,28 @@ test("task detail reflows on mobile without losing its actions", async ({ page }
   await page.getByLabel("Открыть основное меню").click();
   await expect(page.locator(".sidebar")).toHaveClass(/open/);
 });
+
+for (const width of [1280, 390]) {
+ test(`no service request entry points in navigation or object at ${width}px`, async ({page}) => {
+  await page.setViewportSize({width,height:900});
+  const objectId='00000000-0000-4000-8000-000000000050';const requested:string[]=[];
+  await page.route('**/api/internal/v1/objects/**',async route=>{
+   const url=new URL(route.request().url());requested.push(url.pathname+url.search);
+   let data:any={count:0,results:[]};
+   if(url.pathname.endsWith('/'+objectId+'/'))data={id:objectId,name:'Демо объект',node_kind:'object',code:'OBJ000050',business_type:'restaurant',business_status:'preparation',timezone:'Asia/Novosibirsk',parent:null,parent_name:null,version:1,is_archived:false,available_actions:[]};
+   else if(url.pathname.endsWith('/capabilities/'))data={can_create:false,business_types:[]};
+   await route.fulfill({status:200,json:data});
+  });
+  await page.goto('/objects/'+objectId+'?tab=requests');
+  await expect(page.getByRole('heading',{name:'Демо объект',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Создать заявку',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Заявки',exact:true})).toHaveCount(0);
+  await expect(page.locator('.sidebar a[href="/requests"]')).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Зоны',exact:true})).toHaveAttribute('aria-current','page');
+  expect(requested.some(x=>x.includes('kind=requests'))).toBe(false);
+  await expect(page.getByRole('button',{name:'Создать задачу',exact:true})).toBeVisible();
+  await page.goto('/requests/new');
+  await expect(page.getByRole('heading',{name:'Новые обращения оформляются задачами'})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ });
+}
