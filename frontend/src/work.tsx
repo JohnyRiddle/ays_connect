@@ -1,6 +1,6 @@
 import { TaskChecklistPanel } from "./ChecklistBuilder";
 import React, { useEffect, useRef, useState } from "react";
-import { DepartmentFields, ParticipantPicker, TaskSettings } from './TaskParticipants';
+import { DepartmentFields, ParticipantPicker, TaskSettings, WatcherSearch } from './TaskParticipants';
 import {
   AssignmentTarget,
   lookupApi,
@@ -624,7 +624,7 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
   const [attachments, setAttachments] = useState<any[]>([]);
   const [watchers, setWatchers] = useState<any[]>([]);
   const [mentions, setMentions] = useState<string[]>([]);
-  const [newWatchers, setNewWatchers] = useState<string[]>([]);
+  const [removeWatcher, setRemoveWatcher] = useState("");
   const canManageWatchers = task?.available_actions?.includes('watcher_manage');
   const [checklists, setChecklists] = useState<any[]>([]);
   const [activity, setActivity] = useState<any>();
@@ -768,9 +768,8 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
         <aside className="task-sidebar">
         <section className="work-card task-parameters">
           <h2>Параметры задачи</h2>
-          <p>Ответственное подразделение: {task.responsible_department_display || 'Требует административного заполнения'}</p>
-          {task.available_actions?.includes('edit') && <TaskSettings key={`${task.id}-${task.version}`} task={task} reload={load} onError={setError} />}
           <dl>
+            <div><dt>Подразделение</dt><dd>{task.responsible_department_display || "Не указано"}</dd></div>
             <div>
               <dt>Срок выполнения</dt>
               <dd className={task.is_overdue ? "overdue" : ""}>{fmt(task.due_at)}</dd>
@@ -789,19 +788,18 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
                   (task.executor_employee ? person(task.executor_employee) : task.executor_target_display || "Не назначен")}
               </dd>
             </div>
-            {task.active_priority !== null && <div>
-              <dt>Приоритет</dt><dd>{labels[task.priority] || task.priority}</dd>
-            </div>}
           </dl>
+          {task.available_actions?.includes('edit') && <TaskSettings key={`${task.id}-${task.version}`} task={task} reload={load} onError={setError} />}
         </section>
         <section className="work-card task-watchers">
           <h2>Наблюдатели</h2>
-          {canManageWatchers && <><ParticipantPicker taskId={id} mode="watcher" selected={newWatchers} onChange={setNewWatchers} /><button disabled={busy || !newWatchers.length} onClick={async () => { setBusy(true); try { for (const employee of newWatchers) await workRequest(`/tasks/${id}/watchers/`, {method: 'POST', body: JSON.stringify({employee})}); setNewWatchers([]); await load(); } catch (e) { setError(e); } finally { setBusy(false); } }}>Добавить выбранных</button></>}
+          {canManageWatchers && <WatcherSearch taskId={id} excluded={watchers.map(w=>w.employee)} busy={busy} onAdd={async employee=>{setBusy(true);try{await workRequest(`/tasks/${id}/watchers/`,{method:'POST',body:JSON.stringify({employee})});await load();}catch(e){setError(e);throw e;}finally{setBusy(false);}}}/>}
+
           {watchers.length ? (
             watchers.map((watcher) => (
               <div className="person-row" key={watcher.id}>
-                {watcher.employee_display || person(watcher.employee)}
-                {canManageWatchers && <button disabled={busy} onClick={async () => { try { await workRequest(`/tasks/${id}/watchers/${watcher.employee}/`, {method: 'DELETE'}); await load(); } catch(e) { setError(e); } }}>Удалить</button>}
+                <span>{watcher.employee_display || person(watcher.employee)}</span>
+                {canManageWatchers && (removeWatcher===watcher.employee?<div className="watcher-remove-confirm"><span>Убрать наблюдателя?</span><button className="watcher-remove" disabled={busy} onClick={async()=>{setBusy(true);try{await workRequest(`/tasks/${id}/watchers/${watcher.employee}/`,{method:'DELETE'});setRemoveWatcher('');await load();}catch(e){setError(e);}finally{setBusy(false);}}}>Да, удалить</button><button disabled={busy} onClick={()=>setRemoveWatcher('')}>Отмена</button></div>:<button className="watcher-remove" disabled={busy} onClick={()=>setRemoveWatcher(watcher.employee)}><span aria-hidden="true">× </span>Удалить</button>)}
               </div>
             ))
           ) : (
