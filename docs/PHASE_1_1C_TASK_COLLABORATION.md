@@ -100,3 +100,15 @@ cover comments, mentions, attachments, watchers, checklists and item state chang
 
 SQLite validates functionality and migration compatibility, but PostgreSQL remains a
 mandatory pre-deployment gate for partial constraints and concurrent row locking.
+
+## Task sidebar UI — 14 October 2026 (local)
+
+Watchers use a debounced surname/name search dropdown backed by the existing
+participant-options endpoint. Selecting a result adds one watcher immediately;
+multiple people can be added sequentially, and current watchers are excluded.
+No empty-query roster is fetched. Keyboard arrows/Enter/Escape and focus loss
+control the dropdown. Mention selection remains unchanged. Watcher removal is
+a spaced destructive text action with an inline confirmation/cancel step.
+Department is presented as a normal metadata field; editing follows the fields,
+and priority is retained in the task header rather than repeated in the sidebar.
+Desktop/mobile coverage includes search, selection, duplicates and safe removal.
