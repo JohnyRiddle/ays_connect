@@ -1,3 +1,4 @@
+import { TaskChecklistPanel } from "./ChecklistBuilder";
 import React, { useEffect, useRef, useState } from "react";
 import { DepartmentFields, ParticipantPicker, TaskSettings } from './TaskParticipants';
 import {
@@ -577,7 +578,7 @@ function ActionDialog({
   );
 }
 
-const hiddenHeaderActions = new Set(["edit", "comment", "attachment_add", "watcher_manage", "checklist_manage"]);
+const hiddenHeaderActions = new Set(["edit", "comment", "attachment_add", "watcher_manage", "checklist_manage", "checklist_complete"]);
 
 function TaskActions({ task, busy, onAction }: { task: any; busy: boolean; onAction: (action: string) => void }) {
   const [open, setOpen] = useState(false);
@@ -823,33 +824,7 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
           <h2>Описание</h2>
           <p className="description">{task.description || "Описание не добавлено."}</p>
         </section>
-        <section className="work-card">
-          <h2>
-            Чек-листы {checklists.length > 0 && <>· {task.checklist_progress?.completed || 0}/{task.checklist_progress?.total || 0}</>}
-          </h2>
-          {checklists.length ? (
-            checklists.map((c) => (
-              <div key={c.id} className="checklist">
-                <b>{c.name}</b>
-                {c.items.map((i: any) => (
-                  <label key={i.id}>
-                    <input
-                      type="checkbox"
-                      checked={i.is_completed}
-                      disabled={busy}
-                      onChange={async () => {
-                        await tasksApi.toggleItem(id, c.id, i.id, !i.is_completed);
-                        setChecklists(await tasksApi.checklists(id));
-                      }}
-                    />
-                    {i.text}
-                    {i.required && <em>*</em>}
-                  </label>
-                ))}
-              </div>
-            ))
-          ) : <p className="muted">Чек-листов пока нет.</p>}
-        </section>
+        <TaskChecklistPanel task={task} checklists={checklists} reload={load} />
         <section className="work-card task-files">
           <div className="task-section-heading">
             <h2>Вложения · {attachments.length}</h2>

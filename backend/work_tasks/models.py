@@ -312,6 +312,7 @@ class TaskWatcher(models.Model):
 
 
 class ChecklistTemplate(models.Model):
+    version = models.PositiveIntegerField(default=1)
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
@@ -324,7 +325,27 @@ class ChecklistTemplate(models.Model):
         return self.name
 
 
-class ChecklistTemplateItem(models.Model):
+class ChecklistItemSchema(models.Model):
+    class AnswerType(models.TextChoices):
+        CHECKBOX = 'checkbox', 'Выполнено'
+        BOOLEAN = 'boolean', 'Да / Нет'
+        TEXT = 'text', 'Текст'
+        NUMBER = 'number', 'Число'
+        SINGLE = 'single', 'Один вариант'
+        MULTIPLE = 'multiple', 'Несколько вариантов'
+
+    section = models.CharField(max_length=160, blank=True)
+    help_text = models.TextField(blank=True)
+    answer_type = models.CharField(max_length=16, choices=AnswerType.choices, default=AnswerType.CHECKBOX)
+    options = models.JSONField(default=list, blank=True)
+    min_value = models.DecimalField(max_digits=12, decimal_places=3, null=True, blank=True)
+    max_value = models.DecimalField(max_digits=12, decimal_places=3, null=True, blank=True)
+
+    class Meta:
+        abstract = True
+
+
+class ChecklistTemplateItem(ChecklistItemSchema):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     template = models.ForeignKey(ChecklistTemplate, on_delete=models.PROTECT, related_name="items")
     text = models.CharField(max_length=500)
@@ -339,6 +360,7 @@ class ChecklistTemplateItem(models.Model):
 
 
 class TaskChecklist(models.Model):
+    source_template_version = models.PositiveIntegerField(null=True, blank=True)
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     task = models.ForeignKey(Task, on_delete=models.PROTECT, related_name="production_checklists")
     name = models.CharField(max_length=200)
@@ -352,7 +374,9 @@ class TaskChecklist(models.Model):
         ordering = ("created_at", "id")
 
 
-class TaskChecklistItem(models.Model):
+class TaskChecklistItem(ChecklistItemSchema):
+    answer = models.JSONField(null=True, blank=True)
+    version = models.PositiveIntegerField(default=1)
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     checklist = models.ForeignKey(TaskChecklist, on_delete=models.PROTECT, related_name="items")
     text = models.CharField(max_length=500)

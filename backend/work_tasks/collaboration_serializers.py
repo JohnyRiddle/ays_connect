@@ -2,6 +2,18 @@ from rest_framework import serializers
 
 from employees.models import Employee
 from .models import ChecklistTemplate, ChecklistTemplateItem, TaskAttachment, TaskChecklist, TaskChecklistItem, TaskComment, TaskWatcher
+from .checklist_validation import SCHEMA_FIELDS, validate_schema, validate_items
+
+
+class ChecklistSchemaValidation:
+    def validate(self, attrs):
+        if self.instance:
+            merged = {key: getattr(self.instance, key) for key in SCHEMA_FIELDS}
+            merged.update(attrs)
+            validate_schema(merged)
+        else:
+            validate_schema(attrs)
+        return attrs
 
 
 class CommentSerializer(serializers.ModelSerializer):
@@ -42,11 +54,11 @@ class WatcherSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class ChecklistItemSerializer(serializers.ModelSerializer):
+class ChecklistItemSerializer(ChecklistSchemaValidation, serializers.ModelSerializer):
     class Meta:
         model = TaskChecklistItem
         fields = "__all__"
-        read_only_fields = ("id", "checklist", "is_completed", "completed_by", "completed_at", "created_at", "updated_at")
+        read_only_fields = ("id", "checklist", "answer", "version", "is_completed", "completed_by", "completed_at", "created_at", "updated_at")
 
 
 class TaskChecklistSerializer(serializers.ModelSerializer):
@@ -58,10 +70,10 @@ class TaskChecklistSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "task", "source_template", "created_by", "created_at", "removed_at", "removed_by")
 
 
-class ChecklistTemplateItemSerializer(serializers.ModelSerializer):
+class ChecklistTemplateItemSerializer(ChecklistSchemaValidation, serializers.ModelSerializer):
     class Meta:
         model = ChecklistTemplateItem
-        fields = ("id", "text", "position", "required", "created_at", "updated_at")
+        fields = ("id", *SCHEMA_FIELDS, "created_at", "updated_at")
         read_only_fields = ("id", "created_at", "updated_at")
 
 
@@ -70,8 +82,12 @@ class ChecklistTemplateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ChecklistTemplate
-        fields = ("id", "name", "description", "is_active", "created_by", "created_at", "updated_at", "items")
+        fields = ("id", "name", "description", "is_active", "version", "created_by", "created_at", "updated_at", "items")
         read_only_fields = ("id", "created_by", "created_at", "updated_at")
+
+    def validate_items(self, value):
+        validate_items(value)
+        return value
 
 
 class ManualChecklistSerializer(serializers.Serializer):
@@ -81,6 +97,12 @@ class ManualChecklistSerializer(serializers.Serializer):
 
 class TemplateApplySerializer(serializers.Serializer):
     template = serializers.PrimaryKeyRelatedField(queryset=ChecklistTemplate.objects.filter(is_active=True))
+
+
+class ChecklistAnswerSerializer(serializers.Serializer):
+    answer = serializers.JSONField(required=False, allow_null=True)
+    version = serializers.IntegerField(required=False, min_value=1)
+    comment = serializers.CharField(required=False, allow_blank=True, max_length=10000)
 
 
 class WatcherWriteSerializer(serializers.Serializer):

@@ -18,7 +18,7 @@ from employees.models import Employee
 from .activity import TaskActivitySelector
 from .collaboration import ChecklistService, CollaborationService
 from .collaboration_serializers import (
-    AttachmentSerializer, ChecklistItemSerializer, ChecklistTemplateSerializer,
+    AttachmentSerializer, ChecklistItemSerializer, ChecklistTemplateSerializer, ChecklistAnswerSerializer,
     CommentSerializer, CommentWriteSerializer, ManualChecklistSerializer,
     TaskChecklistSerializer, TemplateApplySerializer, WatcherSerializer,
     WatcherWriteSerializer,
@@ -278,7 +278,7 @@ class ProductionTaskViewSet(viewsets.GenericViewSet):
         item = ChecklistService.add_item(checklist=checklist, actor=self._actor(), actor_user=request.user, correlation_id=self._correlation_id(), **serializer.validated_data)
         return Response(ChecklistItemSerializer(item).data, status=201)
 
-    @action(detail=True, methods=["delete"], url_path=r"checklists/(?P<checklist_id>[^/.]+)")
+    @action(detail=True, methods=["delete"], url_path=r"checklists/(?P<checklist_id>[0-9a-fA-F-]{36})")
     def checklist_detail(self, request, pk=None, checklist_id=None):
         task = self.get_object()
         checklist = get_object_or_404(TaskChecklist, pk=checklist_id, task=task, removed_at__isnull=True)
@@ -289,7 +289,7 @@ class ProductionTaskViewSet(viewsets.GenericViewSet):
     def checklist_item_detail(self, request, pk=None, checklist_id=None, item_id=None):
         task = self.get_object()
         item = get_object_or_404(TaskChecklistItem, pk=item_id, checklist_id=checklist_id, checklist__task=task, checklist__removed_at__isnull=True)
-        serializer = ChecklistItemSerializer(data=request.data, partial=True)
+        serializer = ChecklistItemSerializer(item, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         item = ChecklistService.update_item(item=item, actor=self._actor(), actor_user=request.user, correlation_id=self._correlation_id(), **serializer.validated_data)
         return Response(ChecklistItemSerializer(item).data)
@@ -297,7 +297,12 @@ class ProductionTaskViewSet(viewsets.GenericViewSet):
     def _checklist_toggle(self, request, checklist_id, item_id, completed):
         task = self.get_object()
         item = get_object_or_404(TaskChecklistItem, pk=item_id, checklist_id=checklist_id, checklist__task=task, checklist__removed_at__isnull=True)
-        item = ChecklistService.set_completed(item=item, actor=self._actor(), actor_user=request.user, completed=completed, comment=request.data.get("comment"), correlation_id=self._correlation_id())
+        serializer = ChecklistAnswerSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        if item.answer_type != 'checkbox' and 'version' not in serializer.validated_data:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({'version': 'Передайте версию пункта.'})
+        item = ChecklistService.set_completed(item=item, actor=self._actor(), actor_user=request.user, completed=completed, correlation_id=self._correlation_id(), **serializer.validated_data)
         return Response(ChecklistItemSerializer(item).data)
 
     @action(detail=True, methods=["post"], url_path=r"checklists/(?P<checklist_id>[^/.]+)/items/(?P<item_id>[^/.]+)/complete")
@@ -324,12 +329,26 @@ class ChecklistTemplateViewSet(viewsets.GenericViewSet):
         if not self.request.user.is_superuser and not TaskAccessPolicy.allows(employee=self._actor(), permission=permission):
             from .exceptions import TaskBusinessError
             raise TaskBusinessError("Недостаточно прав.", code="task_permission_denied")
+    @action(detail=False, methods=['get'])
+    def capabilities(self, request):
+        manage = request.user.is_superuser or TaskAccessPolicy.allows(employee=self._actor(), permission='checklist_template.manage')
+        view = manage or TaskAccessPolicy.allows(employee=self._actor(), permission='checklist_template.view')
+        attach = request.user.is_superuser or TaskAccessPolicy.allows(employee=self._actor(), permission='task.checklist_manage')
+        return Response({'can_manage': bool(manage), 'can_view': bool(view or attach)})
     def list(self, request):
-        self._require("checklist_template.view")
-        return Response(self.get_serializer(self.get_queryset(), many=True).data)
+        cap = self.capabilities(request).data
+        if not cap['can_view']: self._require('checklist_template.view')
+        queryset = self.get_queryset()
+        if not cap['can_manage']: queryset = queryset.filter(is_active=True)
+        return Response(self.get_serializer(queryset, many=True).data)
     def retrieve(self, request, pk=None):
-        self._require("checklist_template.view")
-        return Response(self.get_serializer(self.get_object()).data)
+        cap = self.capabilities(request).data
+        if not cap['can_view']: self._require('checklist_template.view')
+        template = self.get_object()
+        if not cap['can_manage'] and not template.is_active:
+            from rest_framework.exceptions import NotFound
+            raise NotFound()
+        return Response(self.get_serializer(template).data)
     def create(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -339,9 +358,9 @@ class ChecklistTemplateViewSet(viewsets.GenericViewSet):
     def partial_update(self, request, pk=None):
         serializer = self.get_serializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        data = dict(serializer.validated_data); items = data.pop("items", None)
+        data = dict(serializer.validated_data)
+        if 'version' not in data:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({'version': 'Передайте версию шаблона.'})
         template = ChecklistService.update_template(template=self.get_object(), actor=self._actor(), actor_user=request.user, correlation_id=self._correlation_id(), **data)
-        if items is not None:
-            template.items.all().delete()
-            ChecklistTemplateItem.objects.bulk_create([ChecklistTemplateItem(template=template, **item) for item in items])
         return Response(self.get_serializer(template).data)

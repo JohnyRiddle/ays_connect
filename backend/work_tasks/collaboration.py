@@ -7,7 +7,8 @@ from access_control.services import PermissionService
 from audit.services import AuditService
 from events.services import DomainEventService
 from config.attachments import AttachmentScanner, AttachmentSecurityError, validate_attachment
-from .exceptions import TaskBusinessError, TaskValidationError
+from .exceptions import TaskBusinessError, TaskValidationError, TaskVersionConflict
+from .checklist_validation import SCHEMA_FIELDS, validate_items, validate_schema, validate_answer
 from .models import (
     ChecklistTemplate, ChecklistTemplateItem, Task, TaskAttachment, TaskChecklist,
     TaskChecklistItem, TaskComment, TaskCommentMention, TaskCommentRevision, TaskWatcher,
@@ -168,6 +169,8 @@ class ChecklistService:
     @staticmethod
     def _authorize_task(actor, actor_user, permission, task):
         CollaborationService._authorize(actor=actor, actor_user=actor_user, permission=permission, task=task)
+        if task.status in ('completed', 'cancelled', 'review'):
+            raise TaskValidationError('Чек-лист доступен только для чтения в этом статусе задачи.')
 
     @staticmethod
     def _authorize_template(actor, actor_user, permission):
@@ -178,45 +181,60 @@ class ChecklistService:
 
     @classmethod
     @transaction.atomic
-    def create_template(cls, *, actor, actor_user, name, description="", items=(), correlation_id=None):
+    def create_template(cls, *, actor, actor_user, name, description="", items=(), is_active=True, version=None, correlation_id=None):
         cls._authorize_template(actor, actor_user, "checklist_template.manage")
-        template = ChecklistTemplate.objects.create(name=name.strip(), description=description, created_by=actor)
+        validate_items(items)
+        template = ChecklistTemplate.objects.create(name=name.strip(), description=description, is_active=is_active, created_by=actor)
         for index, item in enumerate(items, start=1):
-            ChecklistTemplateItem.objects.create(template=template, text=item["text"].strip(), position=item.get("position", index), required=item.get("required", False))
+            ChecklistTemplateItem.objects.create(template=template, **{**item, 'position': item.get('position', index)})
         AuditService.record(action="checklist_template.created", entity=template, actor_user=actor_user, actor_employee=actor, correlation_id=correlation_id)
+        DomainEventService.publish(event_type='checklist_template.created', entity=template, actor=actor_user, payload={'template_id': str(template.pk), 'version': template.version}, correlation_id=correlation_id)
         return template
 
     @classmethod
     @transaction.atomic
-    def update_template(cls, *, template, actor, actor_user, name=None, description=None, is_active=None, correlation_id=None):
+    def update_template(cls, *, template, actor, actor_user, name=None, description=None, is_active=None, items=None, version=None, correlation_id=None):
         cls._authorize_template(actor, actor_user, "checklist_template.manage")
+        template = ChecklistTemplate.objects.select_for_update().get(pk=template.pk)
+        if version is not None and version != template.version:
+            raise TaskVersionConflict('Шаблон уже изменён. Обновите страницу.')
+        if items is not None:
+            validate_items(items)
+            template.items.all().delete()
+            ChecklistTemplateItem.objects.bulk_create([ChecklistTemplateItem(template=template, **{**item, 'position': item.get('position', index)}) for index, item in enumerate(items, 1)])
         action = "checklist_template.deactivated" if is_active is False and template.is_active else "checklist_template.updated"
         if name is not None: template.name = name.strip()
         if description is not None: template.description = description
         if is_active is not None: template.is_active = is_active
+        template.version += 1
         template.save()
         AuditService.record(action=action, entity=template, actor_user=actor_user, actor_employee=actor, correlation_id=correlation_id)
+        DomainEventService.publish(event_type='checklist_template.updated', entity=template, actor=actor_user, payload={'template_id': str(template.pk), 'version': template.version}, correlation_id=correlation_id)
         return template
 
     @classmethod
     @transaction.atomic
     def create_manual(cls, *, task, actor, actor_user, name, items=(), correlation_id=None):
+        task = Task.objects.select_for_update().get(pk=task.pk)
         cls._authorize_task(actor, actor_user, "task.checklist_manage", task)
+        validate_items(items)
         checklist = TaskChecklist.objects.create(task=task, name=name.strip(), created_by=actor)
         for index, item in enumerate(items, start=1):
-            TaskChecklistItem.objects.create(checklist=checklist, text=item["text"].strip(), position=item.get("position", index), required=item.get("required", False))
+            TaskChecklistItem.objects.create(checklist=checklist, **{**item, 'position': item.get('position', index)})
         CollaborationService._record(entity=checklist, task=task, actor=actor, actor_user=actor_user, audit_action="task.checklist.created", event_type="task.checklist_added", payload={"checklist_id": str(checklist.pk)}, correlation_id=correlation_id)
         return checklist
 
     @classmethod
     @transaction.atomic
     def from_template(cls, *, task, template, actor, actor_user, correlation_id=None):
+        task = Task.objects.select_for_update().get(pk=task.pk)
+        template = ChecklistTemplate.objects.select_for_update().get(pk=template.pk)
         cls._authorize_task(actor, actor_user, "task.checklist_manage", task)
         if not template.is_active:
             raise TaskValidationError("Шаблон чек-листа деактивирован.", code="checklist_template_inactive")
-        checklist = TaskChecklist.objects.create(task=task, name=template.name, source_template=template, created_by=actor)
+        checklist = TaskChecklist.objects.create(task=task, name=template.name, source_template=template, source_template_version=template.version, created_by=actor)
         TaskChecklistItem.objects.bulk_create([
-            TaskChecklistItem(checklist=checklist, text=item.text, position=item.position, required=item.required)
+            TaskChecklistItem(checklist=checklist, **{key: getattr(item, key) for key in SCHEMA_FIELDS})
             for item in template.items.order_by("position", "id")
         ])
         CollaborationService._record(entity=checklist, task=task, actor=actor, actor_user=actor_user, audit_action="task.checklist.created", event_type="task.checklist_added", payload={"checklist_id": str(checklist.pk), "template_id": str(template.pk)}, correlation_id=correlation_id)
@@ -224,36 +242,53 @@ class ChecklistService:
 
     @classmethod
     @transaction.atomic
-    def add_item(cls, *, checklist, actor, actor_user, text, position, required=False, correlation_id=None):
-        cls._authorize_task(actor, actor_user, "task.checklist_manage", checklist.task)
+    def add_item(cls, *, checklist, actor, actor_user, text, position, required=False, correlation_id=None, **schema):
+        task = Task.objects.select_for_update().get(pk=checklist.task_id)
+        checklist = TaskChecklist.objects.get(pk=checklist.pk)
+        cls._authorize_task(actor, actor_user, "task.checklist_manage", task)
         if checklist.removed_at:
             raise TaskValidationError("Чек-лист удалён.", code="task_checklist_removed")
-        item = TaskChecklistItem.objects.create(checklist=checklist, text=text.strip(), position=position, required=required)
+        validate_schema({'text': text, **schema})
+        if checklist.items.filter(position=position).exists():
+            raise TaskValidationError('Эта позиция уже занята другим пунктом.')
+        item = TaskChecklistItem.objects.create(checklist=checklist, text=text.strip(), position=position, required=required, **schema)
         CollaborationService._record(entity=item, task=checklist.task, actor=actor, actor_user=actor_user, audit_action="task.checklist_item.created", event_type="task.checklist_item_added", payload={"checklist_id": str(checklist.pk), "item_id": str(item.pk)}, correlation_id=correlation_id)
         return item
 
     @classmethod
     @transaction.atomic
     def update_item(cls, *, item, actor, actor_user, correlation_id=None, **changes):
+        Task.objects.select_for_update().get(pk=item.checklist.task_id)
+        item = TaskChecklistItem.objects.select_for_update().get(pk=item.pk, checklist__removed_at__isnull=True)
         cls._authorize_task(actor, actor_user, "task.checklist_manage", item.checklist.task)
-        for field in ("text", "position", "required", "comment"):
+        if item.is_completed:
+            raise TaskValidationError('Сначала сбросьте ответ на пункт.')
+        validate_schema({**{key: getattr(item, key) for key in SCHEMA_FIELDS}, **changes})
+        if 'position' in changes and item.checklist.items.exclude(pk=item.pk).filter(position=changes['position']).exists():
+            raise TaskValidationError('Эта позиция уже занята другим пунктом.')
+        for field in (*SCHEMA_FIELDS, "comment"):
             if field in changes:
                 setattr(item, field, changes[field])
+        item.version += 1
         item.save()
         CollaborationService._record(entity=item, task=item.checklist.task, actor=actor, actor_user=actor_user, audit_action="task.checklist_item.updated", event_type="task.checklist_item_updated", payload={"item_id": str(item.pk)}, correlation_id=correlation_id)
         return item
 
     @classmethod
     @transaction.atomic
-    def set_completed(cls, *, item, actor, actor_user, completed, comment=None, correlation_id=None):
+    def set_completed(cls, *, item, actor, actor_user, completed, comment=None, answer=None, version=None, correlation_id=None):
         task = Task.objects.select_for_update().get(pk=item.checklist.task_id)
         cls._authorize_task(actor, actor_user, "task.checklist_complete", task)
         item = TaskChecklistItem.objects.select_for_update().get(pk=item.pk, checklist__task=task, checklist__removed_at__isnull=True)
+        if version is not None and version != item.version:
+            raise TaskVersionConflict('Ответ уже изменён. Обновите чек-лист.')
+        item.answer = validate_answer(item, True if item.answer_type == 'checkbox' and answer is None else answer) if completed else None
+        item.version += 1
         item.is_completed = completed
         item.completed_by = actor if completed else None
         item.completed_at = timezone.now() if completed else None
         if comment is not None: item.comment = comment
-        item.save(update_fields=["is_completed", "completed_by", "completed_at", "comment", "updated_at"])
+        item.save(update_fields=["answer", "version", "is_completed", "completed_by", "completed_at", "comment", "updated_at"])
         suffix = "completed" if completed else "uncompleted"
         CollaborationService._record(entity=item, task=task, actor=actor, actor_user=actor_user, audit_action=f"task.checklist_item.{suffix}", event_type=f"task.checklist_item_{suffix}", payload={"checklist_id": str(item.checklist_id), "item_id": str(item.pk)}, correlation_id=correlation_id)
         return item
@@ -261,7 +296,9 @@ class ChecklistService:
     @classmethod
     @transaction.atomic
     def remove_checklist(cls, *, checklist, actor, actor_user, correlation_id=None):
-        cls._authorize_task(actor, actor_user, "task.checklist_manage", checklist.task)
+        task = Task.objects.select_for_update().get(pk=checklist.task_id)
+        checklist = TaskChecklist.objects.get(pk=checklist.pk)
+        cls._authorize_task(actor, actor_user, "task.checklist_manage", task)
         if not checklist.removed_at:
             checklist.removed_at, checklist.removed_by = timezone.now(), actor
             checklist.save(update_fields=["removed_at", "removed_by"])
