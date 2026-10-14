@@ -1,0 +1,21 @@
+.cb-page { max-width: 1180px; margin: auto; }
+.cb-toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+.cb-toolbar button, .cb-page button, .cb-task-panel button { min-height: 36px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); cursor: pointer; }
+.cb-page button:disabled, .cb-task-panel button:disabled { opacity: .55; cursor: default; }
+.cb-editor, .cb-preview, .cb-template-list article, .cb-task-checklist { padding: 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); margin: 14px 0; min-width: 0; }
+.cb-editor label, .cb-search, .cb-question>label, .cb-toolbar>label { display: grid; gap: 6px; margin: 10px 0; }
+.cb-page input:not([type=checkbox]), .cb-page textarea, .cb-page select, .cb-task-panel input:not([type=checkbox]), .cb-task-panel textarea, .cb-task-panel select { width: 100%; min-width: 0; padding: 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: inherit; font: inherit; box-sizing: border-box; }
+.cb-page textarea, .cb-task-panel textarea { min-height: 70px; resize: vertical; }
+.cb-editor .cb-check { display: flex; align-items: center; gap: 8px; }
+.cb-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.cb-item-editor { padding: 16px 0; border-top: 1px solid var(--border); }
+.cb-question { display: grid; gap: 10px; padding: 16px 0; border-bottom: 1px solid var(--border); }
+.cb-question button { justify-self: start; }
+.cb-options { display: flex; flex-wrap: wrap; gap: 16px; }
+.cb-options label { display: flex; align-items: center; gap: 8px; }
+.cb-template-list article { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.cb-template-list h2, .cb-task-checklist h3 { margin: 0 0 8px; }
+.cb-task-checklist h4 { padding: 12px; background: var(--surface-secondary, var(--surface)); border-bottom: 1px solid var(--border); }
+.cb-error, .cb-page [role=alert], .cb-task-panel [role=alert] { color: var(--danger, #b42318); }
+.cb-page [role=status] { padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
+@media (max-width: 640px) { .cb-fields { grid-template-columns: 1fr; } .cb-editor, .cb-preview, .cb-task-checklist { padding: 12px; } }

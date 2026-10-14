@@ -97,6 +97,8 @@ class TaskUXService:
         "change_deadline": "task.change_deadline", "comment": "task.comment",
         "watch": "task.watch", "unwatch": "task.watch",
         "watcher_manage": "task.watcher_manage",
+        "checklist_manage": "task.checklist_manage",
+        "checklist_complete": "task.checklist_complete",
     }
     TRANSITIONS = {
         "publish": TaskStatus.OPEN, "start": TaskStatus.IN_PROGRESS,
@@ -112,6 +114,7 @@ class TaskUXService:
             return []
         actions = []
         for action, permission in cls.ACTIONS.items():
+            if action in {'checklist_manage', 'checklist_complete'} and task.status in {TaskStatus.COMPLETED, TaskStatus.CANCELLED, TaskStatus.REVIEW}: continue
             permitted = is_superuser or TaskAccessPolicy.allows(employee=employee, permission=permission, task=task)
             if not permitted: continue
             if action in {"edit", "reassign", "change_deadline"} and task.status in {TaskStatus.COMPLETED, TaskStatus.CANCELLED}: continue

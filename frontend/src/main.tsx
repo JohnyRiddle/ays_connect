@@ -48,6 +48,7 @@ import "./knowledge.css";
 import "./learning.css";
 import "./work-theme.css";
 import "./people-theme.css";
+import { ChecklistBuilder } from "./ChecklistBuilder";
 import { ProductionWorkRouter } from "./work";
 import { ProjectsRouter } from "./projects";
 import { ObjectsRouter } from "./objects";
@@ -577,7 +578,7 @@ type LegacyView = "dashboard"|"tasks"|"checklists"|"sensors"|"incidents"|"object
 function SidebarNav({profileId,path,view,navigate,openLegacy}:{profileId:number;path:string;view:string;navigate:(path:string)=>void;openLegacy:(view:LegacyView,hash:string)=>void}) {
   const route=`${path}|${view}`;
   const definitions=[
-    {id:"work",label:"Работа",items:[{label:"Задачи",href:"/tasks",icon:CheckCircle2,active:path.startsWith("/tasks")},{label:"Проекты",href:"/projects",icon:CalendarDays,active:path.startsWith("/projects")},{label:"Чек-листы",href:"/#checklists",icon:ClipboardCheck,legacy:["checklists","#checklists"],active:path==="/"&&view==="checklists"}]},
+    {id:"work",label:"Работа",items:[{label:"Задачи",href:"/tasks",icon:CheckCircle2,active:path.startsWith("/tasks")},{label:"Проекты",href:"/projects",icon:CalendarDays,active:path.startsWith("/projects")},{label:"Чек-листы",href:"/checklists",icon:ClipboardCheck,active:path.startsWith("/checklists")||(path==="/"&&view==="checklists")}]},
     {id:"team",label:"Команда",items:[{label:"Сотрудники",href:"/people/employees",icon:Users,active:path.startsWith("/people/")&&!path.startsWith("/people/me")},{label:"Мой онбординг",href:"/people/me/onboarding",icon:ClipboardCheck,active:path==="/people/me/onboarding"}]},
     {id:"knowledge",label:"Знания",items:[{label:"Обучение",href:"/#learning",icon:GraduationCap,legacy:["learning","#learning"],active:path==="/"&&view==="learning"},{label:"Рабочие материалы",href:"/#knowledge",icon:BookOpen,legacy:["knowledge","#knowledge"],active:path==="/"&&view==="knowledge"}]},
     {id:"control",label:"Объекты и контроль",items:[{label:"Объекты",href:"/objects",icon:Building2,legacy:["objects","#objects"],active:path.startsWith("/objects")||(path==="/"&&view==="objects")},{label:"Датчики",href:"/#sensors",icon:Activity,legacy:["sensors","#sensors"],active:path==="/"&&view==="sensors"},{label:"Инциденты",href:"/#incidents",icon:Bell,legacy:["incidents","#incidents"],active:path==="/"&&view==="incidents"}]},
@@ -779,6 +780,8 @@ function App() {
           <ProjectsRouter path={path} navigate={navigate} />
         ) : path.startsWith("/objects") ? (
           <ObjectsRouter path={path} navigate={navigate} />
+        ) : path.startsWith("/checklists") ? (
+          <ChecklistBuilder />
         ) : path.startsWith("/tasks") || path.startsWith("/requests") ? (
           <ProductionWorkRouter path={path.split("?")[0]} navigate={navigate} />
         ) : view === "notifications" ? (
@@ -798,7 +801,7 @@ function App() {
         ) : view === "sensors" ? (
           <SensorsView />
         ) : view === "checklists" ? (
-          <ChecklistsView />
+          <ChecklistBuilder />
         ) : view === "dashboard" && dashboardData ? (
           <LiveDashboard profile={profile} data={dashboardData} onTasks={() => navigate("/tasks")} />
         ) : (
@@ -1634,8 +1637,6 @@ function ProductionPerformanceView() {
   const cards = [
     ["tasks_completed", "Завершено задач", ""],
     ["task_deadline_compliance", "В срок", "%"],
-    ["requests_resolved", "Решено заявок", ""],
-    ["sla_resolution_compliance", "SLA решения", "%"],
     ["active_tasks", "Активная нагрузка", ""],
     ["overdue_tasks", "Просрочено сейчас", ""],
   ];
@@ -1677,14 +1678,7 @@ function ProductionPerformanceView() {
             <h2>Поток и сроки</h2>
             <p>Метрики событий в полуинтервале {data.period.semantics}</p>
           </div>
-          <div className="metric-grid">
-            <article>
-              <div>
-                <b>Backlog заявок</b>
-                <strong>{format("backlog_requests")}</strong>
-              </div>
-              <p>Текущий снимок незакрытого потока</p>
-            </article>
+          <div className="metric-grid task-flow-metrics">
             <article>
               <div>
                 <b>Переносы сроков</b>
@@ -1704,7 +1698,7 @@ function ProductionPerformanceView() {
             <div>
               <h3>Ожидание и переназначение учитываются отдельно</h3>
               <p>
-                Время ожидания заявителя или внешней стороны не приписывается
+                Время ожидания внешней стороны не приписывается
                 сотруднику как рабочая задержка. После переназначения
                 ответственность считается по историческому интервалу.
               </p>

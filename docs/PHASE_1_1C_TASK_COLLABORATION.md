@@ -49,6 +49,11 @@ without becoming responsible or executor.
 
 ## Checklists
 
+14.10.2026 local extension: [Checklist Builder](CHECKLIST_BUILDER.md) adds the
+template editor, typed answers, sections, independent versions and task UI.
+Template attachment now restricts the DELETE route to UUIDs so it cannot shadow
+`checklists/from-template/`. Terminal/review Tasks freeze checklist mutations.
+
 `ChecklistTemplate` and ordered template items are separate from `TaskChecklist` and
 its items. Applying a template copies a snapshot, so later template changes never
 alter existing Tasks. Manual checklists use the same instance model.
