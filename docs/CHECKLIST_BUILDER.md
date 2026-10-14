@@ -2,7 +2,7 @@
 
 14.10.2026. Первый выпуск: библиотека шаблонов и прохождение в production Tasks.
 Регулярные проверки объектов и расписания не включены по выбору владельца.
-Изменения локальные, deployment/commit/push не выполнялись.
+Опубликовано в production 14.10.2026. [Выпуск и recovery](CHECKLIST_BUILDER_DEPLOYMENT_2026_10_14.md).
 
 ## Пользовательский путь
 
@@ -39,8 +39,7 @@ permissions через текущую систему ролей.
 
 Миграция `work_tasks/0009_checklist_builder` только добавляет поля. Старые
 пункты остаются отметками выполнения; ранее сохранённый `is_completed`
-сохраняет смысл, даже если нового answer ещё нет. Production миграция
-пока не применялась. Планирование существующих шаблонов задач продолжает
+сохраняет смысл, даже если нового answer ещё нет. Миграция применена в production 14.10.2026. Планирование существующих шаблонов задач продолжает
 использовать тот же `ChecklistService.from_template` и получает копии новых полей.
 
 Использованы прежние Permissions/Audit/Outbox и проверка видимости задачи.
@@ -88,3 +87,6 @@ permissions через текущую систему ролей.
 
 Evidence: `C:\Users\riddl\.codex\tmp\checklist-builder-20261014`
 (`backend-initial.log`, `backend-tests.log`, `targeted-tests.log`, screenshots).
+
+Финальный production gate: fresh-copy **685/685 PASS** с production hasher;
+[Полная приёмка, publication и recovery](CHECKLIST_BUILDER_DEPLOYMENT_2026_10_14.md).

@@ -444,3 +444,16 @@ makemigrations --check и diff check PASS. Ранние полные прого�
 Task при удалении и перекрытие from-template DELETE-маршрутом; исправлены и
 перепроверены профильным прогоном. Полный 685 на финальном коде повторно не
 запускался. Готово локально, без deployment/commit/push.
+
+## Production: конструктор чек-листов — 14.10.2026
+
+Опубликован RC `7d82e296320c`: конструктор шаблонов и типизированные чек-листы
+в задачах, обязательность, версии/права/история; убраны показатели заявок.
+Fresh-copy PostgreSQL **685/685 PASS**, init сохранил 202 таблицы,
+реальные роли/шесть типов **9/9 PASS** с rollback fixtures. Protected frozen
+DB/media/frontend restore PASS; окно **81.016 с**,
+production **7/7 healthy**, 14 HTTPS 200, actual read-only UI **3/3 PASS**,
+0 HTTP writes. Telegram остался выключен, receiver остановлен.
+Актуальный Compose — `/opt/ays-connect/compose-current.sh`; прежний Telegram
+entry point сохранён с новым набором images. Полный финальный gate заменяет
+прежнее ограничение локального прогона. [Выпуск и recovery](CHECKLIST_BUILDER_DEPLOYMENT_2026_10_14.md).
