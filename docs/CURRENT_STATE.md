@@ -482,3 +482,12 @@ Enter, закрытие по потере фокуса, загрузка/оши�
 исключение дублей, клавиатура, пустой ответ, отмена/подтверждение удаления.
 Общий browser gate 8/8 PASS; TypeScript PASS. Данные production не менялись,
 commit/push/deployment не выполнялись; прежние Telegram файлы сохранены.
+
+
+## 14.10.2026 — интерфейс чек-листов и наблюдателей опубликован
+
+PR #5 merged; frontend RC `cf5a47a31c21cdcb87a45e32a78e346e8925bb3a`. Browser 8/8, TypeScript,
+immutable build, HTTPS 10/10 и actual read-only owner UI desktop/mobile PASS.
+7 core services healthy без перезапуска. EFS frontend recovery сохранён,
+DB/API/migrations не менялись. Telegram выключен.
+[Evidence и возврат](TASK_LAYOUT_DEPLOYMENT_2026_10_14.md).
