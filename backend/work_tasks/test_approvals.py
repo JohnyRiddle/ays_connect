@@ -84,15 +84,52 @@ class ApprovalTests(ApprovalFixture,TestCase):
             self.command(a)
             self.assertEqual(before,self.snapshot())
 
-    def test_only_mentioned_active_visible_approver_with_permission(self):
+    def test_direct_choice_without_mention_or_watcher(self):
+        from .models import TaskWatcher
+        from .selectors import TaskSelector
+        from .policies import TaskAccessPolicy
         self.comment.mention_records.all().delete()
-        with self.assertRaises(TaskValidationError):self.request()
-        self.assertFalse(TaskApproval.objects.exists())
+        Task.objects.filter(pk=self.task.pk).update(executor_employee=None,executor_target=None)
+        self.task.refresh_from_db()
+        before=self.snapshot()
+        self.assertFalse(TaskSelector.visible_to(self.approver).filter(pk=self.task.pk).exists())
+        options=f'/api/internal/v1/tasks/{self.task.pk}/comments/{self.comment.pk}/approval-options/'
+        self.assertIn(str(self.approver.pk),[v['id'] for v in self.api.get(options).data])
+        self.assertFalse(TaskSelector.visible_to(self.approver).filter(pk=self.task.pk).exists())
+        a=self.request()
+        self.assertFalse(TaskWatcher.objects.filter(task=self.task).exists())
+        self.assertTrue(TaskSelector.visible_to(self.approver).filter(pk=self.task.pk).exists())
+        self.assertFalse(TaskAccessPolicy.allows(employee=self.approver,permission='task.start',task=self.task))
+        self.command(a)
+        self.assertEqual(before,self.snapshot())
+        RolePermission.objects.filter(role=self.role,permission__code='task.view').delete()
+        self.assertFalse(TaskSelector.visible_to(self.approver).filter(pk=self.task.pk).exists())
 
     def test_self_request_is_rejected(self):
         from .models import TaskCommentMention
         TaskCommentMention.objects.create(comment=self.comment,employee=self.actor)
         with self.assertRaises(TaskValidationError):ApprovalService.request(comment=self.comment,approver=self.actor,actor=self.actor,user=self.user,text='Сам',command_id=uuid.uuid4())
+
+    def test_direct_choice_requires_object_and_approval_permissions(self):
+        from .approvals import can_invite_approver
+        self.assertTrue(can_invite_approver(employee=self.approver,task=self.task,comment=self.comment))
+        RolePermission.objects.filter(role=self.role,permission__code='task.approval.respond').delete()
+        self.assertFalse(can_invite_approver(employee=self.approver,task=self.task,comment=self.comment))
+        with self.assertRaises(TaskValidationError):self.request()
+
+    def test_invited_visibility_is_limited_to_its_task_and_object_access(self):
+        from .selectors import TaskSelector
+        from .policies import TaskAccessPolicy
+        Task.objects.filter(pk=self.task.pk).update(executor_employee=None,executor_target=None)
+        self.task.refresh_from_db()
+        self.request()
+        other=TaskService.create(actor=self.actor,actor_user=self.user,title='Unrelated',responsible_department=self.unit)
+        self.assertFalse(TaskSelector.visible_to(self.approver).filter(pk=other.pk).exists())
+        obj=Location.objects.create(name='Object without access')
+        Task.objects.filter(pk=self.task.pk).update(location=obj)
+        self.task.refresh_from_db()
+        self.assertFalse(TaskSelector.visible_to(self.approver).filter(pk=self.task.pk).exists())
+        self.assertFalse(TaskAccessPolicy.allows(employee=self.approver,permission='task.approval.respond',task=self.task))
 
     def test_no_automatic_scope_grants_for_unavailable_approver(self):
         self.approver.is_active=False;self.approver.save()

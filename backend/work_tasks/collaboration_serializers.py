@@ -33,7 +33,7 @@ class CommentSerializer(serializers.ModelSerializer):
         request=self.context.get('request')
         if not request:return False
         actor=getattr(request.user,'employee',None)
-        return bool(actor and not obj.deleted_at and obj.author_id==actor.pk and obj.mention_records.exists() and visible_source(employee=actor,user=request.user,task=obj.task,comment=obj) and (request.user.is_superuser or PermissionService.has_permission(employee=actor,permission='task.approval.request',obj=obj.task)) and (request.user.is_superuser or PermissionService.has_permission(employee=actor,permission='task.approval.view',obj=obj.task)))
+        return bool(actor and not obj.deleted_at and obj.author_id==actor.pk and visible_source(employee=actor,user=request.user,task=obj.task,comment=obj) and (request.user.is_superuser or PermissionService.has_permission(employee=actor,permission='task.approval.request',obj=obj.task)) and (request.user.is_superuser or PermissionService.has_permission(employee=actor,permission='task.approval.view',obj=obj.task)))
 
     def get_body(self, obj):
         return "Комментарий удалён" if obj.deleted_at else obj.body

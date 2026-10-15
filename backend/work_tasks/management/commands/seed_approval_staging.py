@@ -1,7 +1,7 @@
 import os,json
 from django.db import transaction
 from accounts.models import User
-from employees.models import Employee,Position,AssignmentTarget
+from employees.models import Employee,Position
 from organizations.models import OrgUnit
 from access_control.models import Role,Permission,RolePermission,EmployeeRole
 from work_tasks.services import TaskService
@@ -27,11 +27,10 @@ def seed():
  for user,employee in people:EmployeeRole.objects.create(employee=employee,role=viewer)
  unit.manager_position=position;unit.save()
  user,actor=people[0];apuser,approver=people[1]
- target=AssignmentTarget.objects.create(target_type='employee',employee=approver)
- task=TaskService.create(actor=actor,actor_user=user,title='STAGING: обсуждение закупки',description='Учебный пример. Согласование обсуждения не меняет состояние задачи.',responsible_department=unit,executor_target=target)
+ task=TaskService.create(actor=actor,actor_user=user,title='STAGING: обсуждение закупки',description='Учебный пример. Согласование обсуждения не меняет состояние задачи.',responsible_department=unit)
  task=TaskService.publish(task=task,actor=actor,actor_user=user,version=task.version)
- task=TaskService.start(task=task,actor=approver,actor_user=apuser,version=task.version)
- comment=CollaborationService.add_comment(task=task,actor=actor,actor_user=user,body='@Согласующий Сергей прошу проверить предложение по закупке.',mentions=[approver])
+ task=TaskService.start(task=task,actor=actor,actor_user=user,version=task.version)
+ comment=CollaborationService.add_comment(task=task,actor=actor,actor_user=user,body='Прошу проверить предложение по закупке.',mentions=[])
  data={'task':str(task.pk),'comment':str(comment.pk),'approver':str(approver.pk),'requester':str(actor.pk)}
  return data
 

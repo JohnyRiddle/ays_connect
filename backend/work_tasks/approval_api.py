@@ -7,7 +7,7 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 from employees.models import Employee
 from access_control.services import PermissionService
 from .models import TaskApproval, TaskComment
-from .approvals import ApprovalService, require, visible_source
+from .approvals import ApprovalService, require, visible_source, can_invite_approver
 from .approval_serializers import ApprovalSerializer, ApprovalRequestSerializer, ApprovalCommandSerializer, ApprovalCandidateSerializer, ApprovalErrorSerializer
 from .routing import eligible_for_location
 
@@ -28,7 +28,7 @@ class ApprovalActionsMixin:
             qs=qs.filter(source_internal=False,comment__is_internal=False)
         return qs
 
-    @extend_schema(request=ApprovalRequestSerializer,responses={201:ApprovalSerializer,**ERRORS},description='Explicit approval request for one mentioned employee. Does not mutate any Task fields. command_id makes retries idempotent.',tags=['Task comment approvals'],parameters=TASK_PARAMS,methods=['POST'])
+    @extend_schema(request=ApprovalRequestSerializer,responses={201:ApprovalSerializer,**ERRORS},description='Explicit approval request for one eligible employee. Creates approval participation without a watcher. Does not mutate any Task fields. command_id makes retries idempotent.',tags=['Task comment approvals'],parameters=TASK_PARAMS,methods=['POST'])
     @extend_schema(responses={200:ApprovalSerializer(many=True),**ERRORS},tags=['Task comment approvals'],parameters=TASK_PARAMS,methods=['GET'])
     @action(detail=True,methods=['get','post'],url_path='approvals')
     def approvals(self,request,pk=None):
@@ -40,17 +40,17 @@ class ApprovalActionsMixin:
         result=ApprovalService.request(comment=comment,approver=approver,actor=self._actor(),user=request.user,text=v['text'],command_id=v['command_id'],correlation_id=self._correlation_id())
         return Response(ApprovalSerializer(result,context={'request':request}).data,status=201)
 
-    @extend_schema(responses={200:ApprovalCandidateSerializer(many=True),**ERRORS},tags=['Task comment approvals'],parameters=COMMENT_PARAMS,description='Eligible mentioned approvers with current view, object scope and respond permission. Does not grant access.')
+    @extend_schema(responses={200:ApprovalCandidateSerializer(many=True),**ERRORS},tags=['Task comment approvals'],parameters=COMMENT_PARAMS,description='Eligible approvers with object scope and prospective participating permissions. Selection alone grants no access; submitting an approval makes its approver a task participant.')
     @action(detail=True,methods=['get'],url_path=r'comments/(?P<comment_id>[^/.]+)/approval-options')
     def approval_options(self,request,pk=None,comment_id=None):
         task=self.get_object();self._approvals(task)
         comment=get_object_or_404(TaskComment,pk=comment_id,task=task,deleted_at__isnull=True,author=self._actor())
         require(employee=self._actor(),user=request.user,permission='task.approval.request',task=task,comment=comment)
         result=[]
-        for mention in comment.mention_records.select_related('employee__user'):
-            employee=mention.employee
+        from employees.assignment_targets import assignment_visibility
+        for employee in assignment_visibility(request.user)[0].select_related('user').order_by('last_name','first_name','pk'):
             if employee.pk==self._actor().pk:continue
-            if visible_source(employee=employee,user=employee.user,task=task,comment=comment) and (employee.user.is_superuser or PermissionService.has_permission(employee=employee,permission='task.approval.respond',obj=task) and PermissionService.has_permission(employee=employee,permission='task.approval.view',obj=task)):
+            if can_invite_approver(employee=employee,task=task,comment=comment):
                 result.append({'id':str(employee.pk),'name':employee.display_name})
         return Response(result)
 

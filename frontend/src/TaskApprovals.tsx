@@ -41,8 +41,8 @@ export function CommentApprovals({taskId,comment,approvals,reload}:{taskId:strin
   return <div className="comment-approvals">
     {approvals.map(a=><ApprovalCard key={a.id} taskId={taskId} approval={a} reload={reload}/>)}
     {comment.can_request_approval&&!open&&<button className="approval-request" type="button" onClick={()=>void options()}>Запросить согласование</button>}
-    {open&&<form className="approval-form" onSubmit={submit}><label>Согласующий из упомянутых<select required value={selected} disabled={busy} onChange={e=>setSelected(e.target.value)}><option value="">Выберите сотрудника</option>{people.map(p=><option key={p.id} value={p.id} disabled={approvals.some(a=>a.approver===p.id)}>{p.name}{approvals.some(a=>a.approver===p.id)?' — запрос уже создан':''}</option>)}</select></label>
-      {!busy&&!people.length&&<p className="muted">Среди упомянутых нет сотрудников с доступом и правом согласования.</p>}
+    {open&&<form className="approval-form" onSubmit={submit}><label>Согласующий<select required value={selected} disabled={busy} onChange={e=>setSelected(e.target.value)}><option value="">Выберите сотрудника</option>{people.map(p=><option key={p.id} value={p.id} disabled={approvals.some(a=>a.approver===p.id)}>{p.name}{approvals.some(a=>a.approver===p.id)?' — запрос уже создан':''}</option>)}</select></label>
+      {!busy&&!people.length&&<p className="muted">Нет сотрудников с доступом к объекту и правом согласования.</p>}
       <label>Текст запроса согласования<textarea required maxLength={10000} disabled={busy} value={text} onChange={e=>setText(e.target.value)}/></label><div><button type="button" disabled={busy} onClick={()=>setOpen(false)}>Отмена</button><button disabled={busy||!selected||!text.trim()}>Отправить на согласование</button></div></form>}
     {error&&<p role="alert">{error}</p>}
   </div>;

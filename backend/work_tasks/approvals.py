@@ -35,6 +35,23 @@ def visible_source(*, employee, user, task, comment, approval=None):
     return not internal or user.is_superuser or PermissionService.has_permission(employee=employee, permission='task.comment_internal', obj=task)
 
 
+def can_invite_approver(*, employee, task, comment):
+    """Validate prospective participation without granting a role or a watcher."""
+    from .policies import TaskAccessPolicy
+    if not employee or not employee.user_id or not employee.user.is_active:
+        return False
+    if not assignable_employees().filter(pk=employee.pk).exists() or not eligible_for_location(employee, task.location):
+        return False
+    def allowed(code):
+        return employee.user.is_superuser or TaskAccessPolicy.allows(
+            employee=employee, permission=code, task=task, approval_invitation=True)
+    if not all(allowed(code) for code in ['task.view', 'task.approval.view', 'task.approval.respond']):
+        return False
+    # Internal comments require an existing explicit internal-comment grant.
+    return not comment.is_internal or employee.user.is_superuser or PermissionService.has_permission(
+        employee=employee, permission='task.comment_internal', obj=task)
+
+
 def require(*, employee, user, permission, task, comment, approval=None):
     if not visible_source(employee=employee, user=user, task=task, comment=comment, approval=approval):
         raise PermissionDenied('Нет доступа к согласованию.')
@@ -94,14 +111,11 @@ class ApprovalService:
         if replay:return replay
         if comment.deleted_at or comment.author_id!=actor.pk:
             raise PermissionDenied('Запросить согласование может автор доступного комментария.')
-        if actor.pk==approver.pk or not comment.mention_records.filter(employee=approver).exists():
-            raise TaskValidationError('Выберите другого сотрудника из упоминаний комментария.',code='approval_mention_required')
-        if not visible_source(employee=approver,user=approver.user,task=comment.task,comment=comment):
-            raise TaskValidationError('У согласующего нет доступа к задаче, объекту или комментарию.',code='approval_approver_unavailable')
-        if not approver.user.is_superuser and not PermissionService.has_permission(employee=approver,permission='task.approval.respond',obj=comment.task):
-            raise TaskValidationError('У согласующего нет права отвечать на согласование.',code='approval_approver_unavailable')
-        if not approver.user.is_superuser and not PermissionService.has_permission(employee=approver,permission='task.approval.view',obj=comment.task):
-            raise TaskValidationError('У согласующего нет права просматривать согласования.',code='approval_approver_unavailable')
+        if actor.pk==approver.pk:
+            raise TaskValidationError('Выберите другого сотрудника.',code='approval_self_request')
+        from employees.assignment_targets import assignment_visibility
+        if not assignment_visibility(user)[0].filter(pk=approver.pk).exists() or not can_invite_approver(employee=approver,task=comment.task,comment=comment):
+            raise TaskValidationError('Согласующему нужны доступ к объекту и права согласования.',code='approval_approver_unavailable')
         if TaskApproval.objects.filter(comment=comment,approver=approver).exists():
             raise TaskVersionConflict('Согласование уже существует. Используйте новый раунд.',code='approval_already_exists')
         approval=TaskApproval.objects.create(task=comment.task,comment=comment,requester=actor,approver=approver,source_body=comment.body,source_internal=comment.is_internal)

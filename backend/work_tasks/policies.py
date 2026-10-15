@@ -4,6 +4,9 @@ from django.utils import timezone
 from access_control.models import EmployeeRole, Scope
 
 
+APPROVAL_PARTICIPANT_PERMISSIONS = {'task.view', 'task.comment', 'task.approval.view', 'task.approval.request', 'task.approval.respond', 'task.approval.cancel'}
+
+
 class TaskAccessPolicy:
     @staticmethod
     def _grants(employee, permission):
@@ -17,7 +20,7 @@ class TaskAccessPolicy:
         ).select_related("org_unit", "legal_entity", "location", "role").distinct()
 
     @classmethod
-    def allows(cls, *, employee, permission, task=None):
+    def allows(cls, *, employee, permission, task=None, approval_invitation=False):
         from employees.assignment_targets import assignable_employees
         if not employee or not assignable_employees().filter(pk=employee.pk).exists():
             return False
@@ -29,6 +32,11 @@ class TaskAccessPolicy:
                 if scope == Scope.GLOBAL:
                     return True
                 participating = employee.pk in {task.author_id, task.responsible_employee_id, task.executor_employee_id} or (permission in {'task.view', 'task.comment', 'task.watch', 'task.attachment_add', 'task.approval.view', 'task.approval.request', 'task.approval.respond', 'task.approval.cancel'} and task.watcher_records.filter(employee=employee, removed_at__isnull=True).exists())
+                if permission in APPROVAL_PARTICIPANT_PERMISSIONS:
+                    from .routing import eligible_for_location
+                    participating = participating or approval_invitation or (
+                        eligible_for_location(employee, task.location)
+                        and task.comment_approvals.filter(approver=employee).exists())
                 if scope == Scope.PARTICIPATING and participating:
                     return True
                 if scope == Scope.OWN and employee.pk in {task.responsible_employee_id, task.executor_employee_id}:
@@ -55,6 +63,10 @@ class TaskAccessPolicy:
                     query |= Q(author=employee) | Q(responsible_employee=employee) | Q(executor_employee=employee)
                     if permission in {'task.view', 'task.comment', 'task.watch', 'task.attachment_add', 'task.approval.view', 'task.approval.request', 'task.approval.respond', 'task.approval.cancel'}:
                         query |= Q(watcher_records__employee=employee, watcher_records__removed_at__isnull=True)
+                    if permission in APPROVAL_PARTICIPANT_PERMISSIONS:
+                        from organizations.object_policies import LocationAccessPolicy
+                        locations = LocationAccessPolicy.visible(employee.user) if employee.user_id else []
+                        query |= Q(comment_approvals__approver=employee) & (Q(location__isnull=True) | Q(location__in=locations))
                 elif scope == Scope.OWN:
                     query |= Q(responsible_employee=employee) | Q(executor_employee=employee)
                 elif scope == Scope.ORG_UNIT:
