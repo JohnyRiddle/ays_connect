@@ -523,3 +523,21 @@ Standalone approval OpenAPI: 7 paths / 8 operations / 12 schemas, validation PAS
 Ветка codex/work-tasks-approvals-01, без commit/push/deployment; прежние dirty
 usability-изменения и отложенные Telegram-файлы сохранены.
 [Аудит, контракт, staging/demo и проверки](WORK_TASKS_APPROVALS_01.md).
+
+## 15.10.2026 — согласования опубликованы, production принят
+
+По явному разрешению выполнены commit/push, merged PR #6/#7 и production
+deployment. Runtime `c5264e668f5b4bf1fb4e8b848de558546bd17019`.
+Независимые согласования в комментариях и предыдущие usability-исправления
+доступны; поиск сотрудников больше не фильтрует родительскую задачу по фамилии.
+Согласованные четыре approval permissions выданы семи сотрудникам только
+со scope `participating`, без расширения доступа к задачам/объектам.
+
+Финальная свежая копия: 204 таблицы, PostgreSQL **709/709 PASS** с production
+hasher, API **14/14 rollback**, staging browser **2/2**, прежний UI **12/12**.
+Frozen DB/media/frontend восстановлены и сверены до открытия записи;
+финальное переключение **92.375 с**, 204 таблицы сохранены. Public HTTPS
+**16 PASS**, core **7/7 healthy**, read-only browser **5 PASS**, 0 HTTP writes.
+После workers сохранены 11 identity/org/RBAC таблиц. Временные production-копии
+остановлены; локальный synthetic staging оставлен. Telegram/receiver выключены.
+[Полный отчёт, два выпуска, защищённые точки и проверки](WORK_TASKS_APPROVALS_RELEASE_2026_10_15.md).

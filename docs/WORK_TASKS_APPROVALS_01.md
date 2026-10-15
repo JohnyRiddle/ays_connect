@@ -162,7 +162,7 @@ Reproducible fixture: `manage.py seed_approval_staging --fixture-output <file.js
 E2E: `AYS_APPROVAL_FIXTURE=<file.json>` и
 `playwright test -c playwright.approvals.config.ts` против запущенного staging.
 
-## Граница выпуска
+## Граница staging на момент подготовки
 
 Ветка `codex/work-tasks-approvals-01` содержит также сохранённые предыдущие
 незакоммиченные usability-исправления, на которых основан чат с @.
@@ -180,3 +180,15 @@ Frontend index SHA256:
 `bc94e9f534d69bc7c519a44e682d991170f093354920251fe9030974b4c77b21`.
 Скриншоты проверки: `.codex/tmp/approval-staging/approval-desktop.png`,
 `approval-mobile.png`; synthetic данные, без production credentials.
+
+## Публикация 15.10.2026
+
+После явного разрешения выполнены commit/push и PR #6/#7. Отдельно согласована
+операционная выдача четырёх approval permissions семи сотрудникам в роли
+`staff_tasks_participant_20261014`, только scope `participating`; автоматическая
+выдача существующим ролям в миграциях не добавлялась. Поиск участников отделён
+от фильтра названия родительской задачи с сохранением Task/Object scope.
+Полный финальный прогон на свежей production-копии: **709/709 PASS**;
+14 транзакционных API-проверок с rollback, staging browser **2/2 PASS**,
+прежние UI-проверки **12/12 PASS**. Telegram остаётся выключенным.
+Frozen-точки и финальная приёмка: [отчёт выпуска](WORK_TASKS_APPROVALS_RELEASE_2026_10_15.md).
