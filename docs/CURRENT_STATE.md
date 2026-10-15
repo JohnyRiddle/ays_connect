@@ -605,3 +605,26 @@ PostgreSQL **26/26 PASS**, browser **12/12 PASS**, дополнительно un
 Миграция/новая bundle применены только к synthetic staging loopback3035/8035.
 Production, commit/push не выполнялись. Предыдущие незакоммиченные согласования,
 записи выдачи прав и Telegram-файлы сохранены. Подробнее: CHECKLIST_BUILDER.md.
+
+## 15.10.2026 — PR #8: упрощённые чек-листы и прямой выбор опубликованы
+
+По явному запросу выполнены commit/push/merge и production deployment.
+Feature/runtime `e24a9281cdf27bb0ece66a23a5d27fd8edd70ec6`, merge `0acb0e0`.
+Название чек-листа, описание по «?», новые пункты с названием и мгновенной
+галочкой. Старые typed answers сохранены. Согласующий выбирается прямо
+в форме без предварительного @/наблюдателя; TaskApproval даёт участие только
+в конкретной задаче с существующими permissions и object/internal scope.
+Task.status/SLA/сроки/приоритет/назначения не меняются. Новых grants нет.
+
+Свежая защищённая production-копия: **204 таблицы**, **712/712 PostgreSQL PASS**
+с production password hasher, API **14/14 rollback** на настоящих ролях и объекте.
+Browser **12/12 UI + 2/2 real API staging**, TypeScript/Vite/check/drift/OpenAPI PASS.
+Применена только аддитивная `0012_checklist_description`; snapshot описания
+независим от последующей версии шаблона. Frozen DB/media/frontend восстановлены
+и сверены до открытия записи. Frozen UTC `2026-10-15T16:11:55.973140+00:00`,
+окно **96.125 с**; сохранены исходные 204 таблицы, повторный migration plan пуст.
+Production API **14/14 rollback**, HTTPS **16 PASS**, core **7/7 healthy**,
+production browser **6/6 PASS**, 0 HTTP write attempts. Telegram/receiver выключены.
+Operational wrappers согласованы с runtime; 11 identity/org/RBAC таблиц
+сохранены после запуска workers, временная production-копия остановлена.
+[Отчёт выпуска и защищённые доказательства](SIMPLE_CHECKLISTS_DIRECT_APPROVAL_RELEASE_2026_10_15.md).
