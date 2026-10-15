@@ -120,7 +120,14 @@ def allowed_delivery(delivery):
         return 'TASK_ACCESS_REVOKED'
     payload = delivery.notification.intent.payload
     internal = payload.get('is_internal')
-    if payload.get('comment_id'):
+    if payload.get('approval_id'):
+        from work_tasks.models import TaskApproval
+        from work_tasks.approvals import visible_source
+        approval=TaskApproval.objects.select_related('comment').filter(pk=payload['approval_id'],task=task).first()
+        if not approval or not visible_source(employee=employee,user=employee.user,task=task,comment=approval.comment,approval=approval) or not (employee.user.is_superuser or PermissionService.has_permission(employee=employee,permission='task.approval.view',obj=task)):
+            return 'APPROVAL_ACCESS_REVOKED'
+        internal=approval.source_internal or approval.comment.is_internal
+    elif payload.get('comment_id'):
         from work_tasks.models import TaskComment
         comment = TaskComment.objects.filter(pk=payload['comment_id'], task=task, deleted_at__isnull=True).first()
         if not comment:
@@ -164,6 +171,7 @@ def packet(item, account):
             'location': {'id': str(task.location_id), 'name': task.location.name} if task.location else None,
             'change': item.notification.message, 'priority': None if project_for(task) else task.priority,
             'deadline': task.effective_due_at, 'actor': actor, 'url': settings.WORK_TASK_PUBLIC_BASE_URL.rstrip('/') + '/tasks/' + str(task.pk),
+            'approval': {'id':payload['approval_id'],'event_id':payload['approval_event_id'],'status':payload['approval_status'],'round':payload['approval_round']} if payload.get('approval_id') else None,
             'occurred_at': payload['occurred_at'], 'lease_token': str(item.lease_token), 'lease_expires_at': item.lease_expires_at}
 
 

@@ -58,6 +58,7 @@ for(const width of [1280,390])test(`constructor, preview and saved template at $
 });
 test('template attaches to task and numeric zero is saved with item version',async({page})=>{
   await fixture(page);await page.goto(`/tasks/${taskId}`);
+  await page.locator('.cb-attach summary').click();
   await page.getByLabel('Шаблон',{exact:true}).selectOption('template-1');await page.getByRole('button',{name:'Прикрепить чек-лист',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Кухня',exact:true})).toBeVisible();
   await page.getByLabel('Ответ: Температура',{exact:true}).fill('0');
@@ -93,7 +94,7 @@ for(const width of [1280,390])test(`watcher search, sequential selection and saf
   await fixture(page,true,false,true);await page.setViewportSize({width,height:1000});await page.goto(`/tasks/${taskId}`);
   const panel=page.locator('.task-watchers');const search=panel.getByRole('combobox',{name:'Добавить наблюдателя'});
   await expect(panel.getByRole('listbox')).toHaveCount(0);
-  await search.fill('Ак');await expect(panel.getByRole('option',{name:'Аксёнов Александр'})).toBeVisible();
+  await search.fill('Ак');await expect(panel.getByRole('option',{name:'Аксёнов Александр',exact:true})).toBeVisible();
   await expect(panel.getByRole('option')).toHaveCount(1);
   await search.press('Escape');await expect(panel.getByRole('listbox')).toHaveCount(0);
   await search.press('ArrowDown');await search.press('Enter');
@@ -101,7 +102,7 @@ for(const width of [1280,390])test(`watcher search, sequential selection and saf
   await expect(search).toHaveValue('');
   await search.fill('Беж');await panel.getByRole('option',{name:'Бежаев Сергей'}).click();
   await expect(panel.locator('.person-row')).toHaveCount(3);
-  await search.fill('Ак');await expect(panel.getByRole('status')).toHaveText('Сотрудники не найдены');
+  await search.fill('Ак');await expect(panel.getByRole('option')).toHaveAttribute('aria-disabled','true');await expect(panel.getByText('Уже наблюдает')).toBeVisible();await search.press('ArrowDown');await search.press('Enter');await expect(panel.locator('.person-row')).toHaveCount(3);
   await search.fill('Несуществующий');await expect(panel.getByRole('status')).toHaveText('Сотрудники не найдены');
   await search.fill('');const row=panel.locator('.person-row').filter({hasText:'Ливеринов Иван'});
   let deleted=0;page.on('request',r=>{if(r.method()==='DELETE')deleted++;});
@@ -112,4 +113,42 @@ for(const width of [1280,390])test(`watcher search, sequential selection and saf
   await search.fill('Лив');await expect(panel.getByRole('option',{name:'Ливеринов Иван'})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
   await page.locator('.task-sidebar').screenshot({path:`test-results/checklists/task-sidebar-${width}.png`});
+});
+
+for(const width of [1280,390])test(`empty checklist and chat mentions at ${width}px`,async({page})=>{
+  await fixture(page,true,false,true);await page.setViewportSize({width,height:900});await page.goto(`/tasks/${taskId}`);
+  await expect(page.getByRole('heading',{name:/Чек-листы/})).toHaveCount(0);
+  await expect(page.getByText('@Упоминания',{exact:true})).toHaveCount(0);
+  const chat=page.getByRole('textbox',{name:'Новый комментарий'});
+  await chat.fill('Проверьте @Ак');
+  await page.locator('.task-chat-mentions').getByRole('option',{name:'Аксёнов Александр'}).click();
+  await expect(chat).toHaveValue('Проверьте @Аксёнов Александр ');
+  const posted=page.waitForRequest(r=>r.url().endsWith('/comments/')&&r.method()==='POST');
+  await page.getByRole('button',{name:'Отправить',exact:true}).click();
+  expect((await posted).postDataJSON()).toMatchObject({mentions:['aks'],body:'Проверьте @Аксёнов Александр '});
+  await chat.fill('@Лив');await page.locator('.task-chat-mentions').getByRole('option',{name:'Ливеринов Иван'}).waitFor();await page.screenshot({path:`test-results/checklists/task-chat-${width}.png`,fullPage:true});
+});
+
+test('raster attachment opens inside browser and can be downloaded separately',async({page})=>{
+  await fixture(page,true,false,true);
+  await page.route('**/tasks/*/attachments/',r=>r.fulfill({json:[{id:'photo',original_filename:'Проверка.png',content_type:'image/png',size:100}]}));
+  await page.route('**/attachments/photo/download/',r=>r.fulfill({contentType:'image/png',body:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64')}));
+  await page.goto(`/tasks/${taskId}`);let downloads=0;page.on('download',()=>downloads++);
+  await page.getByRole('button',{name:'Проверка.png',exact:true}).click();
+  const modal=page.getByRole('dialog',{name:'Проверка.png'});await expect(modal).toBeVisible();
+  await expect(modal.getByRole('img')).toBeVisible();expect(downloads).toBe(0);
+  await modal.getByRole('button',{name:'Закрыть',exact:true}).press('Escape');await expect(modal).toHaveCount(0);
+  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Скачать',exact:true}).click();expect((await download).suggestedFilename()).toBe('Проверка.png');
+});
+
+test('nonblocking deadline preview uses server configuration, blocking remains explicit',async({page})=>{
+  await fixture(page);
+  await page.route('**/tasks/assignment-options/',r=>r.fulfill({json:{departments:[],priority_hours:{blocking:null,critical:2,high:24,normal:72,low:168}}}));
+  await page.clock.setFixedTime(new Date('2026-10-15T08:00:00Z'));
+  await page.goto('/tasks/new');const priority=page.getByRole('combobox',{name:'Приоритет',exact:true});
+  for(const [key,hours] of [['critical',2],['high',24],['normal',72],['low',168]] as const){
+    await priority.selectOption(key);const due=page.getByLabel('Срок рассчитывается по приоритету');await expect(due).toBeDisabled();
+    const value=await due.inputValue();expect(new Date(value).getTime()).toBe(new Date('2026-10-15T08:00:00Z').getTime()+hours*3600000);
+  }
+  await priority.selectOption('blocking');await expect(page.getByLabel('Явный дедлайн *')).toBeEnabled();await expect(page.getByLabel('Явный дедлайн *')).toHaveValue('');
 });

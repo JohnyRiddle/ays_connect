@@ -28,7 +28,7 @@ class TaskAccessPolicy:
                     return True
                 if scope == Scope.GLOBAL:
                     return True
-                participating = employee.pk in {task.author_id, task.responsible_employee_id, task.executor_employee_id} or (permission in {'task.view', 'task.comment', 'task.watch', 'task.attachment_add'} and task.watcher_records.filter(employee=employee, removed_at__isnull=True).exists())
+                participating = employee.pk in {task.author_id, task.responsible_employee_id, task.executor_employee_id} or (permission in {'task.view', 'task.comment', 'task.watch', 'task.attachment_add', 'task.approval.view', 'task.approval.request', 'task.approval.respond', 'task.approval.cancel'} and task.watcher_records.filter(employee=employee, removed_at__isnull=True).exists())
                 if scope == Scope.PARTICIPATING and participating:
                     return True
                 if scope == Scope.OWN and employee.pk in {task.responsible_employee_id, task.executor_employee_id}:
@@ -53,7 +53,7 @@ class TaskAccessPolicy:
                     return Q()
                 if scope == Scope.PARTICIPATING:
                     query |= Q(author=employee) | Q(responsible_employee=employee) | Q(executor_employee=employee)
-                    if permission in {'task.view', 'task.comment', 'task.watch', 'task.attachment_add'}:
+                    if permission in {'task.view', 'task.comment', 'task.watch', 'task.attachment_add', 'task.approval.view', 'task.approval.request', 'task.approval.respond', 'task.approval.cancel'}:
                         query |= Q(watcher_records__employee=employee, watcher_records__removed_at__isnull=True)
                 elif scope == Scope.OWN:
                     query |= Q(responsible_employee=employee) | Q(executor_employee=employee)

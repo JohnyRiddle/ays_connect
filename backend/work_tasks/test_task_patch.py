@@ -50,6 +50,14 @@ class TaskPatchTests(TestCase):
     def target(self, employee):
         return AssignmentTarget.objects.create(target_type='employee', employee=employee)
 
+    @override_settings(WORK_TASK_PRIORITY_HOURS={'blocking': None, 'critical': 2, 'high': 24, 'normal': 72, 'low': 168})
+    def test_assignment_options_exposes_configured_priority_hours(self):
+        client = APIClient(); client.force_authenticate(self.admin)
+        response = client.get('/api/internal/v1/tasks/assignment-options/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['priority_hours']['critical'], 2)
+        self.assertIsNone(response.data['priority_hours']['blocking'])
+
     def test_all_priority_deadlines_start_at_creation_and_blocking_is_explicit(self):
         for priority, hours in [('critical', 3), ('high', 24), ('normal', 72), ('low', 168)]:
             task = self.create(priority=priority)

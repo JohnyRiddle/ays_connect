@@ -18,13 +18,22 @@ class ChecklistSchemaValidation:
 
 class CommentSerializer(serializers.ModelSerializer):
     mentions = serializers.SerializerMethodField()
+    can_request_approval = serializers.SerializerMethodField()
     body = serializers.SerializerMethodField()
     author_display = serializers.CharField(source="author.display_name", read_only=True, allow_null=True)
 
     class Meta:
         model = TaskComment
-        fields = ("id", "author", "author_display", "body", "is_internal", "mentions", "created_at", "updated_at", "edited_at", "deleted_at", "deleted_by")
+        fields = ("id", "author", "author_display", "body", "is_internal", "mentions", "can_request_approval", "created_at", "updated_at", "edited_at", "deleted_at", "deleted_by")
         read_only_fields = fields
+
+    def get_can_request_approval(self,obj) -> bool:
+        from .approvals import visible_source
+        from access_control.services import PermissionService
+        request=self.context.get('request')
+        if not request:return False
+        actor=getattr(request.user,'employee',None)
+        return bool(actor and not obj.deleted_at and obj.author_id==actor.pk and obj.mention_records.exists() and visible_source(employee=actor,user=request.user,task=obj.task,comment=obj) and (request.user.is_superuser or PermissionService.has_permission(employee=actor,permission='task.approval.request',obj=obj.task)) and (request.user.is_superuser or PermissionService.has_permission(employee=actor,permission='task.approval.view',obj=obj.task)))
 
     def get_body(self, obj):
         return "Комментарий удалён" if obj.deleted_at else obj.body

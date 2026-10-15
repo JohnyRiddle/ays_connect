@@ -58,7 +58,7 @@ export function WatcherSearch({taskId,excluded,busy,onAdd}: {taskId:string;exclu
       .finally(()=>{if(current)setLoading(false);}),200);
     return ()=>{current=false;window.clearTimeout(timer);};
   },[taskId,search]);
-  const results=choices.filter(e=>!excluded.includes(e.id));
+  const results=choices;
   const visible=open&&!!search.trim();
   const add=async(id:string)=>{setOpen(false);try{await onAdd(id);setSearch('');input.current?.focus();}catch(e){setError(e instanceof Error?e.message:'Не удалось добавить наблюдателя');setOpen(true);}};
   return <div className="watcher-search" onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node))setOpen(false);}}>
@@ -67,9 +67,9 @@ export function WatcherSearch({taskId,excluded,busy,onAdd}: {taskId:string;exclu
         if(e.key==='Escape'){setOpen(false);setActive(-1);}
         if(e.key==='ArrowDown'){e.preventDefault();setOpen(true);setActive(i=>Math.min(i+1,results.length-1));}
         if(e.key==='ArrowUp'){e.preventDefault();setActive(i=>Math.max(i-1,0));}
-        if(e.key==='Enter'&&visible&&results[active]){e.preventDefault();void add(results[active].id);}
+        if(e.key==='Enter'&&visible&&results[active]&&!excluded.includes(results[active].id)){e.preventDefault();void add(results[active].id);}
       }}/>
-    {visible&&<div className="watcher-dropdown"><div id={listId} role="listbox" aria-label="Найденные сотрудники">{results.map((person,index)=><button key={person.id} id={`${listId}-${index}`} type="button" role="option" aria-selected={active===index} onMouseDown={e=>e.preventDefault()} onClick={()=>void add(person.id)}>{person.name}</button>)}</div>
+    {visible&&<div className="watcher-dropdown"><div id={listId} role="listbox" aria-label="Найденные сотрудники">{results.map((person,index)=><button key={person.id} id={`${listId}-${index}`} type="button" role="option" aria-selected={active===index} aria-disabled={excluded.includes(person.id)} onMouseDown={e=>e.preventDefault()} onClick={()=>{if(!excluded.includes(person.id))void add(person.id);}}>{person.name}{excluded.includes(person.id)&&<small>Уже наблюдает</small>}</button>)}</div>
       {loading&&<p role="status">Поиск…</p>}{error&&<p role="alert">{error}</p>}{!loading&&!error&&!results.length&&<p role="status">Сотрудники не найдены</p>}</div>}
   </div>;
 }

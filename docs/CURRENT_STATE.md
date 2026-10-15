@@ -491,3 +491,35 @@ immutable build, HTTPS 10/10 и actual read-only owner UI desktop/mobile PASS.
 7 core services healthy без перезапуска. EFS frontend recovery сохранён,
 DB/API/migrations не менялись. Telegram выключен.
 [Evidence и возврат](TASK_LAYOUT_DEPLOYMENT_2026_10_14.md).
+
+
+## 15.10.2026 — IT/закупки созданы, исправления задач локально
+
+Production: IT — Веселков Сергей, Отдел закупок — Могунов Эдуард; новые
+карточки/placeholder accounts и доступ каждому к 51 объекту. Rehearsal rollback,
+защищённый pg_dump, сохранность прежних User/People/OrgUnit/Position, replay
+и owner assignment-options PASS. Данные задач не менялись.
+Локально: preview срока для всех приоритетов, скрытая пустая панель чек-листов,
+пометка существующих наблюдателей, просмотр изображений и @ в чате.
+PostgreSQL 21/21, browser 12/12, TypeScript/Vite/check/drift/diff PASS.
+Согласования ожидают уточнения маршрута. Код не публиковался.
+[Подробности и защищённые доступы](TASK_USABILITY_2026_10_15.md).
+
+## 15.10.2026 — WORK-TASKS-APPROVALS-01: локальная реализация / staging
+
+Независимые согласования после явного действия на @упоминании: PENDING,
+CLARIFICATION_REQUESTED, APPROVED, CANCELLED; обязательный текст решений,
+повторные раунды, PostgreSQL immutable history/identity/consistency guards,
+RBAC + Task/Object/internal scope, atomic Audit/Outbox, idempotency/version API.
+TaskService/Task.save не вызываются, поля/истории Task и SLA не меняются.
+Telegram Notification Engine интегрирован; внешние отправки staging отключены.
+Новые permissions автоматически существующим ролям не выдаются.
+
+Full PostgreSQL **708/708 PASS**, focused **104/104**, browser real API **2/2**
+на 1280/390 px, прежний UI gate **12/12**, TypeScript/Vite/check/drift PASS.
+Standalone approval OpenAPI: 7 paths / 8 operations / 12 schemas, validation PASS;
+прежние diagnostics общей схемы сохранены в отчёте. Local staging loopback3035/8035,
+отдельная synthetic PostgreSQL DB. Production этого патча не касались.
+Ветка codex/work-tasks-approvals-01, без commit/push/deployment; прежние dirty
+usability-изменения и отложенные Telegram-файлы сохранены.
+[Аудит, контракт, staging/demo и проверки](WORK_TASKS_APPROVALS_01.md).

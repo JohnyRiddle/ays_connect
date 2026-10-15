@@ -510,3 +510,6 @@ class TaskSavedView(models.Model):
             models.UniqueConstraint(fields=["owner", "name"], condition=models.Q(is_active=True), name="unique_active_saved_view_name"),
             models.UniqueConstraint(fields=["owner"], condition=models.Q(is_active=True, is_default=True), name="one_default_task_saved_view"),
         ]
+
+# Register the independent approval models in the same canonical domain.
+from .approval_models import ApprovalStatus, TaskApproval, TaskApprovalEvent  # noqa: E402,F401

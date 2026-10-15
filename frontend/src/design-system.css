@@ -359,3 +359,37 @@ p, dd, h1, h2, h3 { overflow-wrap: anywhere; }
 .watcher-remove-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 6px; }
 .watcher-remove-confirm>span { width: 100%; color: var(--text-muted); font-size: 12px; }
 .watcher-remove-confirm>button:not(.watcher-remove) { border: 0; background: transparent; color: var(--text-muted); font-size: 12px; cursor: pointer; }
+.task-image-preview { position: fixed; inset: 0; z-index: 1100; background: #000d; display: grid; place-items: center; padding: 20px; }
+.task-image-preview>div { display: grid; gap: 12px; justify-items: end; max-width: 100%; }
+.task-image-preview img { max-width: 100%; max-height: 85vh; object-fit: contain; }
+.task-image-preview button { padding: 8px 14px; border: 0; border-radius: 6px; cursor: pointer; }
+.task-chat-input { position: relative; flex: 1 1 240px; min-width: 0; }
+.task-chat-input>textarea { width: 100%; box-sizing: border-box; }
+.task-chat-mentions { position: absolute; inset-inline: 0; bottom: calc(100% + 5px); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; z-index: 20; max-height: 240px; overflow-y: auto; padding: 5px; }
+.task-content .task-chat-mentions button { display: block; width: 100%; text-align: left; background: transparent; color: var(--text); border: 0; padding: 10px; cursor: pointer; }
+.task-chat-mentions button:hover, .task-content .task-chat-mentions [aria-selected=true] { background: var(--brand-soft); }
+.task-chat-mentions small, .watcher-dropdown small { display: block; color: var(--text-muted); font-size: 11px; margin-top: 4px; }
+.watcher-dropdown [aria-disabled=true] { color: var(--text-muted); cursor: default; }
+@media(max-width:800px) {
+  .task-content .task-chat-input { flex: 0 1 auto; width: 100%; }
+  .task-content .task-chat-composer>button { align-self: flex-end; }
+}
+.task-approval { margin: 14px 0; padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--page); font-size: 13px; }
+.task-approval header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; position: static; background: transparent; padding: 0; height: auto; }
+.task-approval>small, .task-approval li>small { display: block; margin-top: 6px; color: var(--text-muted); font-size: 11px; }
+.approval-status { padding: 3px 7px; border-radius: 5px; background: var(--surface); font-size: 11px; }
+.approval-status.approved { background: var(--success-soft, var(--brand-soft)); color: var(--success, var(--text)); }
+.approval-status.clarification_requested { background: var(--warning-soft); }
+.task-approval p, .task-approval blockquote { white-space: pre-wrap; overflow-wrap: anywhere; }
+.task-approval blockquote { margin: 12px 0; padding-left: 10px; border-left: 2px solid var(--border); color: var(--text-muted); }
+.task-approval details>summary { cursor: pointer; color: var(--text-muted); font-size: 12px; }
+.task-approval ol { padding-left: 20px; }
+.task-approval li { margin: 14px 0; }
+.approval-actions, .approval-form>div { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.approval-actions button, .approval-form button, .approval-request { border: 1px solid var(--border); background: var(--surface); color: var(--brand-text); padding: 8px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+.approval-form { display: grid; gap: 12px; margin-top: 12px; }
+.approval-form label { display: grid; gap: 6px; font-size: 12px; }
+.approval-form textarea, .approval-form select { box-sizing: border-box; width: 100%; min-width: 0; padding: 9px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; }
+.approval-form textarea { min-height: 80px; resize: vertical; }
+.approval-form button:disabled { opacity: .5; cursor: default; }
+.approval-request { margin-top: 12px; }
