@@ -98,6 +98,9 @@ class ProductionTaskViewSet(ApprovalActionsMixin, viewsets.GenericViewSet):
             queryset = self._all()
         else:
             queryset = TaskSelector.visible_to(self._actor())
+        # Employee search is local to participant-options, never a Task title filter.
+        if self.action == 'participant_options':
+            return queryset
         queryset = TaskSelector.apply_saved_or_system_view(queryset, self._actor(), self.request.query_params)
         return TaskSelector.apply_filters(queryset, self.request.query_params)
 

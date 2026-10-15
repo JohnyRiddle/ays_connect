@@ -7,7 +7,7 @@ const api=process.env.AYS_APPROVAL_API_URL||'http://127.0.0.1:8035/api/internal/
 async function login(browser:Browser,who:string,width:number){
  const context=await browser.newContext({viewport:{width,height:1000}});const page=await context.newPage();await page.goto(`/tasks/${fixture.task}`);
  await page.getByRole('textbox',{name:'Электронная почта'}).fill(who+'@approvals.demo.invalid');await page.getByLabel('Пароль',{exact:true}).fill('Demo12345!');await page.getByRole('button',{name:'Войти',exact:true}).click();
- await expect(page.getByRole('heading',{name:'STAGING: согласование предложения в чате',exact:true})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'STAGING: обсуждение закупки',exact:true})).toBeVisible();
  return {context,page};
 }
 async function taskState(page:Page){
