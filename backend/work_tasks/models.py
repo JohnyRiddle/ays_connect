@@ -364,6 +364,7 @@ class TaskChecklist(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     task = models.ForeignKey(Task, on_delete=models.PROTECT, related_name="production_checklists")
     name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
     source_template = models.ForeignKey(ChecklistTemplate, on_delete=models.PROTECT, null=True, blank=True, related_name="task_instances")
     created_by = models.ForeignKey("employees.Employee", on_delete=models.PROTECT, related_name="created_task_checklists")
     created_at = models.DateTimeField(auto_now_add=True)

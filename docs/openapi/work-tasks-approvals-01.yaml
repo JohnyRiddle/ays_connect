@@ -64,8 +64,9 @@ paths:
           description: ''
     post:
       operationId: api_internal_v1_tasks_approvals_create
-      description: Explicit approval request for one mentioned employee. Does not
-        mutate any Task fields. command_id makes retries idempotent.
+      description: Explicit approval request for one eligible employee. Creates approval
+        participation without a watcher. Does not mutate any Task fields. command_id
+        makes retries idempotent.
       parameters:
       - in: path
         name: id
@@ -471,8 +472,9 @@ paths:
   /api/internal/v1/tasks/{id}/comments/{comment_id}/approval-options/:
     get:
       operationId: api_internal_v1_tasks_comments_approval_options_list
-      description: Eligible mentioned approvers with current view, object scope and
-        respond permission. Does not grant access.
+      description: Eligible approvers with object scope and prospective participating
+        permissions. Selection alone grants no access; submitting an approval makes
+        its approver a task participant.
       parameters:
       - in: path
         name: comment_id

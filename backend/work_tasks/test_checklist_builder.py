@@ -21,15 +21,18 @@ class ChecklistBuilderTests(CollaborationTestCase):
         return ChecklistService.create_template(actor=self.actor, actor_user=self.user, name='Открытие объекта', items=[{'text':'Температура','section':'Кухня','answer_type':'number','min_value':0,'max_value':10,'required':True}], **kw)
 
     def test_template_schema_version_is_copied_and_old_tasks_are_unchanged(self):
-        template=self.template()
+        template=self.template(description='Начальное описание')
         first=ChecklistService.from_template(task=self.task,template=template,actor=self.actor,actor_user=self.user)
-        template=ChecklistService.update_template(template=template,actor=self.actor,actor_user=self.user,version=1,items=[{'text':'Новый пункт','answer_type':'single','options':['Да','Нет'],'section':'Зал'}])
+        template=ChecklistService.update_template(template=template,actor=self.actor,actor_user=self.user,version=1,description='Новое описание',items=[{'text':'Новый пункт','answer_type':'single','options':['Да','Нет'],'section':'Зал'}])
         second=ChecklistService.from_template(task=self.task,template=template,actor=self.actor,actor_user=self.user)
         self.assertEqual(first.source_template_version,1)
         self.assertEqual(first.items.get().section,'Кухня')
         self.assertEqual(first.items.get().max_value,10)
         self.assertEqual(second.source_template_version,2)
         self.assertEqual(second.items.get().options,['Да','Нет'])
+        first.refresh_from_db()
+        self.assertEqual(first.description,'Начальное описание')
+        self.assertEqual(second.description,'Новое описание')
 
     def test_failed_replacement_rolls_back_schema_version_and_audit(self):
         template=self.template();before=AuditEvent.objects.count()
@@ -142,6 +145,26 @@ class ChecklistConcurrentTests(TransactionTestCase):
 
 
 class ChecklistMigrationTests(TransactionTestCase):
+    def test_description_backfill_only_for_matching_template_version(self):
+        executor=MigrationExecutor(connection)
+        latest=executor.loader.graph.leaf_nodes()
+        old=[('work_tasks','0011_approval_history_guards') if app=='work_tasks' else (app,name) for app,name in latest]
+        executor.migrate(old)
+        try:
+            apps=executor.loader.project_state(old).apps
+            user=apps.get_model('accounts','User').objects.create(username='description-upgrade',email='description@checklist.invalid')
+            employee=apps.get_model('employees','Employee').objects.create(user=user,first_name='Description')
+            template=apps.get_model('work_tasks','ChecklistTemplate').objects.create(name='Template',description='Описание версии 2',version=2,created_by=employee)
+            task=apps.get_model('work_tasks','Task').objects.create(number='DESC-UPGRADE',title='Upgrade',author=employee,created_by=user,updated_by=user)
+            Checklist=apps.get_model('work_tasks','TaskChecklist')
+            current=Checklist.objects.create(task=task,name='Current',created_by=employee,source_template=template,source_template_version=2)
+            previous=Checklist.objects.create(task=task,name='Previous',created_by=employee,source_template=template,source_template_version=1)
+        finally:
+            MigrationExecutor(connection).migrate(latest)
+        from .models import TaskChecklist
+        self.assertEqual(TaskChecklist.objects.get(pk=current.pk).description,'Описание версии 2')
+        self.assertEqual(TaskChecklist.objects.get(pk=previous.pk).description,'')
+
     def test_upgrade_preserves_legacy_completed_checkbox_and_template(self):
         executor=MigrationExecutor(connection)
         latest=executor.loader.graph.leaf_nodes()

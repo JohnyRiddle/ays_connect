@@ -234,7 +234,7 @@ class ChecklistService:
         cls._authorize_task(actor, actor_user, "task.checklist_manage", task)
         if not template.is_active:
             raise TaskValidationError("Шаблон чек-листа деактивирован.", code="checklist_template_inactive")
-        checklist = TaskChecklist.objects.create(task=task, name=template.name, source_template=template, source_template_version=template.version, created_by=actor)
+        checklist = TaskChecklist.objects.create(task=task, name=template.name, description=template.description, source_template=template, source_template_version=template.version, created_by=actor)
         TaskChecklistItem.objects.bulk_create([
             TaskChecklistItem(checklist=checklist, **{key: getattr(item, key) for key in SCHEMA_FIELDS})
             for item in template.items.order_by("position", "id")

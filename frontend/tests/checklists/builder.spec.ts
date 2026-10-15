@@ -2,8 +2,8 @@ import {test,expect,Page} from '@playwright/test';
 const taskId='00000000-0000-4000-8000-000000000003';
 const item={id:'item-1',text:'Температура',position:1,required:true,section:'Кухня',help_text:'Измерьте температуру',answer_type:'number',options:[],min_value:0,max_value:10,answer:null,is_completed:false,version:1};
 async function fixture(page:Page,manage=true,attached=false,watcherMode=false){
-  let templates:any[]=[{id:'template-1',name:'Открытие кухни',description:'Ежедневная проверка',version:1,is_active:true,items:[item]}];
-  let checklists:any[]=attached?[{id:'attached-1',name:'Проверка перед открытием',items:[
+  let templates:any[]=[{id:'template-1',name:'Открытие кухни',description:'Ежедневная проверка',version:1,is_active:true,items:[{...item,answer_type:'checkbox',section:'',help_text:''}]}];
+  let checklists:any[]=attached?[{id:'attached-1',name:'Проверка перед открытием',description:'Ежедневная проверка',items:[
     {...item,id:'saved',text:'Рабочее место подготовлено',answer_type:'checkbox',is_completed:true,answer:true,comment:'Всё готово',completed_at:'2026-10-14T09:00:00Z'},
     {...item,id:'boolean',text:'Оборудование исправно?',answer_type:'boolean'},
     {...item,id:'text',text:'Результат осмотра помещения и оборудования',answer_type:'text'},
@@ -23,9 +23,10 @@ async function fixture(page:Page,manage=true,attached=false,watcherMode=false){
     else if(p.endsWith('/checklist-templates/')){if(req.method()==='POST'){data={...req.postDataJSON(),id:'new-template',version:1};templates.push(data);}else data=templates;}
     else if(p.includes('/checklist-templates/')&&req.method()==='PATCH'){data={...req.postDataJSON(),id:p.split('/').at(-2),version:req.postDataJSON().version+1};templates=templates.map(t=>t.id===data.id?data:t);}
     else if(p.endsWith(`/tasks/${taskId}/`))data=task;
-    else if(p.endsWith('/checklists/from-template/')){data={id:'attached-1',name:templates[0].name,source_template_version:1,items:[{...item}]};checklists.push(data);}
+    else if(p.endsWith('/checklists/from-template/')){data={id:'attached-1',name:templates[0].name,description:templates[0].description,source_template_version:1,items:[{...item,answer_type:'checkbox',section:'',help_text:''}]};checklists.push(data);}
     else if(p.endsWith('/checklists/'))data=checklists;
-    else if(p.endsWith('/items/item-1/complete/')){const body=req.postDataJSON();checklists[0].items[0]={...item,answer:body.answer,is_completed:true,version:2,completed_at:'2026-10-14T09:00:00Z'};task.checklist_progress={completed:1,total:1};data=checklists[0].items[0];}
+    else if(p.endsWith('/items/item-1/complete/')){const body=req.postDataJSON();checklists[0].items[0]={...checklists[0].items[0],answer:body.answer,is_completed:true,version:2,completed_at:'2026-10-14T09:00:00Z'};task.checklist_progress={completed:1,total:1};data=checklists[0].items[0];}
+    else if(p.endsWith('/items/item-1/uncomplete/')){checklists[0].items[0]={...checklists[0].items[0],answer:null,is_completed:false,version:3};data=checklists[0].items[0];}
     else if(p.endsWith('/participant-options/'))data={results:candidates.filter(c=>c.name.toLowerCase().includes((new URL(req.url()).searchParams.get('search')||'').toLowerCase()))};
     else if(p.endsWith('/watchers/')){if(req.method()==='POST'){const c=candidates.find(c=>c.id===req.postDataJSON().employee)!;watchers.push({id:'watch-'+c.id,employee:c.id,employee_display:c.name});}data=watcherMode?watchers:[];}
     else if(p.includes('/watchers/')&&req.method()==='DELETE'){watchers=watchers.filter(w=>!p.endsWith('/'+w.employee+'/'));data={};}
@@ -38,16 +39,21 @@ for(const width of [1280,390])test(`constructor, preview and saved template at $
   await fixture(page);await page.setViewportSize({width,height:900});await page.goto('/checklists');
   await page.getByRole('button',{name:'Создать шаблон',exact:true}).click();
   await page.getByLabel('Название',{exact:true}).fill('Проверка зала');
-  await page.getByLabel('Раздел',{exact:true}).fill('Перед открытием');
-  await page.getByLabel('Текст пункта',{exact:true}).fill('Оборудование исправно');
-  await page.getByLabel('Тип ответа',{exact:true}).selectOption('boolean');
+  await expect(page.getByLabel('Тип ответа',{exact:true})).toHaveCount(0);
+  await page.getByLabel('Название пункта 1',{exact:true}).fill('Оборудование исправно');
+  await page.getByRole('button',{name:'Описание чек-листа',exact:true}).click();
+  await page.getByLabel('Описание',{exact:true}).fill('Проверка перед открытием');
+  await page.keyboard.press('Escape');
+  await expect(page.getByLabel('Описание',{exact:true})).not.toBeVisible();
   await page.getByRole('button',{name:'Добавить пункт',exact:true}).click();
-  await page.getByLabel('Текст пункта',{exact:true}).nth(1).fill('Температура');
-  await page.getByLabel('Тип ответа',{exact:true}).nth(1).selectOption('number');
-  await page.getByLabel('Минимум',{exact:true}).fill('0');await page.getByLabel('Максимум',{exact:true}).fill('10');
+  await page.getByLabel('Название пункта 2',{exact:true}).fill('Зал подготовлен');
   await page.getByRole('button',{name:'Предпросмотр',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Перед открытием',exact:true})).toBeVisible();
-  await page.getByLabel('Ответ: Оборудование исправно',{exact:true}).selectOption('false');
+  await expect(page.getByRole('heading',{name:'Проверка зала',exact:true})).toBeVisible();
+  await page.getByRole('checkbox',{name:'Оборудование исправно',exact:true}).check();
+  await expect(page.getByText('Проверка перед открытием',{exact:true})).not.toBeVisible();
+  await page.getByRole('button',{name:'Описание чек-листа',exact:true}).click();
+  await expect(page.getByText('Проверка перед открытием',{exact:true})).toBeVisible();
+  await page.keyboard.press('Escape');
   await page.getByRole('button',{name:'Редактор',exact:true}).click();
   const posted=page.waitForRequest(r=>r.url().endsWith('/checklist-templates/')&&r.method()==='POST');
   await page.getByRole('button',{name:'Сохранить шаблон',exact:true}).click();
@@ -56,17 +62,20 @@ for(const width of [1280,390])test(`constructor, preview and saved template at $
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
   await page.screenshot({path:`${process.env.AYS_CHECKLIST_OUTPUT||'test-results/checklists'}/builder-${width}.png`,fullPage:true});
 });
-test('template attaches to task and numeric zero is saved with item version',async({page})=>{
+test('checkbox attaches and saves immediately with item version',async({page})=>{
   await fixture(page);await page.goto(`/tasks/${taskId}`);
   await page.locator('.cb-attach summary').click();
   await page.getByLabel('Шаблон',{exact:true}).selectOption('template-1');await page.getByRole('button',{name:'Прикрепить чек-лист',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'Кухня',exact:true})).toBeVisible();
-  await page.getByLabel('Ответ: Температура',{exact:true}).fill('0');
+  await expect(page.getByRole('heading',{name:'Кухня',exact:true})).toHaveCount(0);
   const posted=page.waitForRequest(r=>r.url().endsWith('/items/item-1/complete/'));
-  await page.getByRole('button',{name:'Сохранить ответ',exact:true}).click();
-  expect((await posted).postDataJSON()).toMatchObject({answer:0,version:1});
-  await expect(page.getByRole('button',{name:'Изменить ответ',exact:true})).toBeVisible();
-  await expect(page.getByRole('heading',{name:'Чек-листы · 1/1',exact:true})).toBeVisible();
+  await page.getByRole('checkbox',{name:'Температура',exact:true}).check();
+  expect((await posted).postDataJSON()).toMatchObject({answer:true,version:1});
+  await expect(page.getByRole('checkbox',{name:'Температура',exact:true})).toBeChecked();
+  await expect(page.getByRole('button',{name:'Сохранить ответ',exact:true})).toHaveCount(0);
+  const undone=page.waitForRequest(r=>r.url().endsWith('/items/item-1/uncomplete/'));
+  await page.getByRole('checkbox',{name:'Температура',exact:true}).uncheck();
+  expect((await undone).postDataJSON()).toMatchObject({version:2});
+  await expect(page.getByRole('checkbox',{name:'Температура',exact:true})).not.toBeChecked();
 });
 test('viewer can preview but cannot edit or create templates',async({page})=>{
   await fixture(page,false);await page.goto('/checklists');
@@ -79,13 +88,18 @@ test('viewer can preview but cannot edit or create templates',async({page})=>{
 for(const width of [1280,390])test(`task checklist layout and comments at ${width}px`,async({page})=>{
   await fixture(page,true,true);await page.setViewportSize({width,height:1000});await page.goto(`/tasks/${taskId}`);
   const panel=page.locator('.cb-task-panel');
-  await expect(panel.getByRole('heading',{name:'Чек-листы · 1/6',exact:true})).toBeVisible();
-  await expect(panel.getByRole('progressbar')).toHaveAttribute('value','1');
-  await expect(panel.getByText('Всё готово',{exact:true})).toBeVisible();
-  await expect(panel.getByLabel('Комментарий',{exact:true}).first()).not.toBeVisible();
-  await panel.locator('.cb-comment summary').first().click();
-  await expect(panel.getByLabel('Комментарий',{exact:true}).first()).toBeVisible();
-  await panel.getByLabel('Комментарий',{exact:true}).first().fill('Проверено исполнителем');
+  await expect(panel.getByRole('heading',{name:'Чек-листы',exact:true})).toBeVisible();
+  await expect(panel.getByRole('checkbox',{name:'Рабочее место подготовлено'})).toBeChecked();
+  await expect(panel.getByText('Обязательный',{exact:true})).toHaveCount(0);
+  await expect(panel.getByText('Измерьте температуру',{exact:true})).toHaveCount(0);
+  await expect(panel.getByLabel('Комментарий',{exact:true})).toHaveCount(0);
+  await expect(panel.getByText('Ежедневная проверка',{exact:true})).not.toBeVisible();
+  await panel.getByRole('button',{name:'Описание чек-листа',exact:true}).click();
+  await expect(panel.getByText('Ежедневная проверка',{exact:true})).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(panel.getByText('Ежедневная проверка',{exact:true})).not.toBeVisible();
+  // Previously saved typed answers remain usable, without conversion or data loss.
+  await panel.getByLabel('Ответ: Температура',{exact:true}).fill('0');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
   await panel.screenshot({path:`test-results/checklists/task-layout-${width}.png`});
 });

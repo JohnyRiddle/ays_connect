@@ -14,18 +14,18 @@ async function taskState(page:Page){
  const token=await page.evaluate(()=>sessionStorage.getItem('access'));const r=await page.request.get(api+'/tasks/'+fixture.task+'/',{headers:{Authorization:'Bearer '+token}});expect(r.ok()).toBeTruthy();return await r.json();
 }
 for(const width of [1280,390])test(`real API approval rounds and task invariance at ${width}px`,async({browser})=>{
- const requester=await login(browser,'requester',width);const approver=await login(browser,'approver',width);
+ const requester=await login(browser,'requester',width);
  const page=requester.page;const title=`Предложение ${width} ${Date.now()}`;
- const chat=page.getByRole('textbox',{name:'Новый комментарий'});await chat.fill(title+' @Сог');await page.locator('.task-chat-mentions').getByRole('option',{name:'Согласующий Сергей'}).click();await page.getByRole('button',{name:'Отправить',exact:true}).click();
+ const chat=page.getByRole('textbox',{name:'Новый комментарий'});await chat.fill(title);await page.getByRole('button',{name:'Отправить',exact:true}).click();
  const comment=page.locator('article.comment').filter({hasText:title});await expect(comment).toBeVisible();await expect(comment.locator('.task-approval')).toHaveCount(0);
  const before=await taskState(page);
  await comment.getByRole('button',{name:'Запросить согласование',exact:true}).click();
- await comment.getByRole('combobox',{name:'Согласующий из упомянутых'}).selectOption(fixture.approver);
+ await comment.getByRole('combobox',{name:'Согласующий'}).selectOption(fixture.approver);
  await expect(comment.getByRole('button',{name:'Отправить на согласование'})).toBeDisabled();
  await comment.getByRole('textbox',{name:'Текст запроса согласования'}).fill('Проверьте предложение и подтвердите решение');await comment.getByRole('button',{name:'Отправить на согласование'}).click();
  await expect(comment.locator('.approval-status')).toHaveText('Ожидает согласования');
  const approvalId=(await page.evaluate(()=>sessionStorage.getItem('access')))&&await comment.locator('.task-approval').count();expect(approvalId).toBe(1);
- await approver.page.reload();const apComment=approver.page.locator('article.comment').filter({hasText:title});
+ const approver=await login(browser,'approver',width);const apComment=approver.page.locator('article.comment').filter({hasText:title});
  await apComment.getByRole('button',{name:'Запросить уточнение',exact:true}).click();await expect(apComment.getByRole('button',{name:'Подтвердить',exact:true})).toBeDisabled();
  await apComment.getByRole('textbox',{name:'Запросить уточнение — комментарий обязателен'}).fill('Уточните состав закупки');await apComment.getByRole('button',{name:'Подтвердить',exact:true}).click();await expect(apComment.locator('.approval-status')).toHaveText('Нужно уточнение');
  await page.reload();await comment.getByRole('button',{name:'Отправить новый раунд',exact:true}).click();await comment.getByRole('textbox',{name:'Отправить новый раунд — комментарий обязателен'}).fill('Состав закупки уточнён');await comment.getByRole('button',{name:'Подтвердить',exact:true}).click();await expect(comment.locator('.task-approval>small')).toContainText('Раунд 2');
