@@ -128,6 +128,7 @@ export async function workDownload(
   path: string,
   filename: string,
   retry = true,
+  preview?: (url:string)=>void,
 ): Promise<void> {
   const token = sessionStorage.getItem("access");
   let response: Response;
@@ -139,7 +140,7 @@ export async function workDownload(
     throw new WorkApiError("network", "Нет соединения с сервером.");
   }
   if (response.status === 401 && retry && (await refreshAccess()))
-    return workDownload(path, filename, false);
+    return workDownload(path, filename, false, preview);
   if (!response.ok)
     throw new WorkApiError(
       response.status === 403 ? "forbidden" : "server",
@@ -148,7 +149,12 @@ export async function workDownload(
         : "Не удалось скачать файл.",
       response.status,
     );
-  const url = URL.createObjectURL(await response.blob());
+  const blob=await response.blob();
+  const url = URL.createObjectURL(blob);
+  if(preview){
+    if(!['image/png','image/jpeg','image/gif','image/webp'].includes(blob.type.split(';')[0])){URL.revokeObjectURL(url);throw new WorkApiError('validation','Для этого файла доступно только скачивание.');}
+    preview(url);return;
+  }
   const link = document.createElement("a");
   link.href = url;
   link.download = filename;
@@ -200,6 +206,7 @@ export const tasksApi = {
       `/tasks/${id}/attachments/${attachmentId}/download/`,
       filename,
     ),
+  preview: (id:string, attachmentId:string, onPreview:(url:string)=>void)=>workDownload(`/tasks/${id}/attachments/${attachmentId}/download/`, '', true, onPreview),
   watchers: (id: string) => workRequest<any[]>(`/tasks/${id}/watchers/`),
   watch: (id: string, remove = false) =>
     workRequest<any>(`/tasks/${id}/watch/`, {
@@ -263,6 +270,7 @@ export const requestsApi = {
       `/requests/${id}/attachments/${attachmentId}/download/`,
       filename,
     ),
+  preview: (id:string, attachmentId:string, onPreview:(url:string)=>void)=>workDownload(`/tasks/${id}/attachments/${attachmentId}/download/`, '', true, onPreview),
   watchers: (id: string) => workRequest<any[]>(`/requests/${id}/watchers/`),
   watch: (id: string, remove = false) =>
     workRequest<any>(`/requests/${id}/watch/`, {

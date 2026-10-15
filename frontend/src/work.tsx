@@ -1,6 +1,8 @@
+import { CommentApprovals, useTaskApprovals } from "./TaskApprovals";
+import { TaskChatComposer } from "./TaskChatComposer";
 import { TaskChecklistPanel } from "./ChecklistBuilder";
 import React, { useEffect, useRef, useState } from "react";
-import { DepartmentFields, ParticipantPicker, TaskSettings, WatcherSearch } from './TaskParticipants';
+import { DepartmentFields, TaskSettings, WatcherSearch } from './TaskParticipants';
 import {
   AssignmentTarget,
   lookupApi,
@@ -347,6 +349,12 @@ function TaskCreate({ navigate }: { navigate: Navigate }) {
     due_at: "",
     location: initialLocation,
   });
+  const [priorityHours,setPriorityHours]=useState<Record<string,number|null>>({});
+  const [previewNow]=useState(()=>Date.now());
+  useEffect(()=>{workRequest<any>('/tasks/assignment-options/').then(x=>setPriorityHours(x.priority_hours||{})).catch(setError);},[]);
+  const previewHours=priorityHours[form.priority];
+  const previewDate=typeof previewHours==='number'?new Date(previewNow+previewHours*3600000):null;
+  const previewLocal=previewDate?new Date(previewDate.getTime()-previewDate.getTimezoneOffset()*60000).toISOString().slice(0,16):'';
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<any>();
   async function submit(e: React.FormEvent) {
@@ -358,7 +366,7 @@ function TaskCreate({ navigate }: { navigate: Navigate }) {
       const data = {
         ...form,
         location: form.location || null,
-        due_at: form.due_at ? new Date(form.due_at).toISOString() : null,
+        due_at: form.priority==='blocking'&&form.due_at ? new Date(form.due_at).toISOString() : null,
         responsible_target: form.responsible_target || null,
         executor_target: form.executor_target || null,
       };
@@ -424,9 +432,10 @@ function TaskCreate({ navigate }: { navigate: Navigate }) {
               type="datetime-local"
               required={form.priority === 'blocking'}
               disabled={form.priority !== 'blocking'}
-              value={form.due_at}
+              value={form.priority==='blocking'?form.due_at:previewLocal}
               onChange={(e) => setForm({ ...form, due_at: e.target.value })}
             />
+            {form.priority!=='blocking'&&<small>{previewDate?`Ориентировочно: ${fmt(previewDate.toISOString())}. Точный срок будет рассчитан при создании задачи.`:'Загрузка срока…'}</small>}
           </label>
         </div>
         <label className="work-field"><span>Объект / локация</span><select value={form.location} onChange={event=>setForm({...form,location:event.target.value})}><option value="">Не указано</option>{initialLocation&&!locations.some(x=>x.id===initialLocation)&&<option value={initialLocation}>Выбранный объект</option>}{locations.filter(x=>!x.is_archived).map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
@@ -618,12 +627,15 @@ function TaskActions({ task, busy, onAction }: { task: any; busy: boolean; onAct
 }
 
 function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
+  const approvalState=useTaskApprovals(id);
   const [discussion, setDiscussion] = useState<"comments" | "history">("comments");
   const [task, setTask] = useState<any>();
   const [comments, setComments] = useState<any[]>([]);
   const [attachments, setAttachments] = useState<any[]>([]);
   const [watchers, setWatchers] = useState<any[]>([]);
   const [mentions, setMentions] = useState<string[]>([]);
+  const [imagePreview,setImagePreview]=useState<{url:string;name:string}|null>(null);
+  useEffect(()=>()=>{if(imagePreview)URL.revokeObjectURL(imagePreview.url);},[imagePreview]);
   const [removeWatcher, setRemoveWatcher] = useState("");
   const canManageWatchers = task?.available_actions?.includes('watcher_manage');
   const [checklists, setChecklists] = useState<any[]>([]);
@@ -689,8 +701,8 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
       setBusy(false);
     }
   }
-  async function addComment(e: React.FormEvent) {
-    e.preventDefault();
+  async function addComment(e?: React.FormEvent) {
+    e?.preventDefault();
     if (!comment.trim() || busy) return;
     setBusy(true);
     try {
@@ -833,34 +845,29 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
           </div>
           {attachments.length ? attachments.map((a) => (
             <div className="attachment" key={a.id}>
-              <button className="link-button" onClick={() => tasksApi.download(id, a.id, a.original_filename).catch(setError)}>{a.original_filename}</button>
+              <button className="link-button" onClick={() => (['image/png','image/jpeg','image/gif','image/webp'].includes(a.content_type)?tasksApi.preview(id,a.id,url=>setImagePreview({url,name:a.original_filename})):tasksApi.download(id,a.id,a.original_filename)).catch(setError)}>{a.original_filename}</button>
+              <button className="link-button" onClick={()=>tasksApi.download(id,a.id,a.original_filename).catch(setError)}>Скачать</button>
               <span>{Math.ceil(a.size / 1024)} КБ · {fmt(a.created_at)}</span>
             </div>
           )) : <p className="muted">Файлы не прикреплены.</p>}
         </section>
         <section className="work-card">
           <div className="detail-tabs" role="group" aria-label="Обсуждение задачи">
-            <button type="button" aria-pressed={discussion === "comments"} onClick={() => setDiscussion("comments")}>Комментарии · {comments.length}</button>
+            <button type="button" aria-pressed={discussion === "comments"} onClick={() => setDiscussion("comments")}>Чат · {comments.length}</button>
             <button type="button" aria-pressed={discussion === "history"} onClick={() => setDiscussion("history")}>История изменений</button>
           </div>
           <div hidden={discussion !== "comments"}>
           {!comments.length && <p className="muted">Комментариев пока нет.</p>}
-          <form className="comment-form" onSubmit={addComment}>
-            <textarea
-              aria-label="Новый комментарий"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder="Написать комментарий"
-            />
-            <ParticipantPicker taskId={id} selected={mentions} onChange={setMentions} />
-            <button disabled={busy || !comment.trim()}>Отправить</button>
-          </form>
+          <TaskChatComposer taskId={id} value={comment} onChange={setComment} mentions={mentions} onMentions={setMentions} busy={busy} onSend={()=>addComment()}/>
+
+          {approvalState.error&&<p role="alert">{approvalState.error} <button onClick={()=>void approvalState.refresh()}>Обновить согласования</button></p>}
           {comments.map((c) => (
             <article className="comment" key={c.id}>
               <b>{c.author_display || person(c.author)}</b>
               {c.is_internal && <em>Внутренний</em>}
               <p>{c.body}</p>
               <small>{fmt(c.created_at)}</small>
+              <CommentApprovals taskId={id} comment={c} approvals={approvalState.items.filter(a=>a.comment===c.id)} reload={approvalState.refresh}/>
             </article>
           ))}
           </div>
@@ -879,6 +886,7 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
         </section>
         </div>
       </div>
+      {imagePreview&&<div className="task-image-preview" role="dialog" aria-modal="true" aria-label={imagePreview.name} onClick={()=>setImagePreview(null)} onKeyDown={e=>{if(e.key==='Escape')setImagePreview(null);}}><div><button autoFocus onClick={()=>setImagePreview(null)}>Закрыть</button><img src={imagePreview.url} alt={imagePreview.name} onClick={e=>e.stopPropagation()}/></div></div>}
       {action && !["publish", "start", "resume", "accept"].includes(action) && (
           <ActionDialog
             action={action}
@@ -1405,8 +1413,8 @@ function RequestDetail({ id, navigate }: { id: string; navigate: Navigate }) {
       setBusy(false);
     }
   }
-  async function addComment(e: React.FormEvent) {
-    e.preventDefault();
+  async function addComment(e?: React.FormEvent) {
+    e?.preventDefault();
     setBusy(true);
     try {
       await requestsApi.addComment(id, { body: comment, visibility });

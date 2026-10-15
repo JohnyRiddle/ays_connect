@@ -60,6 +60,7 @@ class CollaborationService:
     @classmethod
     @transaction.atomic
     def edit_comment(cls, *, comment, actor, actor_user, body, mentions=(), is_internal=None, correlation_id=None):
+        comment = TaskComment.objects.select_for_update().select_related("task").get(pk=comment.pk)
         task = comment.task
         cls._authorize(actor=actor, actor_user=actor_user, permission="task.comment" if comment.author_id == actor.pk else "task.comment_moderate", task=task)
         if comment.deleted_at:
@@ -88,6 +89,7 @@ class CollaborationService:
     @classmethod
     @transaction.atomic
     def delete_comment(cls, *, comment, actor, actor_user, correlation_id=None):
+        comment = TaskComment.objects.select_for_update().select_related("task").get(pk=comment.pk)
         task = comment.task
         cls._authorize(actor=actor, actor_user=actor_user, permission="task.comment" if comment.author_id == actor.pk else "task.comment_moderate", task=task)
         if not comment.deleted_at:

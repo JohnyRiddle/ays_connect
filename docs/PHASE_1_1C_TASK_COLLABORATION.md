@@ -112,3 +112,13 @@ a spaced destructive text action with an inline confirmation/cancel step.
 Department is presented as a normal metadata field; editing follows the fields,
 and priority is retained in the task header rather than repeated in the sidebar.
 Desktop/mobile coverage includes search, selection, duplicates and safe removal.
+
+## Independent comment approvals — WORK-TASKS-APPROVALS-01
+
+This flow is separate from acceptance_policy and Task review. An explicit request
+for a mentioned employee creates TaskApproval; decisions and resubmission append
+immutable numbered history. It never invokes TaskService or updates Task/SLA/
+assignments/deadlines. UUID command idempotency, approval-version concurrency,
+new scoped permissions, internal/object visibility, Audit/Outbox and the existing
+WORK_TASK_EVENT Notification Engine are used. No automatic grants are issued.
+[Audit, API/OpenAPI, staging evidence and release boundary](WORK_TASKS_APPROVALS_01.md).

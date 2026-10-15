@@ -1,0 +1,836 @@
+openapi: 3.0.3
+info:
+  title: AYS Connect — WORK-TASKS-APPROVALS-01
+  version: 1.0.0
+  description: Independent comment approvals. No Task lifecycle, SLA or assignment
+    mutations. Per-command UUID idempotency and approval-version concurrency control.
+paths:
+  /api/internal/v1/tasks/{id}/approvals/:
+    get:
+      operationId: api_internal_v1_tasks_approvals_list
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - Task comment approvals
+      security:
+      - EmployeeJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedApprovalList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+    post:
+      operationId: api_internal_v1_tasks_approvals_create
+      description: Explicit approval request for one mentioned employee. Does not
+        mutate any Task fields. command_id makes retries idempotent.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Task comment approvals
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ApprovalRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ApprovalRequest'
+        required: true
+      security:
+      - EmployeeJWT: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Approval'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+  /api/internal/v1/tasks/{id}/approvals/{approval_id}/:
+    get:
+      operationId: api_internal_v1_tasks_approvals_retrieve
+      description: Read-only approval with immutable event history. No generic update
+        or delete is exposed.
+      parameters:
+      - in: path
+        name: approval_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Task comment approvals
+      security:
+      - EmployeeJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Approval'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+  /api/internal/v1/tasks/{id}/approvals/{approval_id}/approve/:
+    post:
+      operationId: api_internal_v1_tasks_approvals_approve_create
+      description: Assigned approver confirms with mandatory text. Task lifecycle
+        is unchanged.
+      parameters:
+      - in: path
+        name: approval_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Task comment approvals
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalCommand'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ApprovalCommand'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ApprovalCommand'
+        required: true
+      security:
+      - EmployeeJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Approval'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+  /api/internal/v1/tasks/{id}/approvals/{approval_id}/cancel/:
+    post:
+      operationId: api_internal_v1_tasks_approvals_cancel_create
+      description: Requester or authorized administrator cancels a pending/clarification
+        approval with a reason. Task is not cancelled.
+      parameters:
+      - in: path
+        name: approval_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Task comment approvals
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalCommand'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ApprovalCommand'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ApprovalCommand'
+        required: true
+      security:
+      - EmployeeJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Approval'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+  /api/internal/v1/tasks/{id}/approvals/{approval_id}/clarify/:
+    post:
+      operationId: api_internal_v1_tasks_approvals_clarify_create
+      description: Assigned approver requests clarification with mandatory text.
+      parameters:
+      - in: path
+        name: approval_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Task comment approvals
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalCommand'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ApprovalCommand'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ApprovalCommand'
+        required: true
+      security:
+      - EmployeeJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Approval'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+  /api/internal/v1/tasks/{id}/approvals/{approval_id}/resubmit/:
+    post:
+      operationId: api_internal_v1_tasks_approvals_resubmit_create
+      description: Requester starts another numbered round after clarification or
+        approval; previous history remains immutable.
+      parameters:
+      - in: path
+        name: approval_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Task comment approvals
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalCommand'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ApprovalCommand'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ApprovalCommand'
+        required: true
+      security:
+      - EmployeeJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Approval'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+  /api/internal/v1/tasks/{id}/comments/{comment_id}/approval-options/:
+    get:
+      operationId: api_internal_v1_tasks_comments_approval_options_list
+      description: Eligible mentioned approvers with current view, object scope and
+        respond permission. Does not grant access.
+      parameters:
+      - in: path
+        name: comment_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - Task comment approvals
+      security:
+      - EmployeeJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedApprovalCandidateList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+components:
+  schemas:
+    Approval:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        task:
+          type: string
+          format: uuid
+          readOnly: true
+        comment:
+          type: string
+          format: uuid
+          readOnly: true
+        requester:
+          type: string
+          format: uuid
+          readOnly: true
+        requester_display:
+          type: string
+          readOnly: true
+        approver:
+          type: string
+          format: uuid
+          readOnly: true
+        approver_display:
+          type: string
+          readOnly: true
+        source_body:
+          type: string
+          readOnly: true
+        source_internal:
+          type: boolean
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/Status5f2Enum'
+          readOnly: true
+        round_number:
+          type: integer
+          readOnly: true
+        version:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalEvent'
+          readOnly: true
+        available_actions:
+          type: array
+          items:
+            type: string
+          readOnly: true
+      required:
+      - approver
+      - approver_display
+      - available_actions
+      - comment
+      - created_at
+      - history
+      - id
+      - requester
+      - requester_display
+      - round_number
+      - source_body
+      - source_internal
+      - status
+      - task
+      - version
+    ApprovalCandidate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      required:
+      - id
+      - name
+    ApprovalCommand:
+      type: object
+      properties:
+        text:
+          type: string
+          maxLength: 10000
+        version:
+          type: integer
+          minimum: 1
+          description: Approval version, never Task.version.
+        command_id:
+          type: string
+          format: uuid
+      required:
+      - command_id
+      - text
+      - version
+    ApprovalError:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/ApprovalErrorDetail'
+      required:
+      - error
+    ApprovalErrorDetail:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details: {}
+      required:
+      - code
+      - details
+      - message
+    ApprovalEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        command_id:
+          type: string
+          format: uuid
+          readOnly: true
+        sequence:
+          type: integer
+          readOnly: true
+        round_number:
+          type: integer
+          readOnly: true
+        actor:
+          type: string
+          format: uuid
+          readOnly: true
+        actor_display:
+          type: string
+          readOnly: true
+        action:
+          allOf:
+          - $ref: '#/components/schemas/ApprovalEventActionEnum'
+          readOnly: true
+        from_status:
+          type: string
+          readOnly: true
+        to_status:
+          allOf:
+          - $ref: '#/components/schemas/ToStatus5f2Enum'
+          readOnly: true
+        text:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - action
+      - actor
+      - actor_display
+      - command_id
+      - created_at
+      - from_status
+      - id
+      - round_number
+      - sequence
+      - text
+      - to_status
+    ApprovalEventActionEnum:
+      enum:
+      - request
+      - approve
+      - clarify
+      - resubmit
+      - cancel
+      type: string
+      description: '* `request` - request
+
+        * `approve` - approve
+
+        * `clarify` - clarify
+
+        * `resubmit` - resubmit
+
+        * `cancel` - cancel'
+    ApprovalRequest:
+      type: object
+      properties:
+        comment:
+          type: string
+          format: uuid
+        approver:
+          type: string
+          format: uuid
+        text:
+          type: string
+          maxLength: 10000
+        command_id:
+          type: string
+          format: uuid
+          description: Idempotency key, reusable only for an identical command.
+      required:
+      - approver
+      - command_id
+      - comment
+      - text
+    PaginatedApprovalCandidateList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalCandidate'
+    PaginatedApprovalList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Approval'
+    Status5f2Enum:
+      enum:
+      - PENDING
+      - CLARIFICATION_REQUESTED
+      - APPROVED
+      - CANCELLED
+      type: string
+      description: '* `PENDING` - Ожидает согласования
+
+        * `CLARIFICATION_REQUESTED` - Нужно уточнение
+
+        * `APPROVED` - Согласовано
+
+        * `CANCELLED` - Отменено'
+    ToStatus5f2Enum:
+      enum:
+      - PENDING
+      - CLARIFICATION_REQUESTED
+      - APPROVED
+      - CANCELLED
+      type: string
+      description: '* `PENDING` - Ожидает согласования
+
+        * `CLARIFICATION_REQUESTED` - Нужно уточнение
+
+        * `APPROVED` - Согласовано
+
+        * `CANCELLED` - Отменено'
+  securitySchemes:
+    CorporateBotBearer:
+      type: http
+      scheme: bearer
+      description: Dedicated service credential. Never a Telegram bot token or employee
+        JWT.
+    EmployeeJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Authenticated employee access token. Only self-binding endpoints.

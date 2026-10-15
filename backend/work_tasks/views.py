@@ -28,7 +28,10 @@ from .policies import TaskAccessPolicy
 from .ux import TaskUXService
 
 
-class ProductionTaskViewSet(viewsets.GenericViewSet):
+from .approval_api import ApprovalActionsMixin
+
+
+class ProductionTaskViewSet(ApprovalActionsMixin, viewsets.GenericViewSet):
     @action(detail=False, methods=['get'], url_path='assignment-options')
     def assignment_options(self, request):
         from django.db import transaction
@@ -44,7 +47,8 @@ class ProductionTaskViewSet(viewsets.GenericViewSet):
             departments = [d for d in departments if PermissionService.has_permission(employee=self._actor(), permission='org_unit.view', obj=d)]
         raw = request.query_params.get('department')
         if not raw:
-            return Response({'departments': [{'id': str(d.pk), 'name': d.name} for d in departments]})
+            from django.conf import settings
+            return Response({'departments': [{'id': str(d.pk), 'name': d.name} for d in departments], 'priority_hours': settings.WORK_TASK_PRIORITY_HOURS})
         department = next((d for d in departments if str(d.pk) == raw), None)
         if not department:
             from rest_framework.exceptions import NotFound
@@ -186,11 +190,11 @@ class ProductionTaskViewSet(viewsets.GenericViewSet):
             queryset = task.production_comments.select_related("author", "deleted_by").prefetch_related("mention_records__employee")
             if not (request.user.is_superuser or PermissionService.has_permission(employee=self._actor(), permission="task.comment_internal", obj=task)):
                 queryset = queryset.filter(is_internal=False)
-            return Response(CommentSerializer(queryset, many=True).data)
+            return Response(CommentSerializer(queryset, many=True, context={'request':request}).data)
         serializer = CommentWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         comment = CollaborationService.add_comment(task=task, actor=self._actor(), actor_user=request.user, correlation_id=self._correlation_id(), **serializer.validated_data)
-        return Response(CommentSerializer(comment).data, status=201)
+        return Response(CommentSerializer(comment, context={'request':request}).data, status=201)
 
     @action(detail=True, methods=["patch", "delete"], url_path=r"comments/(?P<comment_id>[^/.]+)")
     def comment_detail(self, request, pk=None, comment_id=None):
@@ -202,7 +206,7 @@ class ProductionTaskViewSet(viewsets.GenericViewSet):
             serializer = CommentWriteSerializer(data=request.data, partial=True)
             serializer.is_valid(raise_exception=True)
             comment = CollaborationService.edit_comment(comment=comment, actor=self._actor(), actor_user=request.user, correlation_id=self._correlation_id(), **serializer.validated_data)
-        return Response(CommentSerializer(comment).data)
+        return Response(CommentSerializer(comment, context={'request':request}).data)
 
     @action(detail=True, methods=["get", "post"])
     def attachments(self, request, pk=None):

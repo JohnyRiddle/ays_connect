@@ -104,3 +104,14 @@ class TaskOccurrenceAdmin(HistoricalAdmin):
 @admin.register(TaskSavedView)
 class TaskSavedViewAdmin(HistoricalAdmin):
     list_display = ("owner", "name", "is_default", "is_active", "updated_at")
+
+
+from .models import TaskApproval, TaskApprovalEvent
+
+class ApprovalReadOnlyAdmin(admin.ModelAdmin):
+    def has_add_permission(self,request):return False
+    def has_change_permission(self,request,obj=None):return False
+    def has_delete_permission(self,request,obj=None):return False
+
+admin.site.register(TaskApproval,ApprovalReadOnlyAdmin)
+admin.site.register(TaskApprovalEvent,ApprovalReadOnlyAdmin)
