@@ -28,7 +28,7 @@ def seed():
  unit.manager_position=position;unit.save()
  user,actor=people[0];apuser,approver=people[1]
  target=AssignmentTarget.objects.create(target_type='employee',employee=approver)
- task=TaskService.create(actor=actor,actor_user=user,title='STAGING: согласование предложения в чате',description='Учебный пример. Согласование обсуждения не меняет состояние задачи.',responsible_department=unit,executor_target=target)
+ task=TaskService.create(actor=actor,actor_user=user,title='STAGING: обсуждение закупки',description='Учебный пример. Согласование обсуждения не меняет состояние задачи.',responsible_department=unit,executor_target=target)
  task=TaskService.publish(task=task,actor=actor,actor_user=user,version=task.version)
  task=TaskService.start(task=task,actor=approver,actor_user=apuser,version=task.version)
  comment=CollaborationService.add_comment(task=task,actor=actor,actor_user=user,body='@Согласующий Сергей прошу проверить предложение по закупке.',mentions=[approver])

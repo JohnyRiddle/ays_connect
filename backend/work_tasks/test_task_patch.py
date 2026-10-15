@@ -50,6 +50,19 @@ class TaskPatchTests(TestCase):
     def target(self, employee):
         return AssignmentTarget.objects.create(target_type='employee', employee=employee)
 
+    def test_participant_search_does_not_filter_parent_task_title_and_keeps_scope(self):
+        self.head.first_name='УникальныйСогласующий'; self.head.save(update_fields=['first_name'])
+        task=self.create()
+        client=APIClient(); client.force_authenticate(self.admin)
+        url=f'/api/internal/v1/tasks/{task.pk}/participant-options/'
+        response=client.get(url,{'search':'Уникальный'})
+        self.assertEqual(response.status_code,200)
+        self.assertEqual([row['id'] for row in response.data['results']],[str(self.head.pk)])
+        response=client.get('/api/internal/v1/tasks/',{'search':'Уникальный'})
+        self.assertEqual(response.data['count'],0)
+        client.force_authenticate(self.other_user)
+        self.assertEqual(client.get(url,{'search':'Уникальный'}).status_code,404)
+
     @override_settings(WORK_TASK_PRIORITY_HOURS={'blocking': None, 'critical': 2, 'high': 24, 'normal': 72, 'low': 168})
     def test_assignment_options_exposes_configured_priority_hours(self):
         client = APIClient(); client.force_authenticate(self.admin)
