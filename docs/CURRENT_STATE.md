@@ -775,3 +775,18 @@ Enter отправляет сообщение, Shift+Enter переносит с
 Vite/diff PASS; 1280/390 px, visual QA. Изменения локальные, commit/push/production
 не выполнялись, 3 отложенных Telegram-файла сохранены. Подробнее:
 [TASK_DISCUSSION_MENTIONS_2026_10_16.md](TASK_DISCUSSION_MENTIONS_2026_10_16.md).
+
+## 16.10.2026 — PR #14: Enter и кнопка согласования опубликованы
+
+По явному запросу commit/push/merge/publication завершены. Frontend
+`c984b65`, merge `0aee5e9`. Enter отправляет, Shift+Enter переносит строку;
+@список/IME/busy учтены. Кнопка согласования справа в заголовке, выбор источника
+и согласующего в панели; плашки/история в сообщениях сохранены. Browser
+**25/25 PASS**, TypeScript/Vite/diff PASS. Production HTTPS **16 PASS**, browser
+**10/10 PASS**, **0 HTTP write attempts**, core **7/7 healthy**.
+Непустой Enter проверен локально mock API, без тестовых сообщений в production.
+Frontend backup **41 файл** восстановлен и сверен EFS/LUKS, **34 прежних assets**
+сохранены. Без простоя/перезапуска backend. Backend RC `376a8dd`,
+БД/миграции/права сохранены. Operational wrappers/metadata согласованы;
+Telegram/receiver выключены, 3 отложенных файла сохранены.
+[Отчёт](TASK_CHAT_ENTER_HEADER_RELEASE_2026_10_16.md).

@@ -126,3 +126,6 @@ Enter в composer отправляет непустое сообщение, Shif
 миграции и Telegram не менялись. Изменения локальные, без commit/push/publication.
 
 Проверки: browser **25/25 PASS**, TypeScript/Vite/diff PASS; visual QA 1280/390 px.
+
+16.10.2026: клавиатура и запрос из заголовка опубликованы в PR #14.
+[Проверки выпуска и откат](TASK_CHAT_ENTER_HEADER_RELEASE_2026_10_16.md). Статус DEPLOYED_ACCEPTED.
