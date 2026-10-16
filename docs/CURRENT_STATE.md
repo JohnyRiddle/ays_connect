@@ -700,3 +700,18 @@ GET-only synthetic overlay; настоящий mention — API rollback, без 
 Operational wrappers/metadata согласованы; 11 identity/org/RBAC таблиц неизменны,
 временная копия остановлена. Telegram/receiver выключены, три отложенных файла
 сохранены. [Отчёт и доказательства](TASK_CHAT_MENTION_RELEASE_2026_10_16.md).
+
+## 16.10.2026 — автоматическое обновление сообщений задачи (локально)
+
+Чат обновляется через существующий comments API каждые 5 секунд и при возврате
+во вкладку, без перезагрузки. Черновик/@ и положение чтения сохраняются;
+нижняя граница следует за новыми сообщениями. Скрытая вкладка не опрашивается,
+одновременные GET исключены, смена задачи отменяет старый запрос. Собственная
+отправка не перекрывается поздним ответом предыдущего опроса. Сетевая ошибка
+сохраняет последнюю переписку и повторяет чтение; отказ доступа очищает её.
+Browser **19/19 PASS**, включая 3 новых сценария auto-refresh/scroll/draft,
+edit/delete, 503 recovery, hidden/visible и slow GET + own send. TypeScript,
+Vite build, diff check PASS. Backend, права, миграции и Telegram не менялись.
+Изменения в `codex/task-chat-live`, без commit/push/production deployment;
+3 отложенных Telegram-файла сохранены. Поведение описано в
+[TASK_DISCUSSION_MENTIONS_2026_10_16.md](TASK_DISCUSSION_MENTIONS_2026_10_16.md).
