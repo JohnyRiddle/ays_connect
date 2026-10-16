@@ -790,3 +790,16 @@ Frontend backup **41 файл** восстановлен и сверен EFS/LUK
 БД/миграции/права сохранены. Operational wrappers/metadata согласованы;
 Telegram/receiver выключены, 3 отложенных файла сохранены.
 [Отчёт](TASK_CHAT_ENTER_HEADER_RELEASE_2026_10_16.md).
+
+## 16.10.2026 — согласование: два поля без источника (локально)
+
+Форма в заголовке содержит только согласующего и текст запроса, доступна и при
+пустом чате. Новый task-level approval-options GET, POST approvals без comment
+атомарно публикует текст отдельным сообщением и создаёт согласование; legacy
+payload с comment сохранён. Ошибка откатывает comment/approval/Audit/Outbox,
+ретраи и конкурентные отправки с одним command_id не дублируют сообщение.
+Task/SLA/права не меняются, новых grants/watchers нет, миграций нет.
+PostgreSQL **61/61 PASS**, browser **26/26 PASS**, TypeScript/Vite/check/drift/diff
+PASS. OpenAPI **8 paths / 9 operations / 12 schemas**, validation PASS.
+Visual QA mobile PASS. Изменения локальные, без commit/push/production;
+3 отложенных Telegram-файла сохранены. Подробнее: WORK_TASKS_APPROVALS_01.md.

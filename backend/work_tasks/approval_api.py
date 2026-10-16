@@ -28,17 +28,30 @@ class ApprovalActionsMixin:
             qs=qs.filter(source_internal=False,comment__is_internal=False)
         return qs
 
-    @extend_schema(request=ApprovalRequestSerializer,responses={201:ApprovalSerializer,**ERRORS},description='Explicit approval request for one eligible employee. Creates approval participation without a watcher. Does not mutate any Task fields. command_id makes retries idempotent.',tags=['Task comment approvals'],parameters=TASK_PARAMS,methods=['POST'])
+    @extend_schema(request=ApprovalRequestSerializer,responses={201:ApprovalSerializer,**ERRORS},description='Explicit approval request for one eligible employee. Omitting comment atomically creates a public chat message from text; failed requests leave no comment. Creates approval participation without a watcher. Does not mutate any Task fields. command_id makes retries idempotent.',tags=['Task comment approvals'],parameters=TASK_PARAMS,methods=['POST'])
     @extend_schema(responses={200:ApprovalSerializer(many=True),**ERRORS},tags=['Task comment approvals'],parameters=TASK_PARAMS,methods=['GET'])
     @action(detail=True,methods=['get','post'],url_path='approvals')
     def approvals(self,request,pk=None):
         task=self.get_object();qs=self._approvals(task)
         if request.method=='GET':return Response(ApprovalSerializer(qs,many=True,context={'request':request}).data)
         data=ApprovalRequestSerializer(data=request.data);data.is_valid(raise_exception=True);v=data.validated_data
-        comment=get_object_or_404(TaskComment,pk=v['comment'],task=task)
+        comment=get_object_or_404(TaskComment,pk=v['comment'],task=task) if 'comment' in v else None
         approver=get_object_or_404(Employee.objects.select_related('user'),pk=v['approver'])
-        result=ApprovalService.request(comment=comment,approver=approver,actor=self._actor(),user=request.user,text=v['text'],command_id=v['command_id'],correlation_id=self._correlation_id())
+        method=ApprovalService.request if comment else ApprovalService.request_from_task
+        source={'comment':comment} if comment else {'task':task}
+        result=method(**source,approver=approver,actor=self._actor(),user=request.user,text=v['text'],command_id=v['command_id'],correlation_id=self._correlation_id())
         return Response(ApprovalSerializer(result,context={'request':request}).data,status=201)
+
+    @extend_schema(responses={200:ApprovalCandidateSerializer(many=True),**ERRORS},tags=['Task comment approvals'],parameters=TASK_PARAMS,description='Eligible approvers for a new request message. Read-only, no source comment required and no access granted.')
+    @action(detail=True,methods=['get'],url_path='approval-options')
+    def task_approval_options(self,request,pk=None):
+        from .collaboration import CollaborationService
+        from employees.assignment_targets import assignment_visibility
+        task=self.get_object();self._approvals(task)
+        source=TaskComment(task=task,author=self._actor(),body='',is_internal=False)
+        require(employee=self._actor(),user=request.user,permission='task.approval.request',task=task,comment=source)
+        CollaborationService._authorize(actor=self._actor(),actor_user=request.user,permission='task.comment',task=task)
+        return Response([{'id':str(e.pk),'name':e.display_name} for e in assignment_visibility(request.user)[0].select_related('user').order_by('last_name','first_name','pk') if e.pk!=self._actor().pk and can_invite_approver(employee=e,task=task,comment=source)])
 
     @extend_schema(responses={200:ApprovalCandidateSerializer(many=True),**ERRORS},tags=['Task comment approvals'],parameters=COMMENT_PARAMS,description='Eligible approvers with object scope and prospective participating permissions. Selection alone grants no access; submitting an approval makes its approver a task participant.')
     @action(detail=True,methods=['get'],url_path=r'comments/(?P<comment_id>[^/.]+)/approval-options')
