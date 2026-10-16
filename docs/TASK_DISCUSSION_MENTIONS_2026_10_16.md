@@ -137,3 +137,6 @@ Enter в composer отправляет непустое сообщение, Shif
 старые сообщения не используются автоматически. Старые API с comment сохранены.
 Подробный контракт/проверки: WORK_TASKS_APPROVALS_01.md. PostgreSQL **61/61**,
 browser **26/26**, TypeScript/Vite/check/drift/OpenAPI/diff PASS. Не опубликовано.
+
+16.10.2026: упрощённая форма опубликована в PR #15, статус DEPLOYED_ACCEPTED.
+[Проверки и восстановление](SIMPLE_APPROVAL_REQUEST_RELEASE_2026_10_16.md).

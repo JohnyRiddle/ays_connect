@@ -255,3 +255,6 @@ Frontend index SHA256:
 14 транзакционных API-проверок с rollback, staging browser **2/2 PASS**,
 прежние UI-проверки **12/12 PASS**. Telegram остаётся выключенным.
 Frozen-точки и финальная приёмка: [отчёт выпуска](WORK_TASKS_APPROVALS_RELEASE_2026_10_15.md).
+
+16.10.2026: упрощённая форма опубликована в PR #15, статус DEPLOYED_ACCEPTED.
+[Проверки и восстановление](SIMPLE_APPROVAL_REQUEST_RELEASE_2026_10_16.md).

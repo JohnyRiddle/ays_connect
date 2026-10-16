@@ -803,3 +803,19 @@ PostgreSQL **61/61 PASS**, browser **26/26 PASS**, TypeScript/Vite/check/drift/d
 PASS. OpenAPI **8 paths / 9 operations / 12 schemas**, validation PASS.
 Visual QA mobile PASS. Изменения локальные, без commit/push/production;
 3 отложенных Telegram-файла сохранены. Подробнее: WORK_TASKS_APPROVALS_01.md.
+
+## 16.10.2026 — PR #15: упрощённая форма согласования опубликована
+
+По явному запросу commit/push/merge/deployment завершены. Runtime
+`2d12c15`, merge `c0f7383`. Два поля: согласующий и текст. Новый запрос
+атомарно публикует сообщение с согласованием, без выбора источника; legacy API
+сохранены. Task/SLA/права не меняются, миграций нет. Свежая production-копия
+**204 таблицы**, PostgreSQL **717/717 PASS**, API **22/22 rollback** на копии
+и production, browser **26/26 PASS**. Frozen DB/media/frontend восстановлены
+и сверены, окно **93.109 с**; исходные 204 таблицы сохранены.
+Финальные HTTPS **16 PASS**, core **7/7 healthy**, browser **10/10 PASS**,
+**0 HTTP write attempts**. Реальное создание — API rollback без сохранения
+тестовых сообщений. OpenAPI validation PASS. Operational wrappers/metadata
+согласованы, 11 identity/org/RBAC таблиц неизменны, копия остановлена.
+Telegram/receiver выключены, 3 отложенных файла сохранены.
+[Отчёт](SIMPLE_APPROVAL_REQUEST_RELEASE_2026_10_16.md).
