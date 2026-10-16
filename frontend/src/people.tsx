@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { EmployeeObjectPanel } from "./registration";
+import "./employee-settings.css";
 const ROOT = (import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1").replace(/\/api\/v1\/?$/, "");
 async function request(path: string, options: RequestInit = {}) {
   const token = sessionStorage.getItem("access");
@@ -61,11 +62,26 @@ function InvitationManagementPage() {
   return <main className="work-page"><div className="page-heading"><div><p className="eyebrow blue">People management</p><h1>Приглашения</h1><p className="muted">Состояние доступа без отображения секретных токенов</p></div></div>{error&&<div className="error">{error}</div>}<div className="people-grid">{items.map((x:any)=><article className="people-card" key={x.id}><b>{x.employee_name}</b><span>{x.delivery_address}</span><span className="badge">{x.status}</span><small>Действует до {new Date(x.expires_at).toLocaleString("ru-RU")}</small></article>)}</div></main>;
 }
 
+function EmployeeSettingsMenu({employeeId,navigate}:{employeeId:string;navigate:(path:string)=>void}) {
+ const ref=useRef<HTMLDetailsElement>(null);
+ useEffect(()=>{const outside=(e:PointerEvent)=>{if(ref.current&&!ref.current.contains(e.target as Node))ref.current.open=false};const escape=(e:KeyboardEvent)=>{if(e.key==='Escape'&&ref.current?.open){ref.current.open=false;ref.current.querySelector('summary')?.focus()}};document.addEventListener('pointerdown',outside);document.addEventListener('keydown',escape);return()=>{document.removeEventListener('pointerdown',outside);document.removeEventListener('keydown',escape)}},[]);
+ return <details ref={ref} className="employee-settings-menu"><summary role="button">Настройки сотрудника <span aria-hidden="true">⌄</span></summary><nav aria-label="Разделы карточки">{[['objects','Объекты и права'],['access','Доступ и группы']].map(([route,label])=><a key={route} href={`/people/employees/${employeeId}/${route}`} onClick={e=>{if(!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&!e.altKey&&e.button===0){e.preventDefault();if(ref.current)ref.current.open=false;navigate(`/people/employees/${employeeId}/${route}`)}}}>{label}</a>)}</nav></details>;
+}
+
+function EmployeeAccessGroups({data}:{data:any}) {
+ const [search,setSearch]=useState('');
+ const grouped=new Map<string,{name:string;count:number}>();
+ for(const role of data.roles||[]){const key=role.code||role.name;const old=grouped.get(key);grouped.set(key,{name:role.name,count:(old?.count||0)+1})}
+ const query=search.trim().toLocaleLowerCase('ru');const roles=[...grouped].filter(([,r])=>r.name.toLocaleLowerCase('ru').includes(query)).sort((a,b)=>a[1].name.localeCompare(b[1].name,'ru',{numeric:true}));
+ const groups=(data.functional_groups||[]).filter((g:any)=>g.name.toLocaleLowerCase('ru').includes(query));
+ return <><label className="employee-settings-search">Поиск ролей и групп<input type="search" placeholder="Название роли или группы" value={search} onChange={e=>setSearch(e.target.value)}/></label><div className="employee-settings-grid"><section className="people-card"><h2>Роли <span className="employee-count">{grouped.size}</span></h2><div className="employee-role-list">{roles.map(([key,role])=><article key={key}><strong>{role.name}</strong><span className="muted">{`Назначений: ${role.count}`}</span></article>)}</div>{!roles.length&&<p className="people-empty">{query?'Подходящих ролей нет':'Роли не назначены'}</p>}<p className="muted">Область действия назначений доступна на странице «Объекты и права».</p></section><section className="people-card"><h2>Функциональные группы <span className="employee-count">{data.functional_groups?.length||0}</span></h2><div className="employee-role-list">{groups.map((g:any)=><article key={g.id}><strong>{g.name}</strong></article>)}</div>{!groups.length&&<p className="people-empty">{query?'Подходящих групп нет':'Сотрудник не входит в группы'}</p>}</section></div></>;
+}
+
 export function PeopleRouter({path,navigate}:{path:string;navigate:(x:string)=>void}) {
   const [data,setData]=useState<any>(); const [error,setError]=useState(""); const [search,setSearch]=useState("");
-  const id=path.match(/^\/people\/employees\/([^/]+)$/)?.[1]; const registrations=path==="/people/registrations"; const selfProfile=path==="/people/me"; const editProfile=path==="/people/me/edit";const special=["/people/first-login","/people/me/onboarding","/people/onboarding","/people/onboarding-templates","/people/invitations"].includes(path);
+  const employeeRoute=path.match(/^\/people\/employees\/([^/]+)(?:\/(objects|access))?$/);const id=employeeRoute?.[1];const accessPage=employeeRoute?.[2]; const registrations=path==="/people/registrations"; const selfProfile=path==="/people/me"; const editProfile=path==="/people/me/edit";const special=["/people/first-login","/people/me/onboarding","/people/onboarding","/people/onboarding-templates","/people/invitations"].includes(path);
   const load=()=>request(registrations?"/api/internal/v1/people/registrations/":id?`/api/internal/v1/people/employees/${id}/`:`/api/internal/v1/people/employees/?search=${encodeURIComponent(search)}`).then(setData).catch(e=>setError(e.message));
-  useEffect(()=>{ if(!selfProfile&&!editProfile&&!special)load(); },[path]);
+  useEffect(()=>{if(selfProfile||editProfile||special)return;let active=true;setData(undefined);setError('');request(registrations?"/api/internal/v1/people/registrations/":id?`/api/internal/v1/people/employees/${id}/`:`/api/internal/v1/people/employees/?search=${encodeURIComponent(search)}`).then(value=>{if(active)setData(value)}).catch(e=>{if(active)setError(e.message)});return()=>{active=false};},[path]);
   async function employeeAction(action:string, payload:any={}){setError("");try{const result=await request(`/api/internal/v1/people/employees/${id}/${action}/`,{method:"POST",body:JSON.stringify(payload)});if(result.activation_url) await navigator.clipboard.writeText(result.activation_url);load();}catch(e){setError((e as Error).message)}}
   if(selfProfile) return <MyProfilePage/>;
   if(editProfile) return <EditMyProfilePage navigate={navigate}/>;
@@ -76,8 +92,10 @@ export function PeopleRouter({path,navigate}:{path:string;navigate:(x:string)=>v
   if(path==="/people/invitations")return <InvitationManagementPage/>;
   if(error&&!data)return <main className="work-page"><div className="error">{error}</div></main>;
   if(registrations)return <main className="work-page"><div className="page-heading"><div><p className="eyebrow blue">People</p><h1>Заявки на регистрацию</h1></div></div><div className="people-grid">{data?.results?.map((x:any)=><article className="people-card" key={x.id}><b>{x.full_name}</b><span>{x.email}</span><span className="badge">{x.status}</span>{x.status==="pending"&&<><button onClick={()=>{const employee_id=prompt("UUID сотрудника");if(employee_id)request(`/api/internal/v1/people/registrations/${x.id}/approve/`,{method:"POST",body:JSON.stringify({employee_id})}).then(load).catch(e=>setError(e.message))}}>Одобрить и пригласить</button><button onClick={()=>request(`/api/internal/v1/people/registrations/${x.id}/reject/`,{method:"POST",body:JSON.stringify({reason:"not_confirmed"})}).then(load)}>Отклонить</button></>}</article>)}</div>{error&&<div className="error">{error}</div>}</main>;
+  if(id&&(!data||String(data.id)!==id))return <main className="work-page"><p role="status">Загрузка сотрудника…</p></main>;
+  if(id&&data&&accessPage)return <main className="work-page people-detail employee-settings-page"><button className="people-back" onClick={()=>navigate(`/people/employees/${id}`)}>← К карточке сотрудника</button><div className="page-heading"><div><p className="eyebrow blue">{data.display_name}</p><h1>{accessPage==='objects'?'Объекты и права':'Доступ и группы'}</h1><p className="muted">{accessPage==='objects'?'Объекты работы, ответственность и область доступа':'Роли сотрудника и функциональные связи'}</p></div></div><nav className="employee-settings-tabs" aria-label="Настройки сотрудника">{[['objects','Объекты и права'],['access','Доступ и группы']].map(([route,label])=><a key={route} href={`/people/employees/${id}/${route}`} aria-current={accessPage===route?'page':undefined} onClick={e=>{if(!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&!e.altKey&&e.button===0){e.preventDefault();navigate(`/people/employees/${id}/${route}`)}}}>{label}</a>)}</nav>{accessPage==='objects'?<EmployeeObjectPanel key={id} employeeId={id}/>:<EmployeeAccessGroups key={id} data={data}/>}</main>;
   if(id&&data)return <main className="work-page people-detail">
-    <button className="people-back" onClick={()=>navigate("/people/employees")}>← К сотрудникам</button>
+    <div className="employee-card-toolbar"><button className="people-back" onClick={()=>navigate("/people/employees")}>← К сотрудникам</button><EmployeeSettingsMenu employeeId={id} navigate={navigate}/></div>
     <section className="people-profile-head">
       <div className="people-avatar" aria-hidden="true">{initials(data.display_name)}</div>
       <div className="people-profile-title">
@@ -89,7 +107,6 @@ export function PeopleRouter({path,navigate}:{path:string;navigate:(x:string)=>v
     </section>
     {error&&<div className="error">{error}</div>}
     <div className="people-columns">
-      <EmployeeObjectPanel employeeId={id}/>
       <section className="people-card people-info-card">
         <header><span>01</span><div><h2>Рабочий профиль</h2><p>Организационные данные сотрудника</p></div></header>
         <dl>
@@ -109,11 +126,7 @@ export function PeopleRouter({path,navigate}:{path:string;navigate:(x:string)=>v
         </div>
         <div className="action-row">{!data.account&&<button className="primary" onClick={()=>navigate("/people/registration")}>Создать приглашение</button>}{data.account_status==="INVITED"&&<button onClick={()=>navigate("/people/registration")}>Управлять приглашениями</button>}{data.account_status==="ACTIVE"&&<button className="secondary-danger" onClick={()=>employeeAction("account/block")}>Заблокировать</button>}{data.account_status==="BLOCKED"&&<button onClick={()=>employeeAction("account/unblock")}>Разблокировать</button>}</div>
       </section>
-      <section className="people-card people-access-card">
-        <header><span>03</span><div><h2>Доступ и группы</h2><p>Роли и функциональные связи</p></div></header>
-        <div className="people-access-group"><h3>Роли</h3><div className="people-chip-list">{data.roles?.length?data.roles.map((x:any)=><span className="badge" key={x.code}>{x.name}</span>):<span className="people-empty">Роли не назначены</span>}</div></div>
-        <div className="people-access-group"><h3>Функциональные группы</h3><div className="people-chip-list">{data.functional_groups?.length?data.functional_groups.map((x:any)=><span className="badge neutral" key={x.id}>{x.name}</span>):<span className="people-empty">Сотрудник не входит в группы</span>}</div></div>
-      </section>
+
     </div>
   </main>;
   return <main className="work-page"><div className="page-heading"><div><p className="eyebrow blue">People</p><h1>Сотрудники</h1></div><button onClick={()=>navigate("/people/registrations")}>Заявки на регистрацию</button></div><form className="people-filters" onSubmit={e=>{e.preventDefault();load()}}><label>Поиск<input value={search} onChange={e=>setSearch(e.target.value)} placeholder="ФИО, должность или подразделение"/></label><button>Найти</button></form><div className="people-table"><div className="people-row people-head"><b>Сотрудник</b><b>Должность</b><b>Подразделение</b><b>Локация</b><b>Аккаунт</b></div>{data?.results?.map((x:any)=><button className="people-row" key={x.id} onClick={()=>navigate(`/people/employees/${x.id}`)}><span className="people-person"><span className="people-list-avatar">{initials(x.display_name)}</span><span><b>{x.display_name}</b><small>{x.employee_number||"Номер не назначен"}</small></span></span><span>{x.position_name||"—"}</span><span>{x.org_unit_name||"—"}</span><span>{x.location_name||"—"}</span><span className={`badge account-${String(x.account_status).toLowerCase()}`}>{labels[x.account_status]||x.account_status}</span></button>)}</div><p className="people-total">Всего сотрудников: <b>{data?.count||0}</b></p></main>;

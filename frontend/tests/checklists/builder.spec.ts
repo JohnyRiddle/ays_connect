@@ -101,7 +101,11 @@ for(const width of [1280,390])test(`task checklist layout and comments at ${widt
   // Previously saved typed answers remain usable, without conversion or data loss.
   await panel.getByLabel('Ответ: Температура',{exact:true}).fill('0');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
-  await panel.screenshot({path:`test-results/checklists/task-layout-${width}.png`});
+  for(const theme of ['light','dark']){
+    await page.evaluate(value=>document.documentElement.setAttribute('data-theme',value),theme);
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
+    await panel.screenshot({path:`test-results/checklists/task-layout-${width}-${theme}.png`});
+  }
 });
 
 for(const width of [1280,390])test(`watcher search, sequential selection and safe removal at ${width}px`,async({page})=>{
