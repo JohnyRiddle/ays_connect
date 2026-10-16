@@ -2069,9 +2069,14 @@ function NotificationBell({userId}:{userId:number}) {
   },[userId]);
   const dismiss=(id:NotificationData['id'])=>setToasts(old=>old.filter(n=>n.id!==id));
   async function select(item:NotificationData){try{if(!item.is_read){await api(`/notifications/${item.id}/read/`,{method:'POST'});notifyNotificationsRead([item.id])}dismiss(item.id);setOpen(false);reload.current();if(item.action_url)window.location.href=item.action_url}catch{setError('Не удалось открыть уведомление. Попробуйте ещё раз.')}}
-  async function markShown(shown:NotificationData[]){setPreview(shown);setError('');const results=await Promise.allSettled(shown.map(async n=>{await api(`/notifications/${n.id}/read/`,{method:'POST'});return n.id}));const ids=results.flatMap(r=>r.status==='fulfilled'?[r.value]:[]);if(ids.length)notifyNotificationsRead(ids);if(results.some(r=>r.status==='rejected'))setError('Не удалось отметить часть уведомлений. Откройте список ещё раз.');}
-  async function showMenu(){if(open){setOpen(false);return}setPreview([]);setOpen(true);const shown=itemsRef.current.slice(0,5);if(shown.length)await markShown(shown)}
-  useEffect(()=>{if(open&&!preview.length&&itemsRef.current.length)void markShown(itemsRef.current.slice(0,5))},[open,unreadCount,preview.length]);
+  async function showMenu(){
+    if(open){setOpen(false);return}
+    setOpen(true);setError('');
+    let shown=itemsRef.current.slice(0,5);
+    setPreview(shown);
+    if(!shown.length){try{const data=await api('/notifications/?unread=true');shown=(data.results||[]).slice(0,5);setPreview(shown)}catch{setError('Не удалось загрузить уведомления. Откройте список ещё раз.');return}}
+    await readAll();
+  }
   async function readAll(){if(readingAll)return;setReadingAll(true);try{await api('/notifications/read-all/',{method:'POST'});notifyNotificationsRead();setError('')}catch{setError('Не удалось прочитать уведомления. Попробуйте ещё раз.')}finally{setReadingAll(false)}}
   return <div className="notification-bell"><button aria-label="Уведомления" aria-expanded={open} onClick={()=>void showMenu()}><Bell/>{unreadCount>0&&<b>{unreadCount>99?'99+':unreadCount}</b>}</button>
     {open&&<div className="notification-popover"><strong>Уведомления</strong>{preview.map(item=><button key={item.id} className={item.is_read?'read':''} onClick={()=>void select(item)}><span>{item.title}</span><small>{item.message}</small></button>)}{!preview.length&&<p>Новых уведомлений нет</p>}{unreadCount>0&&<button className="notification-read-all" disabled={readingAll} onClick={()=>void readAll()}>Прочитать все</button>}<a href="/#notifications" onClick={()=>setOpen(false)}>Все уведомления</a></div>}
