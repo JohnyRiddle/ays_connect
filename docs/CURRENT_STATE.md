@@ -647,3 +647,18 @@ Browser **4/4 PASS** на 1280/390 px, TypeScript/Vite/diff check PASS.
 Светлая/тёмная темы, 1280/390 px: browser **2/2 PASS**, TypeScript/Vite/diff PASS.
 Доработка локальная, вместе с непубликованными страницами доступа сотрудников;
 commit/push/deployment не выполнялись, прежние изменения сохранены.
+
+## 16.10.2026 — PR #9: страницы доступа и карточки чек-листов опубликованы
+
+По явному запросу commit/push/merge/publication завершены. Frontend
+`0152e0677c0fc98e281663d6e330e07579d46db9`, merge `eaabe27`.
+Отдельные страницы объектов/прав и доступа/групп с меню из карточки сотрудника,
+поиском и группировкой ролей. Чек-листы выделены контрастными карточками.
+Browser **4/4 employees + 12/12 checklists PASS**, TypeScript/Vite/diff PASS.
+Production HTTPS **16 PASS**, browser **7/7 PASS**, 0 HTTP write attempts,
+core **7/7 healthy**. Восстановление защищённой frontend-копии (32 файла)
+проверено до публикации, 25 прежних assets сохранены. Без простоя.
+Backend image/RC `e24a928`, БД, миграции, права и API не менялись; server/workers
+не перезапускались. Operational wrappers/frontend metadata обновлены,
+Telegram/receiver выключены; три отложенных Telegram source-файла сохранены.
+[Полный отчёт](EMPLOYEE_UI_RELEASE_2026_10_16.md).
