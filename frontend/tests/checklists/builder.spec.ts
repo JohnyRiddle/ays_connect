@@ -188,6 +188,7 @@ for(const width of [1280,390])test(`chat feed scroll and composer below messages
  const messages=Array.from({length:40},(_,i)=>({id:`msg-${i}`,author:'employee',author_display:'Тестовый сотрудник',body:`Сообщение ${i+1}. Обсуждение рабочего вопроса.`,created_at:new Date(2026,9,16,10,i).toISOString(),mentions:[]}));
  await page.route(`**/tasks/${taskId}/comments/`,async route=>{if(route.request().method()==='POST'){const item={...messages[0],id:'own-new',body:route.request().postDataJSON().body};messages.push(item);await route.fulfill({json:item})}else await route.fulfill({json:messages})});
  await page.goto(`/tasks/${taskId}`);const feed=page.getByRole('log',{name:'Сообщения задачи'});await expect(feed.locator('article.comment')).toHaveCount(40);
+ await expect(page.locator('.task-chat')).toHaveCSS('border-top-width','3px');await expect(page.locator('.task-files')).toHaveCSS('border-top-width','3px');
  await expect.poll(()=>feed.evaluate(e=>e.scrollHeight-e.clientHeight-e.scrollTop)).toBeLessThan(2);
  const input=page.getByRole('textbox',{name:'Новый комментарий'});const box=await feed.boundingBox();const composer=await input.boundingBox();expect(box&&composer&&composer.y>=box.y+box.height).toBeTruthy();
  await feed.evaluate(e=>{e.scrollTop=0;e.dispatchEvent(new Event('scroll',{bubbles:true}))});await input.fill('Новое сообщение исполнителя');await expect.poll(()=>feed.evaluate(e=>e.scrollTop)).toBe(0);

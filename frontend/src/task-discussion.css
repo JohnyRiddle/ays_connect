@@ -1,6 +1,6 @@
 .task-layout .task-content { display:grid; gap:18px; border:0; border-radius:0; background:transparent; }
 .task-layout .task-content>.work-card, .task-layout .task-content>.work-card:last-child { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:22px 24px; }
-.task-layout .task-content>.task-files, .task-layout .task-content>.task-chat { border-top:3px solid var(--brand); }
+.task-layout .task-content>.work-card.task-files, .task-layout .task-content>.work-card.task-chat { border-top:3px solid var(--brand); }
 .task-files .task-section-heading { padding-bottom:14px; margin-bottom:14px; border-bottom:1px solid var(--border); gap:14px; flex-wrap:wrap; }
 .task-chat>h2 { margin-bottom:16px; }
 .mention-toast-region { position:fixed; z-index:2000; top:78px; right:24px; width:min(360px,calc(100vw - 32px)); display:grid; gap:12px; pointer-events:none; }
