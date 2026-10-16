@@ -57,3 +57,9 @@
 .task-chat-request-panel>label { display:grid; gap:6px; font-size:12px; }
 .task-chat-request-panel select { width:100%; min-width:0; box-sizing:border-box; padding:9px; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text); }
 .task-chat-request-panel blockquote { margin:12px 0; padding-left:10px; border-left:2px solid var(--border); font-size:12px; color:var(--text-muted); white-space:pre-wrap; overflow-wrap:anywhere; max-height:90px; overflow:auto; }
+
+.notification-popover button.read { opacity:.7; }
+.notification-popover .notification-read-all { color:var(--brand-text); text-align:center; font-weight:600; border-top:1px solid var(--border); }
+
+.header-actions .notification-popover { box-sizing:border-box; max-height:min(600px,calc(100dvh - 100px)); overflow-y:auto; }
+@media(max-width:640px) { .header-actions .notification-popover { position:fixed; top:68px; right:12px; width:calc(100vw - 24px); max-height:calc(100dvh - 88px); } }

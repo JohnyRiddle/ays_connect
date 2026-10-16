@@ -41,3 +41,6 @@
   color: var(--brand-text);
   font-size: 14px;
 }
+
+/* Keep nested links indented after the shared sidebar padding rule. */
+.sidebar nav .nav-group>div>a { padding-left:28px; }
