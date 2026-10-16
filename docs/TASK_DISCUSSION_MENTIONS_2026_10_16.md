@@ -188,3 +188,6 @@ status/created_at даёт последние события; в dropdown ост
 Unread API используется независимо для badge/popup. Поддерживается повторное
 открытие и reload при нуле непрочитанных. Loading/ошибка не подменяются пустым
 списком. Browser **5/5 PASS**, TypeScript/Vite/diff PASS. Не опубликовано.
+
+16.10.2026: история опубликована в PR #18, DEPLOYED_ACCEPTED.
+[Проверки и восстановление](NOTIFICATION_HISTORY_RELEASE_2026_10_16.md).

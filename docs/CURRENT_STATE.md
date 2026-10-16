@@ -894,3 +894,7 @@ Wrappers/metadata согласованы, Telegram/receiver выключены; 
 уведомлений». Backend/API/RBAC/Telegram не менялись. Notification browser
 **5/5 PASS**, TypeScript/Vite/diff PASS. Изменения локальные, commit/push/
 publication не выполнялись; 3 отложенных Telegram-файла сохранены.
+
+## 16.10.2026 — история уведомлений опубликована
+
+PR #18: последние пять уведомлений, включая прочитанные, доступны при повторном открытии и reload. Frontend RC 2e1bee5, backend сохранён. Browser 5/5 local и 14/14 production, HTTPS 16, core 7/7 PASS; реальных HTTP writes в browser-проверке 0. DEPLOYED_ACCEPTED. Подробности: [выпуск](NOTIFICATION_HISTORY_RELEASE_2026_10_16.md).
