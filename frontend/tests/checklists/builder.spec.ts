@@ -240,3 +240,26 @@ for(const width of [1280,390])test(`compact messenger bubbles and approval chips
  await expect(page.getByRole('textbox',{name:'Новый комментарий'})).toHaveCSS('height','48px');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
  for(const theme of ['light','dark']){await page.evaluate(t=>document.documentElement.setAttribute('data-theme',t),theme);await page.locator('.task-chat').screenshot({path:`test-results/checklists/messenger-${width}-${theme}.png`})}
 });
+
+
+for(const width of [1280,390])test(`Enter sends, Shift Enter adds line and mentions select first at ${width}px`,async({page})=>{
+ await fixture(page);await page.setViewportSize({width,height:1000});const messages:any[]=[];const sent:any[]=[];
+ await page.route(`**/tasks/${taskId}/comments/`,async route=>{if(route.request().method()==='POST'){const body=route.request().postDataJSON();sent.push(body);const c={id:'keyboard-'+sent.length,author:'me',author_display:'Я',body:body.body,created_at:'2026-10-16T10:00:00Z',mentions:body.mentions};messages.push(c);await route.fulfill({json:c})}else await route.fulfill({json:messages})});
+ await page.goto(`/tasks/${taskId}`);const input=page.getByRole('textbox',{name:'Новый комментарий'});await input.press('Enter');expect(sent).toHaveLength(0);
+ await input.fill('Первая строка');await input.press('Shift+Enter');await input.pressSequentially('Вторая строка');await expect(input).toHaveValue('Первая строка\nВторая строка');expect(sent).toHaveLength(0);
+ await input.evaluate(e=>e.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',isComposing:true,bubbles:true})));expect(sent).toHaveLength(0);
+ await input.press('Enter');await expect.poll(()=>sent.length).toBe(1);expect(sent[0].body).toBe('Первая строка\nВторая строка');await expect(input).toHaveValue('');
+ await input.fill('@Лив');await page.getByRole('option',{name:'Ливеринов Иван',exact:true}).waitFor();await input.press('Enter');await expect(input).toHaveValue('@Ливеринов Иван ');expect(sent).toHaveLength(1);
+ await input.press('Enter');await expect.poll(()=>sent.length).toBe(2);expect(sent[1].mentions).toEqual(['ivan']);await expect(input).toHaveValue('');
+});
+
+for(const width of [1280,390])test(`approval request belongs to chat header and uses selected source at ${width}px`,async({page})=>{
+ await fixture(page);await page.setViewportSize({width,height:1000});const posts:any[]=[];let approvals:any[]=[];
+ const comments=[{id:'old-source',author:'me',author_display:'Иван',body:'Первое решение',created_at:'2026-10-15T10:00:00Z',can_request_approval:true},{id:'latest-source',author:'me',author_display:'Иван',body:'Новое решение',created_at:'2026-10-16T10:00:00Z',can_request_approval:true},{id:'no-right',author:'other',author_display:'Юлия',body:'Чужое сообщение',created_at:'2026-10-16T10:01:00Z',can_request_approval:false}];
+ await page.route(`**/tasks/${taskId}/comments/`,r=>r.fulfill({json:comments}));
+ await page.route('**/approval-options/',r=>r.fulfill({json:[{id:'approver',name:'Екатерина'}]}));
+ await page.route(`**/tasks/${taskId}/approvals/`,async r=>{if(r.request().method()==='POST'){const body=r.request().postDataJSON();posts.push(body);const a={...body,id:'created',requester_display:'Иван',approver_display:'Екатерина',status:'PENDING',round_number:1,version:1,source_body:'Первое решение',history:[],available_actions:[]};approvals.push(a);await r.fulfill({status:201,json:a})}else await r.fulfill({json:approvals})});
+ await page.goto(`/tasks/${taskId}`);const header=page.locator('.task-chat-heading');const button=header.getByRole('button',{name:'Запросить согласование',exact:true});await expect(button).toHaveCount(1);await expect(page.getByRole('log').getByRole('button',{name:'Запросить согласование',exact:true})).toHaveCount(0);
+ const a=await button.boundingBox(),b=await header.getByRole('heading',{name:'Чат задачи'}).boundingBox();expect(a&&b&&a.x>b.x).toBeTruthy();await button.click();const panel=page.getByRole('region',{name:'Запрос согласования',exact:true});const source=panel.getByRole('combobox',{name:'Сообщение для согласования'});await expect(source).toHaveValue('latest-source');await expect(source.locator('option')).toHaveCount(2);await source.selectOption('old-source');await expect(panel.locator('blockquote')).toHaveText('Первое решение');await panel.getByRole('combobox',{name:'Согласующий',exact:true}).selectOption('approver');await expect(panel.getByRole('button',{name:'Отправить на согласование'})).toBeDisabled();await panel.getByRole('textbox',{name:'Текст запроса согласования'}).fill('Проверьте первое решение');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();await panel.screenshot({path:`test-results/checklists/header-approval-${width}.png`});await panel.getByRole('button',{name:'Отправить на согласование'}).click();await expect(panel).toHaveCount(0);expect(posts).toHaveLength(1);expect(posts[0].comment).toBe('old-source');expect(posts[0].approver).toBe('approver');await expect(page.getByRole('log').locator('.chat-approval-chip')).toHaveCount(1);
+ await button.click();await panel.getByRole('textbox',{name:'Текст запроса согласования'}).press('Escape');await expect(panel).toHaveCount(0);await expect(button).toBeFocused();
+});
