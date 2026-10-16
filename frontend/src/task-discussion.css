@@ -1,0 +1,28 @@
+.task-layout .task-content { display:grid; gap:18px; border:0; border-radius:0; background:transparent; }
+.task-layout .task-content>.work-card, .task-layout .task-content>.work-card:last-child { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:22px 24px; }
+.task-layout .task-content>.task-files, .task-layout .task-content>.task-chat { border-top:3px solid var(--brand); }
+.task-files .task-section-heading { padding-bottom:14px; margin-bottom:14px; border-bottom:1px solid var(--border); gap:14px; flex-wrap:wrap; }
+.task-chat>h2 { margin-bottom:16px; }
+.mention-toast-region { position:fixed; z-index:2000; top:78px; right:24px; width:min(360px,calc(100vw - 32px)); display:grid; gap:12px; pointer-events:none; }
+.mention-toast { pointer-events:auto; background:var(--surface); color:var(--text); border:1px solid var(--border-strong); border-left:4px solid var(--brand); border-radius:12px; padding:16px; box-shadow:0 10px 32px #0003; overflow-wrap:anywhere; }
+.mention-toast-heading { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.mention-toast-heading strong { font-size:14px; }
+.mention-toast p { margin:10px 0 5px; font-size:14px; font-weight:600; }
+.mention-toast small { display:block; color:var(--text-muted); font-size:12px; line-height:1.5; }
+.header-actions .mention-toast button { position:static; width:auto; height:auto; border-radius:6px; cursor:pointer; }
+.header-actions .mention-toast-heading button { display:grid; place-items:center; padding:5px; background:transparent; color:var(--text-muted); border:0; }
+.header-actions .mention-toast .mention-toast-open { margin-top:12px; padding:8px 12px; background:var(--brand-soft); color:var(--brand-text); border:1px solid var(--border); font-size:13px; }
+.mention-toast button:focus-visible { outline:2px solid var(--brand); outline-offset:3px; }
+.mention-toast-error { position:fixed; z-index:2001; top:78px; right:24px; width:min(320px,calc(100vw - 64px)); }
+@media(max-width:640px) { .task-layout .task-content>.work-card { padding:18px; } .mention-toast-region { right:12px; width:calc(100vw - 24px); } }
+.task-chat-feed { height:clamp(220px,48vh,480px); overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; border:1px solid var(--border); border-radius:10px; padding:12px; background:var(--page); box-sizing:border-box; }
+.task-chat-feed-content { display:flow-root; min-width:0; }
+.task-chat-feed .comment { margin:0 0 12px; padding:14px; border:1px solid var(--border); border-radius:10px; background:var(--surface); min-width:0; overflow-wrap:anywhere; }
+.task-chat-feed .comment:last-child { margin-bottom:0; }
+.task-chat-feed .comment>p { white-space:pre-wrap; }
+.task-chat-feed .comment>small { color:var(--text-muted); font-size:11px; }
+.task-chat-compose-area { padding-top:16px; margin-top:14px; border-top:1px solid var(--border); }
+.task-chat-compose-area .task-chat-composer { margin:0; }
+.task-chat-compose-area textarea { min-height:84px; max-height:220px; resize:vertical; }
+.task-chat-feed:focus-visible { outline:2px solid var(--brand); outline-offset:3px; }
+@media(max-width:640px) { .task-chat-feed { height:360px; max-height:55dvh; padding:8px; } .task-chat-feed .comment { padding:12px; } }

@@ -18,7 +18,7 @@ def require(r,code):
 class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class=NotificationSerializer
     def get_queryset(self):
-        qs=Notification.objects.filter(recipient=self.request.user);unread=self.request.query_params.get("unread")
+        qs=Notification.objects.filter(recipient=self.request.user).select_related("intent","recipient_employee__user");unread=self.request.query_params.get("unread")
         if not self.request.user.is_superuser:
             from projects.policies import ProjectAccessPolicy
             from work_tasks.selectors import TaskSelector

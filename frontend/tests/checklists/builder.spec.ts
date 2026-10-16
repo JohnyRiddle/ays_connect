@@ -170,3 +170,28 @@ test('nonblocking deadline preview uses server configuration, blocking remains e
   }
   await priority.selectOption('blocking');await expect(page.getByLabel('Явный дедлайн *')).toBeEnabled();await expect(page.getByLabel('Явный дедлайн *')).toHaveValue('');
 });
+
+for(const width of [1280,390])test(`new mention popup without backlog or duplicate at ${width}px`,async({page})=>{
+ await fixture(page,true,true);await page.setViewportSize({width,height:1000});
+ let notifications:any[]=[{id:'old',title:'Старое упоминание',message:'Старое сообщение',is_mention:true,action_url:`/tasks/${taskId}`}];let calls=0;let reads=0;
+ await page.route('**/api/v1/notifications/**',async route=>{if(route.request().method()==='POST'){reads++;await route.fulfill({json:{}});return;}calls++;await route.fulfill({json:{results:notifications}})});
+ await page.goto(`/tasks/${taskId}`);await expect(page.getByRole('heading',{name:'Чат задачи',exact:true})).toBeVisible();await expect.poll(()=>calls).toBeGreaterThan(0);await expect(page.locator('.mention-toast')).toHaveCount(0);
+ notifications=[{id:'new',title:'Новая задача',message:'Вас упомянули в обсуждении',is_mention:true,action_url:`/tasks/${taskId}`},...notifications];
+ await page.evaluate(()=>window.dispatchEvent(new Event('focus')));const toast=page.locator('.mention-toast');await expect(toast).toHaveCount(1,{timeout:15000});await expect(toast.getByText('Вас упомянули в чате',{exact:true})).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();await page.evaluate(()=>document.documentElement.setAttribute('data-theme','dark'));await toast.screenshot({path:`test-results/checklists/mention-toast-${width}.png`});
+ await toast.getByRole('button',{name:'Закрыть уведомление об упоминании'}).click();expect(reads).toBe(0);await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await expect(toast).toHaveCount(0);
+ notifications=[{id:'newer',title:'Ещё одна задача',message:'Новое упоминание',is_mention:true,action_url:`/tasks/${taskId}`},...notifications];await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await expect(toast).toHaveCount(1,{timeout:15000});await toast.getByRole('button',{name:'Открыть задачу'}).click();await expect.poll(()=>reads).toBe(1);
+});
+
+for(const width of [1280,390])test(`chat feed scroll and composer below messages at ${width}px`,async({page})=>{
+ await fixture(page);await page.setViewportSize({width,height:1000});
+ const messages=Array.from({length:40},(_,i)=>({id:`msg-${i}`,author:'employee',author_display:'Тестовый сотрудник',body:`Сообщение ${i+1}. Обсуждение рабочего вопроса.`,created_at:new Date(2026,9,16,10,i).toISOString(),mentions:[]}));
+ await page.route(`**/tasks/${taskId}/comments/`,async route=>{if(route.request().method()==='POST'){const item={...messages[0],id:'own-new',body:route.request().postDataJSON().body};messages.push(item);await route.fulfill({json:item})}else await route.fulfill({json:messages})});
+ await page.goto(`/tasks/${taskId}`);const feed=page.getByRole('log',{name:'Сообщения задачи'});await expect(feed.locator('article.comment')).toHaveCount(40);
+ await expect.poll(()=>feed.evaluate(e=>e.scrollHeight-e.clientHeight-e.scrollTop)).toBeLessThan(2);
+ const input=page.getByRole('textbox',{name:'Новый комментарий'});const box=await feed.boundingBox();const composer=await input.boundingBox();expect(box&&composer&&composer.y>=box.y+box.height).toBeTruthy();
+ await feed.evaluate(e=>{e.scrollTop=0;e.dispatchEvent(new Event('scroll',{bubbles:true}))});await input.fill('Новое сообщение исполнителя');await expect.poll(()=>feed.evaluate(e=>e.scrollTop)).toBe(0);
+ await page.getByRole('button',{name:'Отправить',exact:true}).click();await expect(feed.locator('article.comment')).toHaveCount(41);await expect.poll(()=>feed.evaluate(e=>e.scrollHeight-e.clientHeight-e.scrollTop)).toBeLessThan(2);await expect(input).toHaveValue('');
+ await page.setViewportSize({width,height:700});await expect.poll(()=>feed.evaluate(e=>e.scrollHeight-e.clientHeight-e.scrollTop)).toBeLessThan(2);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();await page.evaluate(()=>document.documentElement.setAttribute('data-theme','dark'));await page.locator('.task-chat').screenshot({path:`test-results/checklists/chat-feed-${width}.png`});
+});

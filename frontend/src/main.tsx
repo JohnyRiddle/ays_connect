@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import "./task-discussion.css";
 import {
   Activity,
   Bell,
@@ -244,7 +245,8 @@ type ManagementData = {
   }[];
 };
 type NotificationData = {
-  id: number;
+  is_mention?: boolean;
+  id: number | string;
   type_label: string;
   priority: string;
   title: string;
@@ -764,7 +766,7 @@ function App() {
           </div>
           <div className="header-actions">
             <ThemeSwitch />
-            <NotificationBell />
+            <NotificationBell userId={profile.id}/>
             <AccountMenu profile={profile} navigate={navigate} logout={logout}/>
           </div>
         </header>
@@ -1973,7 +1975,7 @@ function NotificationsView() {
   useEffect(() => {
     load();
   }, []);
-  async function mark(id: number) {
+  async function mark(id: NotificationData["id"]) {
     await api(`/notifications/${id}/read/`, { method: "POST" });
     load();
   }
@@ -2034,47 +2036,32 @@ function NotificationsView() {
   );
 }
 
-function NotificationBell() {
-  const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<NotificationData[]>([]);
-  const load = () =>
-    api("/notifications/?unread=true")
-      .then((d) => setItems(d.results || []))
-      .catch(() => undefined);
-  useEffect(() => {
-    load();
-    const timer = window.setInterval(load, 45000);
-    return () => window.clearInterval(timer);
-  }, []);
-  async function select(item: NotificationData) {
-    await api(`/notifications/${item.id}/read/`, { method: "POST" });
-    setOpen(false);
-    await load();
-    if (item.action_url) window.location.href = item.action_url;
-  }
-  return (
-    <div className="notification-bell">
-      <button aria-label="Уведомления" onClick={() => setOpen(!open)}>
-        <Bell />
-        {items.length > 0 && <b>{items.length > 99 ? "99+" : items.length}</b>}
-      </button>
-      {open && (
-        <div className="notification-popover">
-          <strong>Непрочитанные</strong>
-          {items.slice(0, 5).map((item) => (
-            <button key={item.id} onClick={() => select(item)}>
-              <span>{item.title}</span>
-              <small>{item.message}</small>
-            </button>
-          ))}
-          {!items.length && <p>Новых уведомлений нет</p>}
-          <a href="#notifications" onClick={() => setOpen(false)}>
-            Все уведомления
-          </a>
-        </div>
-      )}
-    </div>
-  );
+function MentionToast({item,onClose,onOpen}:{item:NotificationData;onClose:()=>void;onOpen:()=>void}) {
+  const [hover,setHover]=useState(false),[focus,setFocus]=useState(false);const close=useRef(onClose);close.current=onClose;
+  useEffect(()=>{if(hover||focus)return;const timer=window.setTimeout(()=>close.current(),10000);return()=>window.clearTimeout(timer)},[hover,focus,item.id]);
+  return <article className="mention-toast" onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)} onFocusCapture={()=>setFocus(true)} onBlurCapture={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node))setFocus(false)}}><div className="mention-toast-heading"><strong>Вас упомянули в чате</strong><button aria-label="Закрыть уведомление об упоминании" onClick={onClose}><X size={16}/></button></div><p>{item.title}</p><small>{item.message}</small><button className="mention-toast-open" onClick={onOpen}>Открыть задачу</button></article>;
+}
+
+function NotificationBell({userId}:{userId:number}) {
+  const [open,setOpen]=useState(false),[items,setItems]=useState<NotificationData[]>([]),[toasts,setToasts]=useState<NotificationData[]>([]),[error,setError]=useState('');
+  const reload=useRef<()=>void>(()=>{});
+  useEffect(()=>{
+    let active=true,pending=false,initial=true;const key=`ays-mention-toasts:${userId}`;
+    let seen=new Set<string>();try{seen=new Set(JSON.parse(sessionStorage.getItem(key)||'[]'))}catch{}
+    setItems([]);setToasts([]);setOpen(false);
+    const load=async()=>{if(pending||document.visibilityState==='hidden')return;pending=true;try{const d=await api('/notifications/?unread=true');if(!active)return;const next:NotificationData[]=d.results||[];setItems(next);
+      const incoming=initial?[]:next.filter(n=>n.is_mention&&!seen.has(String(n.id)));setToasts(old=>[...incoming,...old].filter(n=>next.some(x=>x.id===n.id&&x.is_mention)).filter((n,i,all)=>all.findIndex(x=>x.id===n.id)===i).slice(0,3));
+      next.forEach(n=>seen.add(String(n.id)));initial=false;try{sessionStorage.setItem(key,JSON.stringify([...seen].slice(-500)))}catch{}
+    }catch{}finally{pending=false}};
+    reload.current=()=>void load();void load();const timer=window.setInterval(()=>void load(),10000);const visible=()=>{if(document.visibilityState==='visible')void load()};window.addEventListener('focus',visible);document.addEventListener('visibilitychange',visible);
+    return()=>{active=false;window.clearInterval(timer);window.removeEventListener('focus',visible);document.removeEventListener('visibilitychange',visible)};
+  },[userId]);
+  const dismiss=(id:NotificationData['id'])=>setToasts(old=>old.filter(n=>n.id!==id));
+  async function select(item:NotificationData){try{await api(`/notifications/${item.id}/read/`,{method:'POST'});dismiss(item.id);setOpen(false);reload.current();if(item.action_url)window.location.href=item.action_url}catch{setError('Не удалось открыть уведомление. Попробуйте ещё раз.')}}
+  return <div className="notification-bell"><button aria-label="Уведомления" onClick={()=>setOpen(x=>!x)}><Bell/>{items.length>0&&<b>{items.length>99?'99+':items.length}</b>}</button>
+    {open&&<div className="notification-popover"><strong>Непрочитанные</strong>{items.slice(0,5).map(item=><button key={item.id} onClick={()=>void select(item)}><span>{item.title}</span><small>{item.message}</small></button>)}{!items.length&&<p>Новых уведомлений нет</p>}<a href="#notifications" onClick={()=>setOpen(false)}>Все уведомления</a></div>}
+    <div className="mention-toast-region" role="region" aria-live="polite" aria-label="Новые упоминания">{toasts.map(item=><MentionToast key={item.id} item={item} onClose={()=>dismiss(item.id)} onOpen={()=>void select(item)}/>)}</div>{error&&<div className="mention-toast mention-toast-error" role="alert">{error}<button onClick={()=>setError('')} aria-label="Закрыть сообщение об ошибке">×</button></div>}
+  </div>;
 }
 
 async function internalApi(path: string, options: RequestInit = {}) {
