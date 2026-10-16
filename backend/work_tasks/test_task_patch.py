@@ -160,6 +160,17 @@ class TaskPatchTests(TestCase):
         self.assertEqual(Notification.objects.filter(entity_id=str(task.pk), recipient_employee=self.head).count(), 1)
         self.assertFalse(Notification.objects.filter(recipient_employee=self.other).exists())
         self.assertFalse(TaskAccessPolicy.allows(employee=self.other, permission='task.view', task=task))
+        from notifications.serializers import NotificationSerializer
+        notification=Notification.objects.get(entity_id=str(task.pk),recipient_employee=self.head)
+        self.assertTrue(NotificationSerializer(notification).data['is_mention'])
+        comment.mention_records.filter(employee=self.head).delete()
+        self.assertFalse(NotificationSerializer(notification).data['is_mention'])
+        comment.mention_records.create(employee=self.head)
+        comment.is_internal=True;comment.save(update_fields=['is_internal'])
+        self.assertFalse(NotificationSerializer(notification).data['is_mention'])
+        legacy=Notification.objects.create(recipient=self.head_user,recipient_employee=self.head,notification_type='task',title='Legacy',message='Без исходного события')
+        self.assertFalse(NotificationSerializer(legacy).data['is_mention'])
+
 
     def test_manual_deadline_requires_reason_even_in_draft(self):
         task = self.create()

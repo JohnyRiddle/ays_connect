@@ -1,5 +1,6 @@
 import { CommentApprovals, useTaskApprovals } from "./TaskApprovals";
 import { TaskChatComposer } from "./TaskChatComposer";
+import { TaskChatFeed } from "./TaskChatFeed";
 import { TaskChecklistPanel } from "./ChecklistBuilder";
 import React, { useEffect, useRef, useState } from "react";
 import { DepartmentFields, TaskSettings, WatcherSearch } from './TaskParticipants';
@@ -631,6 +632,7 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
   const [discussion, setDiscussion] = useState<"comments" | "history">("comments");
   const [task, setTask] = useState<any>();
   const [comments, setComments] = useState<any[]>([]);
+  const [chatScrollRequest,setChatScrollRequest]=useState(0);
   const [attachments, setAttachments] = useState<any[]>([]);
   const [watchers, setWatchers] = useState<any[]>([]);
   const [mentions, setMentions] = useState<string[]>([]);
@@ -710,6 +712,7 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
       setMentions([]);
       setComment("");
       setComments(await tasksApi.comments(id));
+      setChatScrollRequest(value=>value+1);
     } catch (x) {
       setError(x);
     } finally {
@@ -835,7 +838,7 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
           <p className="description">{task.description || "Описание не добавлено."}</p>
         </section>
         <TaskChecklistPanel task={task} checklists={checklists} reload={load} />
-        <section className="work-card task-files">
+        <section className="work-card task-files" aria-label="Вложения задачи">
           <div className="task-section-heading">
             <h2>Вложения · {attachments.length}</h2>
             <label className="upload">
@@ -851,14 +854,15 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
             </div>
           )) : <p className="muted">Файлы не прикреплены.</p>}
         </section>
-        <section className="work-card">
+        <section className="work-card task-chat" aria-label="Чат задачи">
+          <h2>Чат задачи</h2>
           <div className="detail-tabs" role="group" aria-label="Обсуждение задачи">
             <button type="button" aria-pressed={discussion === "comments"} onClick={() => setDiscussion("comments")}>Чат · {comments.length}</button>
             <button type="button" aria-pressed={discussion === "history"} onClick={() => setDiscussion("history")}>История изменений</button>
           </div>
           <div hidden={discussion !== "comments"}>
+          <TaskChatFeed key={id} active={discussion==="comments"} scrollRequest={chatScrollRequest}>
           {!comments.length && <p className="muted">Комментариев пока нет.</p>}
-          <TaskChatComposer taskId={id} value={comment} onChange={setComment} mentions={mentions} onMentions={setMentions} busy={busy} onSend={()=>addComment()}/>
 
           {approvalState.error&&<p role="alert">{approvalState.error} <button onClick={()=>void approvalState.refresh()}>Обновить согласования</button></p>}
           {comments.map((c) => (
@@ -870,6 +874,8 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
               <CommentApprovals taskId={id} comment={c} approvals={approvalState.items.filter(a=>a.comment===c.id)} reload={approvalState.refresh}/>
             </article>
           ))}
+          </TaskChatFeed>
+          <div className="task-chat-compose-area"><TaskChatComposer taskId={id} value={comment} onChange={setComment} mentions={mentions} onMentions={setMentions} busy={busy} onSend={()=>addComment()}/></div>
           </div>
           <div hidden={discussion !== "history"}>
           {(activity?.results || activity?.items || []).map(
