@@ -165,3 +165,6 @@ Backend/RBAC/API/миграции/Telegram не менялись. Предыду
 Mobile dropdown дополнительно ограничен экраном и по высоте; геометрия
 проверена на 390 px. Финальный повтор notification browser **4/4 PASS** после
 CSS correction, Vite/diff PASS.
+
+16.10.2026: исправление счётчика и отступ меню опубликованы в PR #16.
+[Проверки и восстановление](NOTIFICATION_BADGE_NAV_RELEASE_2026_10_16.md). Статус DEPLOYED_ACCEPTED.

@@ -843,3 +843,19 @@ TypeScript/Vite/diff PASS, mobile visual QA PASS. Backend/RBAC/миграции/
 высота ограничена viewport с прокруткой. Уточнена специфичность относительно
 общих стилей. Финальный повтор четырёх notification-сценариев **4/4 PASS**,
 Vite/diff PASS; основной suite ранее **30/30 PASS**. Локально, не опубликовано.
+
+## 16.10.2026 — PR #16: счётчик уведомлений и отступы меню опубликованы
+
+По явному запросу commit/push/merge/publication завершены. Frontend
+`b4ebc83`, merge `f2fc9e0`. Просмотр пяти пунктов уменьшает счётчик,
+«Прочитать все» убирает badge; центр событий синхронизирует чтение, late GET
+не возвращает старое число, ошибки не сбрасывают индикатор. Mobile dropdown
+в границах экрана; вложенные пункты меню padding-left 28 px. Browser **30/30 +
+4/4 focused PASS**, TypeScript/Vite/diff PASS. Production HTTPS **16 PASS**,
+browser **12/12 PASS** на 1280/390 px, **0 production HTTP write attempts**:
+notification API подменялся локально (16 mock POST), реальные уведомления не
+менялись. Core **7/7 healthy**. Backup **44 файла** восстановлен EFS/LUKS,
+**37 прежних assets** сохранены. Без простоя/перезапуска backend. Backend RC
+`2d12c15`, БД/миграции/права сохранены. Wrappers/metadata согласованы;
+Telegram/receiver выключены, 3 отложенных файла сохранены.
+[Отчёт](NOTIFICATION_BADGE_NAV_RELEASE_2026_10_16.md).
