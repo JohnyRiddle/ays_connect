@@ -871,3 +871,16 @@ Telegram/receiver выключены, 3 отложенных файла сохр
 Notification browser **4/4 PASS** на 1280/390 px, в том числе ошибка и поздний GET;
 TypeScript/Vite/diff PASS. Backend/API/права/Telegram не менялись. Изменения
 локальные, commit/push/publication не выполнялись, отложенные файлы сохранены.
+
+## 16.10.2026 — PR #17: прочитать все при открытии опубликовано
+
+По подтверждению пользователя commit/push/merge/publication завершены.
+Frontend `bb08c55`, merge `d830c82`. Открытие списка читает все уведомления
+через read-all; badge исчезает после успеха, preview остаётся. Ошибка сохраняет
+индикатор. Browser **4/4 PASS**, TypeScript/Vite/diff PASS. Production HTTPS
+**16 PASS**, browser **10/10 PASS**, **0 HTTP write attempts** (6 mock POST,
+реальные уведомления не менялись), core **7/7 healthy**. Backup **46 файлов**
+восстановлен EFS/LUKS, **38 прежних assets** сохранены. Без простоя/перезапуска
+backend. Backend RC `2d12c15`, БД/API/миграции/права сохранены.
+Wrappers/metadata согласованы, Telegram/receiver выключены; 3 отложенных файла
+сохранены. [Отчёт](NOTIFICATIONS_OPEN_READ_ALL_RELEASE_2026_10_16.md).
