@@ -715,3 +715,17 @@ Vite build, diff check PASS. Backend, права, миграции и Telegram �
 Изменения в `codex/task-chat-live`, без commit/push/production deployment;
 3 отложенных Telegram-файла сохранены. Поведение описано в
 [TASK_DISCUSSION_MENTIONS_2026_10_16.md](TASK_DISCUSSION_MENTIONS_2026_10_16.md).
+
+## 16.10.2026 — PR #12: автоматическое обновление чата опубликовано
+
+По явному запросу выполнены commit/push/merge/publication. Frontend
+`1b943d0`, merge `1e78f94`. Новые сообщения появляются каждые 5 секунд
+и при возврате во вкладку; draft/@/scroll сохраняются. Browser **19/19 PASS**,
+TypeScript/Vite/diff PASS. Production HTTPS **16 PASS**, browser **8/8 PASS**
+на 1280/390 px, **0 HTTP write attempts**. UI-приход нового сообщения проверен
+GET-only overlay поверх настоящего scoped ответа, без сообщений в production.
+Core **7/7 healthy**. Frontend backup **38 файлов** восстановлен
+и сверен EFS/LUKS до замены; **30 прежних assets** сохранены.
+Без простоя/перезапуска backend. Backend RC `376a8dd`, БД/миграции/
+права сохранены. Operational wrappers/metadata согласованы, Telegram/receiver
+выключены, 3 отложенных файла сохранены. [Отчёт](TASK_CHAT_AUTO_REFRESH_RELEASE_2026_10_16.md).

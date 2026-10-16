@@ -77,3 +77,6 @@ Backend/API payload/RBAC/Outbox/Telegram не менялись, миграций
 Реализация локальная: commit/push/publication этой доработки не выполнялись.
 
 Итоговый browser gate **19/19 PASS**, TypeScript/Vite/diff check PASS.
+
+16.10.2026: автообновление опубликовано в PR #12, статус DEPLOYED_ACCEPTED.
+[Проверки выпуска и точка отката](TASK_CHAT_AUTO_REFRESH_RELEASE_2026_10_16.md).
