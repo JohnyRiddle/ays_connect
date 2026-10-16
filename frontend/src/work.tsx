@@ -628,7 +628,7 @@ function TaskActions({ task, busy, onAction }: { task: any; busy: boolean; onAct
   </div>;
 }
 
-function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
+function TaskDetail({ id, navigate, employeeId }: { id: string; navigate: Navigate; employeeId?: string }) {
   const approvalState=useTaskApprovals(id);
   const [discussion, setDiscussion] = useState<"comments" | "history">("comments");
   const [task, setTask] = useState<any>();
@@ -865,15 +865,19 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
           {!comments.length && <p className="muted">Комментариев пока нет.</p>}
 
           {approvalState.error&&<p role="alert">{approvalState.error} <button onClick={()=>void approvalState.refresh()}>Обновить согласования</button></p>}
-          {comments.map((c) => (
-            <article className="comment" key={c.id}>
-              <b>{c.author_display || person(c.author)}</b>
-              {c.is_internal && <em>Внутренний</em>}
-              <p>{c.body}</p>
-              <small>{fmt(c.created_at)}</small>
-              <CommentApprovals taskId={id} comment={c} approvals={approvalState.items.filter(a=>a.comment===c.id)} reload={approvalState.refresh}/>
-            </article>
-          ))}
+          {comments.map((c, index) => {
+            const date = new Date(c.created_at);
+            const day = date.toLocaleDateString('ru-RU', { day:'numeric', month:'long', year:'numeric' });
+            const previousDay = index ? new Date(comments[index-1].created_at).toLocaleDateString('ru-RU', { day:'numeric', month:'long', year:'numeric' }) : '';
+            return <React.Fragment key={c.id}>
+              {day!==previousDay && <div className="task-chat-day"><span>{day}</span></div>}
+              <article className={`comment task-chat-message${employeeId && c.author===employeeId ? ' is-own' : ''}`}>
+                <div className="task-chat-message-line"><p><b>{c.author_display || person(c.author)}:</b>{' '}<span>{c.body}</span></p><time dateTime={c.created_at} title={fmt(c.created_at)}>{date.toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' })}</time></div>
+                {c.is_internal && <span className="task-chat-tag">Внутреннее</span>}
+                <CommentApprovals taskId={id} comment={c} approvals={approvalState.items.filter(a=>a.comment===c.id)} reload={approvalState.refresh}/>
+              </article>
+            </React.Fragment>;
+          })}
           </TaskChatFeed>
           <div className="task-chat-compose-area"><TaskChatComposer taskId={id} value={comment} onChange={setComment} mentions={mentions} onMentions={setMentions} busy={busy} onSend={()=>addComment()}/></div>
           </div>
@@ -1799,14 +1803,16 @@ function RequestDetail({ id, navigate }: { id: string; navigate: Navigate }) {
 export function ProductionWorkRouter({
   path,
   navigate,
+  employeeId,
 }: {
   path: string;
   navigate: Navigate;
+  employeeId?: string;
 }) {
   const parts = path.split("/").filter(Boolean);
   if (parts[0] === "tasks") {
     if (parts[1] === "new") return <TaskCreate navigate={navigate} />;
-    if (parts[1]) return <TaskDetail id={parts[1]} navigate={navigate} />;
+    if (parts[1]) return <TaskDetail id={parts[1]} navigate={navigate} employeeId={employeeId} />;
     return <TaskList navigate={navigate} />;
   }
   if (parts[0] === "requests") {
