@@ -37,4 +37,3 @@ test('object editor retains explicit scoped assignment payload',async({page})=>{
  await page.getByLabel('Найти объект',{exact:true}).fill('OhMy');await page.getByRole('checkbox',{name:'OhMyGesh',exact:true}).check();await page.getByRole('combobox',{name:'Роль',exact:true}).selectOption('role0');
  const sent=page.waitForRequest(r=>r.method()==='POST'&&r.url().endsWith(`/employees/${id}/access/`));await page.getByRole('button',{name:'Назначить роль в выбранных объектах',exact:true}).click();expect((await sent).postDataJSON()).toEqual({action:'assign',role:'role0',access_locations:['loc0']});
 });
-
