@@ -2051,7 +2051,7 @@ function MentionToast({item,onClose,onOpen}:{item:NotificationData;onClose:()=>v
 
 function NotificationBell({userId}:{userId:number}) {
   const [open,setOpen]=useState(false),[toasts,setToasts]=useState<NotificationData[]>([]),[error,setError]=useState('');
-  const [unreadCount,setUnreadCount]=useState(0),[preview,setPreview]=useState<NotificationData[]>([]),[readingAll,setReadingAll]=useState(false);
+  const [unreadCount,setUnreadCount]=useState(0),[preview,setPreview]=useState<NotificationData[]>([]),[readingAll,setReadingAll]=useState(false),[loadingPreview,setLoadingPreview]=useState(false);
   const itemsRef=useRef<NotificationData[]>([]),revision=useRef(0);
   const reload=useRef<()=>void>(()=>{});
   useEffect(()=>{
@@ -2071,16 +2071,19 @@ function NotificationBell({userId}:{userId:number}) {
   async function select(item:NotificationData){try{if(!item.is_read){await api(`/notifications/${item.id}/read/`,{method:'POST'});notifyNotificationsRead([item.id])}dismiss(item.id);setOpen(false);reload.current();if(item.action_url)window.location.href=item.action_url}catch{setError('Не удалось открыть уведомление. Попробуйте ещё раз.')}}
   async function showMenu(){
     if(open){setOpen(false);return}
-    setOpen(true);setError('');
-    let shown=itemsRef.current.slice(0,5);
-    setPreview(shown);
-    if(!shown.length){try{const data=await api('/notifications/?unread=true');shown=(data.results||[]).slice(0,5);setPreview(shown)}catch{setError('Не удалось загрузить уведомления. Откройте список ещё раз.');return}}
-    await readAll();
+    setOpen(true);setError('');setLoadingPreview(true);
+    try{
+      // After read-all, the existing read-state ordering is chronological for this user.
+      if(!await readAll())return;
+      const data=await api('/notifications/');
+      setPreview((data.results||[]).slice(0,5));
+    }catch{setError('Не удалось загрузить уведомления. Откройте список ещё раз.')}
+    finally{setLoadingPreview(false)}
   }
-  async function readAll(){if(readingAll)return;setReadingAll(true);try{await api('/notifications/read-all/',{method:'POST'});notifyNotificationsRead();setError('')}catch{setError('Не удалось прочитать уведомления. Попробуйте ещё раз.')}finally{setReadingAll(false)}}
+  async function readAll(){if(readingAll)return false;setReadingAll(true);try{await api('/notifications/read-all/',{method:'POST'});notifyNotificationsRead();setError('');return true}catch{setError('Не удалось прочитать уведомления. Попробуйте ещё раз.');return false}finally{setReadingAll(false)}}
   return <div className="notification-bell"><button aria-label="Уведомления" aria-expanded={open} onClick={()=>void showMenu()}><Bell/>{unreadCount>0&&<b>{unreadCount>99?'99+':unreadCount}</b>}</button>
-    {open&&<div className="notification-popover"><strong>Уведомления</strong>{preview.map(item=><button key={item.id} className={item.is_read?'read':''} onClick={()=>void select(item)}><span>{item.title}</span><small>{item.message}</small></button>)}{!preview.length&&<p>Новых уведомлений нет</p>}{unreadCount>0&&<button className="notification-read-all" disabled={readingAll} onClick={()=>void readAll()}>Прочитать все</button>}<a href="/#notifications" onClick={()=>setOpen(false)}>Все уведомления</a></div>}
-    <div className="mention-toast-region" role="region" aria-live="polite" aria-label="Новые упоминания">{toasts.map(item=><MentionToast key={item.id} item={item} onClose={()=>dismiss(item.id)} onOpen={()=>void select(item)}/>)}</div>{error&&<div className="mention-toast mention-toast-error" role="alert">{error}<button onClick={()=>setError('')} aria-label="Закрыть сообщение об ошибке">×</button></div>}
+    {open&&<div className="notification-popover"><strong>Уведомления</strong>{error&&<p role="alert">{error}</p>}{preview.map(item=><button key={item.id} className={item.is_read?'read':''} onClick={()=>void select(item)}><span>{item.title}</span><small>{item.message}</small></button>)}{loadingPreview&&<p role="status">Загрузка уведомлений…</p>}{!loadingPreview&&!error&&!preview.length&&<p>Уведомлений пока нет</p>}{unreadCount>0&&<button className="notification-read-all" disabled={readingAll} onClick={()=>void readAll()}>Прочитать все</button>}<a href="/#notifications" onClick={()=>setOpen(false)}>Все уведомления</a></div>}
+    <div className="mention-toast-region" role="region" aria-live="polite" aria-label="Новые упоминания">{toasts.map(item=><MentionToast key={item.id} item={item} onClose={()=>dismiss(item.id)} onOpen={()=>void select(item)}/>)}</div>{error&&!open&&<div className="mention-toast mention-toast-error" role="alert">{error}<button onClick={()=>setError('')} aria-label="Закрыть сообщение об ошибке">×</button></div>}
   </div>;
 }
 
