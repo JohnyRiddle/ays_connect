@@ -1,10 +1,69 @@
 openapi: 3.0.3
 info:
   title: AYS Connect — WORK-TASKS-APPROVALS-01
-  version: 1.0.0
+  version: 1.1.0
   description: Independent comment approvals. No Task lifecycle, SLA or assignment
     mutations. Per-command UUID idempotency and approval-version concurrency control.
 paths:
+  /api/internal/v1/tasks/{id}/approval-options/:
+    get:
+      operationId: api_internal_v1_tasks_approval_options_list
+      description: Eligible approvers for a new request message. Read-only, no source
+        comment required and no access granted.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - Task comment approvals
+      security:
+      - EmployeeJWT: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedApprovalCandidateList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalError'
+          description: ''
   /api/internal/v1/tasks/{id}/approvals/:
     get:
       operationId: api_internal_v1_tasks_approvals_list
@@ -64,9 +123,10 @@ paths:
           description: ''
     post:
       operationId: api_internal_v1_tasks_approvals_create
-      description: Explicit approval request for one eligible employee. Creates approval
-        participation without a watcher. Does not mutate any Task fields. command_id
-        makes retries idempotent.
+      description: Explicit approval request for one eligible employee. Omitting comment
+        atomically creates a public chat message from text; failed requests leave
+        no comment. Creates approval participation without a watcher. Does not mutate
+        any Task fields. command_id makes retries idempotent.
       parameters:
       - in: path
         name: id
@@ -736,6 +796,8 @@ components:
         comment:
           type: string
           format: uuid
+          description: Optional existing comment. Omit to atomically publish the request
+            text as a new chat message.
         approver:
           type: string
           format: uuid
@@ -749,7 +811,6 @@ components:
       required:
       - approver
       - command_id
-      - comment
       - text
     PaginatedApprovalCandidateList:
       type: object

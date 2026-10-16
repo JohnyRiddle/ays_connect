@@ -6,7 +6,7 @@ from access_control.services import PermissionService
 from audit.services import AuditService
 from events.services import DomainEventService
 from employees.assignment_targets import assignable_employees
-from .models import TaskApproval, TaskApprovalEvent, TaskComment, ApprovalStatus
+from .models import Task, TaskApproval, TaskApprovalEvent, TaskComment, ApprovalStatus
 from .selectors import TaskSelector
 from .routing import eligible_for_location
 from .exceptions import TaskValidationError, TaskVersionConflict
@@ -100,6 +100,25 @@ class ApprovalService:
         AuditService.record(action='task.approval.'+action,entity=approval,actor_user=user,actor_employee=actor,metadata=payload,correlation_id=correlation_id)
         DomainEventService.publish(event_type='task.approval.'+action,entity=approval,actor=user,payload=payload,correlation_id=correlation_id)
         return approval
+
+    @classmethod
+    @atomic_approval
+    def request_from_task(cls, *, task, approver, actor, user, text, command_id, correlation_id=None):
+        from .collaboration import CollaborationService
+        # Serialize retries on this task without saving or changing any Task field.
+        task=Task.objects.select_for_update(no_key=True).get(pk=task.pk)
+        source=TaskComment(task=task,author=actor,body='',is_internal=False)
+        require(employee=actor,user=user,permission='task.approval.request',task=task,comment=source)
+        CollaborationService._authorize(actor=actor,actor_user=user,permission='task.comment',task=task)
+        text=cls._text(text)
+        replay=cls._replay(command_id,actor=actor,action='request',text=text)
+        if replay:
+            if replay.task_id!=task.pk or replay.approver_id!=approver.pk or replay.source_body!=text or replay.source_internal:
+                raise TaskVersionConflict('command_id уже использован для другого запроса.',code='approval_command_conflict')
+            require(employee=actor,user=user,permission='task.approval.request',task=task,comment=replay.comment,approval=replay)
+            return replay
+        comment=CollaborationService.add_comment(task=task,actor=actor,actor_user=user,body=text,correlation_id=correlation_id)
+        return cls.request(comment=comment,approver=approver,actor=actor,user=user,text=text,command_id=command_id,correlation_id=correlation_id)
 
     @classmethod
     @atomic_approval

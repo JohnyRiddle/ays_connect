@@ -26,7 +26,7 @@ class ApprovalSerializer(serializers.ModelSerializer):
 
 
 class ApprovalRequestSerializer(serializers.Serializer):
-    comment=serializers.UUIDField()
+    comment=serializers.UUIDField(required=False,help_text="Optional existing comment. Omit to atomically publish the request text as a new chat message.")
     approver=serializers.UUIDField()
     text=serializers.CharField(max_length=10000,allow_blank=False,trim_whitespace=True)
     command_id=serializers.UUIDField(help_text='Idempotency key, reusable only for an identical command.')

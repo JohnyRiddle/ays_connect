@@ -55,6 +55,50 @@ class ApprovalFixture:
 
 
 class ApprovalTests(ApprovalFixture,TestCase):
+    def test_request_without_source_publishes_once_and_keeps_task_unchanged(self):
+        before=self.snapshot();count=TaskComment.objects.count();command=str(uuid.uuid4())
+        data={'approver':str(self.approver.pk),'text':'Проверьте новый запрос','command_id':command}
+        options=self.api.get(f'/api/internal/v1/tasks/{self.task.pk}/approval-options/')
+        self.assertEqual(options.status_code,200);self.assertIn(str(self.approver.pk),[v['id'] for v in options.data]);self.assertEqual(TaskComment.objects.count(),count)
+        with patch.object(Task,'save',side_effect=AssertionError('Task.save forbidden')):
+            first=self.api.post(self.url,data,format='json');second=self.api.post(self.url,data,format='json')
+        self.assertEqual(first.status_code,201,first.data);self.assertEqual(second.status_code,201,second.data);self.assertEqual(first.data['id'],second.data['id'])
+        self.assertEqual(TaskComment.objects.count(),count+1);a=TaskApproval.objects.get(pk=first.data['id']);self.assertEqual(a.comment.body,data['text']);self.assertEqual(a.source_body,data['text']);self.assertFalse(a.source_internal)
+        self.assertEqual(a.history.count(),1);self.assertEqual(before,self.snapshot())
+        self.assertEqual(OutboxEvent.objects.filter(event_type='task.comment_added',payload__comment_id=str(a.comment_id)).count(),1)
+        self.assertEqual(OutboxEvent.objects.filter(event_type='task.approval.request',payload__approval_id=str(a.pk)).count(),1)
+        self.assertEqual(AuditEvent.objects.filter(action='task.approval.request').count(),1)
+        changed={**data,'text':'Другой запрос'};self.assertEqual(self.api.post(self.url,changed,format='json').status_code,409);self.assertEqual(TaskComment.objects.count(),count+1)
+
+    def test_new_request_failure_rolls_back_comment_audit_and_outbox(self):
+        baseline=(TaskComment.objects.count(),TaskApproval.objects.count(),AuditEvent.objects.count(),OutboxEvent.objects.count());before=self.snapshot()
+        for approver in [self.actor,self.approver]:
+            if approver==self.approver:
+                RolePermission.objects.filter(role=self.role,permission__code='task.approval.respond').delete()
+            response=self.api.post(self.url,{'approver':str(approver.pk),'text':'Недопустимый запрос','command_id':str(uuid.uuid4())},format='json')
+            self.assertEqual(response.status_code,400,response.data)
+            self.assertEqual(baseline,(TaskComment.objects.count(),TaskApproval.objects.count(),AuditEvent.objects.count(),OutboxEvent.objects.count()))
+        self.assertEqual(before,self.snapshot())
+
+    def test_new_request_requires_request_and_comment_permissions(self):
+        self.api.force_authenticate(self.approver_user)
+        RolePermission.objects.filter(role=self.role,permission__code='task.approval.request').delete()
+        options=f'/api/internal/v1/tasks/{self.task.pk}/approval-options/'
+        self.assertEqual(self.api.get(options).status_code,403)
+        self.assertEqual(self.api.post(self.url,{'approver':str(self.actor.pk),'text':'Запрос','command_id':str(uuid.uuid4())},format='json').status_code,403)
+        permission=Permission.objects.get(code='task.approval.request');RolePermission.objects.create(role=self.role,permission=permission,scope='participating')
+        RolePermission.objects.filter(role=self.role,permission__code='task.comment').delete()
+        self.assertEqual(self.api.get(options).status_code,400)
+        self.assertEqual(self.api.post(self.url,{'approver':str(self.actor.pk),'text':'Запрос','command_id':str(uuid.uuid4())},format='json').status_code,400)
+
+    def test_source_free_command_cannot_replay_on_another_task(self):
+        command=uuid.uuid4();a=ApprovalService.request_from_task(task=self.task,approver=self.approver,actor=self.actor,user=self.user,text='Запрос',command_id=command)
+        other=TaskService.create(actor=self.actor,actor_user=self.user,title='Another task',responsible_department=self.unit)
+        before=TaskComment.objects.count()
+        with self.assertRaises(TaskVersionConflict):
+            ApprovalService.request_from_task(task=other,approver=self.approver,actor=self.actor,user=self.user,text='Запрос',command_id=command)
+        self.assertEqual(TaskComment.objects.count(),before);self.assertEqual(TaskApproval.objects.count(),1)
+
     def test_plain_mention_does_not_request_approval(self):
         self.assertFalse(TaskApproval.objects.exists())
         self.assertFalse(OutboxEvent.objects.filter(event_type__startswith='task.approval.').exists())
@@ -243,6 +287,15 @@ def json_dump(value):
 
 
 class ApprovalConcurrencyTests(ApprovalFixture,TransactionTestCase):
+    def test_concurrent_new_request_retries_publish_one_message(self):
+        before=self.snapshot();count=TaskComment.objects.count();command=uuid.uuid4()
+        def send(_):
+            connections.close_all()
+            try:return str(ApprovalService.request_from_task(task=self.task,approver=self.approver,actor=self.actor,user=self.user,text='Один запрос',command_id=command).pk)
+            finally:connections.close_all()
+        with ThreadPoolExecutor(max_workers=2) as pool:result=list(pool.map(send,range(2)))
+        self.assertEqual(result[0],result[1]);self.assertEqual(TaskComment.objects.count(),count+1);self.assertEqual(TaskApproval.objects.count(),1);self.assertEqual(TaskApprovalEvent.objects.count(),1);self.assertEqual(before,self.snapshot())
+
     def test_concurrent_decisions_only_one_history_event_and_task_untouched(self):
         a=self.request();before=self.snapshot()
         def decide(action):

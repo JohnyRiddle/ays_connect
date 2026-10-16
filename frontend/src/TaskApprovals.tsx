@@ -38,33 +38,30 @@ export function CommentApprovals({taskId,comment,approvals,reload}:{taskId:strin
   return <div className="comment-approvals">{approvals.map(a=><details className="chat-approval-chip" key={a.id}><summary><span className={`approval-status ${a.status.toLowerCase()}`}>{statusLabels[a.status]||a.status}</span><span>{a.approver_display}</span></summary><ApprovalCard taskId={taskId} approval={a} reload={reload}/></details>)}</div>;
 }
 
-function ApprovalRequestForm({taskId,comment,approvals,reload,onClose}:{taskId:string;comment:any;approvals:Approval[];reload:()=>Promise<void>;onClose:()=>void}){
-  const [people,setPeople]=useState<{id:string;name:string}[]>([]),[selected,setSelected]=useState(''),[text,setText]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true);const command=useCommand();
-  useEffect(()=>{let active=true;workRequest<{id:string;name:string}[]>(`/tasks/${taskId}/comments/${comment.id}/approval-options/`).then(p=>{if(active)setPeople(p)}).catch(e=>{if(active)setError(message(e))}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[taskId,comment.id]);
-  const submit=async(e:React.FormEvent)=>{e.preventDefault();if(!selected||!text.trim()||busy||loading)return;setBusy(true);setError('');const body={comment:comment.id,approver:selected,text:text.trim()};const command_id=command(JSON.stringify(body));try{await workRequest(`/tasks/${taskId}/approvals/`,{method:'POST',body:JSON.stringify({...body,command_id})});await reload();onClose()}catch(e){setError(message(e));if(e instanceof WorkApiError&&e.status===409)await reload()}finally{setBusy(false)}};
+function ApprovalRequestForm({taskId,people,loading,reload,onClose}:{taskId:string;people:{id:string;name:string}[];loading:boolean;reload:()=>Promise<void>;onClose:()=>void}){
+  const [selected,setSelected]=useState(''),[text,setText]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false);const command=useCommand();
+  const submit=async(e:React.FormEvent)=>{e.preventDefault();if(!people.some(p=>p.id===selected)||!text.trim()||busy||loading)return;setBusy(true);setError('');const body={approver:selected,text:text.trim()};const command_id=command(JSON.stringify(body));try{await workRequest(`/tasks/${taskId}/approvals/`,{method:'POST',body:JSON.stringify({...body,command_id})});await reload();onClose()}catch(e){setError(message(e));if(e instanceof WorkApiError&&e.status===409)await reload()}finally{setBusy(false)}};
   return <form className="approval-form" onSubmit={submit}>
-    <label>Согласующий<select required autoFocus value={selected} disabled={busy||loading} onChange={e=>setSelected(e.target.value)}><option value="">{loading?'Загрузка…':'Выберите сотрудника'}</option>{people.map(p=><option key={p.id} value={p.id} disabled={approvals.some(a=>a.approver===p.id)}>{p.name}{approvals.some(a=>a.approver===p.id)?' — запрос уже создан':''}</option>)}</select></label>
-    {!loading&&!people.length&&!error&&<p className="muted">Нет сотрудников с доступом к объекту и правом согласования.</p>}
+    <label>Согласующий<select required autoFocus value={selected} disabled={busy||loading} onChange={e=>setSelected(e.target.value)}><option value="">{loading?'Загрузка…':'Выберите сотрудника'}</option>{people.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+    {!loading&&!people.length&&<p className="muted">Нет сотрудников с доступом к объекту и правом согласования.</p>}
     <label>Текст запроса согласования<textarea required maxLength={10000} disabled={busy} value={text} onChange={e=>setText(e.target.value)}/></label>
-    <div><button type="button" disabled={busy} onClick={onClose}>Отмена</button><button disabled={busy||loading||!selected||!text.trim()}>Отправить на согласование</button></div>
+    <div><button type="button" disabled={busy} onClick={onClose}>Отмена</button><button disabled={busy||loading||!people.some(p=>p.id===selected)||!text.trim()}>Отправить на согласование</button></div>
     {error&&<p role="alert">{error}</p>}
   </form>;
 }
 
-export function TaskApprovalRequest({taskId,comments,approvals,reload}:{taskId:string;comments:any[];approvals:Approval[];reload:()=>Promise<void>}){
-  const [open,setOpen]=useState(false),[selected,setSelected]=useState('');const trigger=useRef<HTMLButtonElement>(null);
-  const eligible=comments.filter(c=>c.can_request_approval);
-  const comment=eligible.find(c=>c.id===selected)||eligible[eligible.length-1];
+export function TaskApprovalRequest({taskId,reload}:{taskId:string;reload:()=>Promise<void>}){
+  const [open,setOpen]=useState(false),[people,setPeople]=useState<{id:string;name:string}[]>([]),[allowed,setAllowed]=useState(false),[error,setError]=useState(''),[loading,setLoading]=useState(true);const trigger=useRef<HTMLButtonElement>(null);
+  const options=async()=>{setLoading(true);setPeople([]);try{const result=await workRequest<{id:string;name:string}[]>(`/tasks/${taskId}/approval-options/`);setPeople(Array.isArray(result)?result:[]);setAllowed(true);setError('')}catch(e){setAllowed(!(e instanceof WorkApiError&&[401,403,404].includes(e.status)));setError(message(e))}finally{setLoading(false)}};
+  useEffect(()=>{let active=true;workRequest<{id:string;name:string}[]>(`/tasks/${taskId}/approval-options/`).then(result=>{if(active){setPeople(Array.isArray(result)?result:[]);setAllowed(true)}}).catch(e=>{if(active){setAllowed(!(e instanceof WorkApiError&&[401,403,404].includes(e.status)));setError(message(e))}}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[taskId]);
   const close=()=>{setOpen(false);trigger.current?.focus()};
-  useEffect(()=>{if(open&&selected&&!eligible.some(c=>c.id===selected)){setOpen(false);trigger.current?.focus()}},[comments,open,selected]);
-  if(!comment)return null;
+  if(!allowed)return null;
   return <div className="task-chat-request">
-    <button ref={trigger} type="button" className="approval-request" aria-expanded={open} onClick={()=>{if(open)close();else{setSelected(comment.id);setOpen(true)}}}>Запросить согласование</button>
+    <button ref={trigger} type="button" className="approval-request" aria-expanded={open} onClick={()=>{if(open)close();else{setOpen(true);void options()}}}>Запросить согласование</button>
     {open&&<section className="task-chat-request-panel" aria-label="Запрос согласования" onKeyDown={e=>{if(e.key==='Escape'){e.stopPropagation();close()}}}>
       <h3>Запрос согласования</h3>
-      <label>Сообщение для согласования<select value={comment.id} onChange={e=>setSelected(e.target.value)}>{[...eligible].reverse().map(c=><option key={c.id} value={c.id}>{c.author_display}: {c.body.slice(0,100)}</option>)}</select></label>
-      <blockquote>{comment.body}</blockquote>
-      <ApprovalRequestForm key={comment.id} taskId={taskId} comment={comment} approvals={approvals.filter(a=>a.comment===comment.id)} reload={reload} onClose={close}/>
+      {error&&<p role="alert">{error}</p>}
+      <ApprovalRequestForm taskId={taskId} people={people} loading={loading} reload={reload} onClose={close}/>
     </section>}
   </div>;
 }
