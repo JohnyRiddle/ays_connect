@@ -222,3 +222,21 @@ test('slow chat poll cannot overwrite own send and focus does not overlap reads'
  hold=true;await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await expect.poll(()=>reads).toBe(baseline+1);await page.evaluate(()=>{window.dispatchEvent(new Event('focus'));window.dispatchEvent(new Event('focus'))});expect(reads).toBe(baseline+1);
  await page.getByRole('textbox',{name:'Новый комментарий'}).fill('Отправка во время обновления');await page.getByRole('button',{name:'Отправить',exact:true}).click();await expect.poll(()=>messages.length).toBe(2);release();await expect(page.getByRole('log').getByText('Отправка во время обновления',{exact:true})).toHaveCount(1);expect(maxActive).toBe(1);await expect(page.getByRole('textbox',{name:'Новый комментарий'})).toHaveValue('');
 });
+
+
+for(const width of [1280,390])test(`compact messenger bubbles and approval chips at ${width}px`,async({page})=>{
+ await fixture(page);await page.setViewportSize({width,height:1000});
+ await page.route('**/auth/me/',r=>r.fulfill({json:{id:1,full_name:'Иван',email:'test@example.invalid',roles:[],employee:{id:'me',position:'Руководитель'}}}));
+ await page.route(`**/tasks/${taskId}/comments/`,r=>r.fulfill({json:[
+  {id:'incoming',author:'colleague',author_display:'Юлия',body:'Проверьте, пожалуйста, решение.',created_at:'2026-10-15T10:00:00Z',mentions:[]},
+  {id:'own',author:'me',author_display:'Иван',body:'Принял, проверю сегодня.',created_at:'2026-10-16T10:00:00Z',mentions:[],is_internal:true,can_request_approval:true},
+  {id:'long',author:'colleague',author_display:'Юлия',body:'Подробности\n'+('Длинное сообщение без потери переносов. '.repeat(8)),created_at:'2026-10-16T10:01:00Z',mentions:[]}
+ ]}));
+ await page.route(`**/tasks/${taskId}/approvals/`,r=>r.fulfill({json:[{id:'a1',comment:'own',approver:'other',approver_display:'Екатерина',requester_display:'Иван',status:'PENDING',round_number:1,version:1,source_body:'Принял, проверю сегодня.',history:[],available_actions:['approve']}]}));
+ await page.goto(`/tasks/${taskId}`);const feed=page.getByRole('log');await expect(feed.locator('article.comment')).toHaveCount(3);await expect(feed.locator('.task-chat-day')).toHaveCount(2);
+ const mine=feed.locator('.is-own');await expect(mine.locator('.task-chat-message-line b')).toHaveText('Иван:');await expect(mine.locator('time')).toHaveAttribute('datetime','2026-10-16T10:00:00Z');await expect(mine.getByText('Внутреннее',{exact:true})).toBeVisible();
+ const other=feed.locator('article').first();const a=await mine.boundingBox(),b=await other.boundingBox();expect(a&&b&&a.x>b.x).toBeTruthy();
+ const chip=mine.locator('.chat-approval-chip>summary');await expect(chip).toContainText('Ожидает согласования');await expect(chip).toContainText('Екатерина');await expect(mine.getByRole('region',{name:'Согласование: Екатерина'})).toBeHidden();await chip.click();await mine.getByRole('button',{name:'Согласовано',exact:true}).click();await expect(mine.getByRole('button',{name:'Подтвердить',exact:true})).toBeDisabled();await chip.click();
+ await expect(page.getByRole('textbox',{name:'Новый комментарий'})).toHaveCSS('height','48px');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
+ for(const theme of ['light','dark']){await page.evaluate(t=>document.documentElement.setAttribute('data-theme',t),theme);await page.locator('.task-chat').screenshot({path:`test-results/checklists/messenger-${width}-${theme}.png`})}
+});

@@ -785,7 +785,7 @@ function App() {
         ) : path.startsWith("/checklists") ? (
           <ChecklistBuilder />
         ) : path.startsWith("/tasks") || path.startsWith("/requests") ? (
-          <ProductionWorkRouter path={path.split("?")[0]} navigate={navigate} />
+          <ProductionWorkRouter path={path.split("?")[0]} navigate={navigate} employeeId={profile.employee ? String(profile.employee.id) : undefined} />
         ) : view === "notifications" ? (
           <NotificationsView />
         ) : view === "notification-settings" ? (
