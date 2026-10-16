@@ -1,3 +1,4 @@
+import { useTaskComments } from "./useTaskComments";
 import { CommentApprovals, useTaskApprovals } from "./TaskApprovals";
 import { TaskChatComposer } from "./TaskChatComposer";
 import { TaskChatFeed } from "./TaskChatFeed";
@@ -631,7 +632,7 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
   const approvalState=useTaskApprovals(id);
   const [discussion, setDiscussion] = useState<"comments" | "history">("comments");
   const [task, setTask] = useState<any>();
-  const [comments, setComments] = useState<any[]>([]);
+  const { comments, chatError, refreshComments } = useTaskComments(id);
   const [chatScrollRequest,setChatScrollRequest]=useState(0);
   const [attachments, setAttachments] = useState<any[]>([]);
   const [watchers, setWatchers] = useState<any[]>([]);
@@ -650,15 +651,13 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
   const load = () =>
     Promise.all([
       tasksApi.get(id),
-      tasksApi.comments(id),
       tasksApi.attachments(id),
       tasksApi.checklists(id),
       tasksApi.activity(id),
       tasksApi.watchers(id),
     ])
-      .then(([a, b, c, d, e, f]) => {
+      .then(([a, c, d, e, f]) => {
         setTask(a);
-        setComments(b);
         setAttachments(c);
         setChecklists(d);
         setActivity(e);
@@ -711,7 +710,7 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
       await tasksApi.addComment(id, { body: comment, mentions });
       setMentions([]);
       setComment("");
-      setComments(await tasksApi.comments(id));
+      await refreshComments();
       setChatScrollRequest(value=>value+1);
     } catch (x) {
       setError(x);
@@ -861,6 +860,7 @@ function TaskDetail({ id, navigate }: { id: string; navigate: Navigate }) {
             <button type="button" aria-pressed={discussion === "history"} onClick={() => setDiscussion("history")}>История изменений</button>
           </div>
           <div hidden={discussion !== "comments"}>
+          {chatError && <p role="status">{chatError}</p>}
           <TaskChatFeed key={id} active={discussion==="comments"} scrollRequest={chatScrollRequest}>
           {!comments.length && <p className="muted">Комментариев пока нет.</p>}
 

@@ -196,3 +196,29 @@ for(const width of [1280,390])test(`chat feed scroll and composer below messages
  await page.setViewportSize({width,height:700});await expect.poll(()=>feed.evaluate(e=>e.scrollHeight-e.clientHeight-e.scrollTop)).toBeLessThan(2);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();await page.evaluate(()=>document.documentElement.setAttribute('data-theme','dark'));await page.locator('.task-chat').screenshot({path:`test-results/checklists/chat-feed-${width}.png`});
 });
+
+
+for(const width of [1280,390])test(`chat automatically refreshes without losing draft or scroll at ${width}px`,async({page})=>{
+ await fixture(page);await page.setViewportSize({width,height:900});await page.clock.install();
+ let messages=Array.from({length:40},(_,i)=>({id:`live-${i}`,author:'employee',author_display:'Коллега',body:`Переписка ${i}`,created_at:'2026-10-16T10:00:00Z',mentions:[]}));let fail=false,calls=0;
+ await page.route(`**/tasks/${taskId}/comments/`,route=>{calls++;return fail?route.fulfill({status:503,json:{detail:'Unavailable'}}):route.fulfill({json:messages})});
+ await page.goto(`/tasks/${taskId}`);const feed=page.getByRole('log',{name:'Сообщения задачи'});await expect(feed.locator('article.comment')).toHaveCount(40);
+ const input=page.getByRole('textbox',{name:'Новый комментарий'});await input.fill('Мой несохранённый ответ');
+ messages.push({...messages[0],id:'incoming',body:'Новое сообщение коллеги'});await page.clock.runFor(5100);await expect(feed.getByText('Новое сообщение коллеги',{exact:true})).toBeVisible();await expect(input).toHaveValue('Мой несохранённый ответ');await expect.poll(()=>feed.evaluate(e=>e.scrollHeight-e.clientHeight-e.scrollTop)).toBeLessThan(2);
+ await feed.evaluate(e=>{e.scrollTop=0;e.dispatchEvent(new Event('scroll',{bubbles:true}))});messages.push({...messages[0],id:'incoming-2',body:'Следующее сообщение'});await page.clock.runFor(5100);await expect(feed.locator('article.comment')).toHaveCount(42);await expect.poll(()=>feed.evaluate(e=>e.scrollTop)).toBe(0);
+ fail=true;await page.clock.runFor(5100);await expect(page.getByRole('status').filter({hasText:'Повторим автоматически'})).toBeVisible();await expect(feed.locator('article.comment')).toHaveCount(42);await expect(input).toHaveValue('Мой несохранённый ответ');
+ fail=false;messages=messages.filter(m=>m.id!=='incoming-2').map(m=>m.id==='incoming'?{...m,body:'Отредактированное сообщение'}:m);await page.clock.runFor(5100);await expect(feed.locator('article.comment')).toHaveCount(41);await expect(feed.getByText('Отредактированное сообщение',{exact:true})).toHaveCount(1);await expect(page.getByRole('status').filter({hasText:'Повторим автоматически'})).toHaveCount(0);
+ await page.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,value:'hidden'});document.dispatchEvent(new Event('visibilitychange'))});const before=calls;await page.clock.runFor(11000);expect(calls).toBe(before);
+ messages.push({...messages[0],id:'return',body:'Сообщение при возврате'});await page.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,value:'visible'});document.dispatchEvent(new Event('visibilitychange'))});await expect(feed.getByText('Сообщение при возврате',{exact:true})).toHaveCount(1);await expect(input).toHaveValue('Мой несохранённый ответ');
+});
+
+test('slow chat poll cannot overwrite own send and focus does not overlap reads',async({page})=>{
+ await fixture(page);await page.clock.install();let messages:any[]=[{id:'initial-race',author:'employee',author_display:'Коллега',body:'Исходное сообщение',created_at:'2026-10-16T10:00:00Z',mentions:[]}];let hold=false,release:()=>void=()=>{};let active=0,maxActive=0,reads=0;
+ await page.route(`**/tasks/${taskId}/comments/`,async route=>{
+  if(route.request().method()==='POST'){const item={id:'own-live',author:'employee',author_display:'Я',body:route.request().postDataJSON().body,created_at:'2026-10-16T10:00:00Z',mentions:[]};messages.push(item);await route.fulfill({json:item});return}
+  reads++;active++;maxActive=Math.max(active,maxActive);const snapshot=[...messages];if(hold){hold=false;await new Promise<void>(resolve=>release=resolve)}active--;await route.fulfill({json:snapshot});
+ });
+ await page.goto(`/tasks/${taskId}`);await expect(page.getByRole('heading',{name:'Чат задачи',exact:true})).toBeVisible();await expect(page.getByRole('log').getByText('Исходное сообщение',{exact:true})).toHaveCount(1);const baseline=reads;maxActive=0;
+ hold=true;await page.evaluate(()=>window.dispatchEvent(new Event('focus')));await expect.poll(()=>reads).toBe(baseline+1);await page.evaluate(()=>{window.dispatchEvent(new Event('focus'));window.dispatchEvent(new Event('focus'))});expect(reads).toBe(baseline+1);
+ await page.getByRole('textbox',{name:'Новый комментарий'}).fill('Отправка во время обновления');await page.getByRole('button',{name:'Отправить',exact:true}).click();await expect.poll(()=>messages.length).toBe(2);release();await expect(page.getByRole('log').getByText('Отправка во время обновления',{exact:true})).toHaveCount(1);expect(maxActive).toBe(1);await expect(page.getByRole('textbox',{name:'Новый комментарий'})).toHaveValue('');
+});

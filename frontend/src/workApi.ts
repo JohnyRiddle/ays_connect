@@ -186,7 +186,7 @@ export const tasksApi = {
       method: "POST",
       body: JSON.stringify(data),
     }),
-  comments: (id: string) => workRequest<any[]>(`/tasks/${id}/comments/`),
+  comments: (id: string, signal?: AbortSignal) => workRequest<any[]>(`/tasks/${id}/comments/`, { signal }),
   addComment: (id: string, data: unknown) =>
     workRequest<any>(`/tasks/${id}/comments/`, {
       method: "POST",
