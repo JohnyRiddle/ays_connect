@@ -47,3 +47,13 @@
 .chat-approval-chip .task-approval { margin-top:8px; }
 @media(max-width:640px) { .task-chat-feed .comment.task-chat-message { max-width:95%; padding:7px 10px; } .task-chat-message-line { gap:8px; } }
 .task-chat-message .comment-approvals>.approval-form { width:100%; min-width:0; }
+
+.task-chat-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+.task-chat-heading h2 { margin:0; }
+.task-chat-request { position:relative; margin-left:auto; max-width:100%; }
+.task-chat-request>.approval-request { margin:0; }
+.task-chat-request-panel { position:absolute; right:0; top:calc(100% + 8px); z-index:20; width:min(420px,calc(100vw - 76px)); padding:16px; box-sizing:border-box; border:1px solid var(--border); border-radius:12px; background:var(--surface); box-shadow:0 10px 30px #0003; max-height:65vh; overflow:auto; }
+.task-chat-request-panel h3 { margin:0 0 14px; font-size:15px; }
+.task-chat-request-panel>label { display:grid; gap:6px; font-size:12px; }
+.task-chat-request-panel select { width:100%; min-width:0; box-sizing:border-box; padding:9px; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text); }
+.task-chat-request-panel blockquote { margin:12px 0; padding-left:10px; border-left:2px solid var(--border); font-size:12px; color:var(--text-muted); white-space:pre-wrap; overflow-wrap:anywhere; max-height:90px; overflow:auto; }

@@ -1,5 +1,5 @@
 import { useTaskComments } from "./useTaskComments";
-import { CommentApprovals, useTaskApprovals } from "./TaskApprovals";
+import { CommentApprovals, TaskApprovalRequest, useTaskApprovals } from "./TaskApprovals";
 import { TaskChatComposer } from "./TaskChatComposer";
 import { TaskChatFeed } from "./TaskChatFeed";
 import { TaskChecklistPanel } from "./ChecklistBuilder";
@@ -854,7 +854,7 @@ function TaskDetail({ id, navigate, employeeId }: { id: string; navigate: Naviga
           )) : <p className="muted">Файлы не прикреплены.</p>}
         </section>
         <section className="work-card task-chat" aria-label="Чат задачи">
-          <h2>Чат задачи</h2>
+          <div className="task-chat-heading"><h2>Чат задачи</h2><TaskApprovalRequest key={id} taskId={id} comments={comments} approvals={approvalState.items} reload={approvalState.refresh}/></div>
           <div className="detail-tabs" role="group" aria-label="Обсуждение задачи">
             <button type="button" aria-pressed={discussion === "comments"} onClick={() => setDiscussion("comments")}>Чат · {comments.length}</button>
             <button type="button" aria-pressed={discussion === "history"} onClick={() => setDiscussion("history")}>История изменений</button>

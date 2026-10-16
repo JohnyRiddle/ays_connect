@@ -16,8 +16,10 @@ export function TaskChatComposer({taskId,value,onChange,mentions,onMentions,busy
   const select=(person:any)=>{const start=caret-(query?.length||0)-1;const text=value.slice(0,start)+'@'+person.name+' '+value.slice(caret);chosen.current[person.id]=person.name;onMentions([...new Set([...mentions,person.id])]);onChange(text);setDismissed(true);const position=start+person.name.length+2;requestAnimationFrame(()=>{input.current?.focus();input.current?.setSelectionRange(position,position);setCaret(position);});};
   return <form className="comment-form task-chat-composer" onSubmit={e=>{e.preventDefault();void onSend();}}>
     <div className="task-chat-input"><textarea ref={input} aria-label="Новый комментарий" aria-controls={open?listId:undefined} aria-activedescendant={open&&choices[active]?`${listId}-${active}`:undefined} value={value} disabled={busy} onChange={e=>{change(e.target.value);setCaret(e.target.selectionStart);}} onSelect={e=>setCaret(e.currentTarget.selectionStart)} placeholder="Сообщение… @ — упомянуть сотрудника" onKeyDown={e=>{
+      if(e.nativeEvent.isComposing || e.keyCode===229)return;
       if(e.key==='Escape'){setDismissed(true);return;}
-      if(open&&choices.length){if(e.key==='ArrowDown'){e.preventDefault();setActive(i=>Math.min(i+1,choices.length-1));}if(e.key==='ArrowUp'){e.preventDefault();setActive(i=>Math.max(i-1,0));}if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();select(choices[active]);}}
+      if(open&&choices.length){if(e.key==='ArrowDown'){e.preventDefault();setActive(i=>Math.min(i+1,choices.length-1));}if(e.key==='ArrowUp'){e.preventDefault();setActive(i=>Math.max(i-1,0));}if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();select(choices[active]);return;}}
+      if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();if(!e.repeat&&!busy&&value.trim())void onSend();}
     }}/>
     {open&&<div className="task-chat-mentions" id={listId} role="listbox" aria-label="Упомянуть сотрудника">{choices.map((p,i)=><button id={`${listId}-${i}`} type="button" role="option" aria-selected={i===active} key={p.id} onMouseDown={e=>e.preventDefault()} onClick={()=>select(p)}>{p.name}{!p.has_access&&<small>Нет доступа к задаче</small>}</button>)}{error&&<p role="alert">{error}</p>}</div>}
     </div><button disabled={busy||!value.trim()}>Отправить</button>
