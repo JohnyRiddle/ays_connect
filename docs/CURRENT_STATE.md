@@ -748,3 +748,18 @@ TypeScript/Vite/diff PASS. Автообновление, draft/scroll, @, API/RB
 Backend/миграции/Telegram не менялись. Доработки локальные, без commit/push/
 publication; 3 отложенных Telegram-файла сохранены. Подробнее:
 [TASK_DISCUSSION_MENTIONS_2026_10_16.md](TASK_DISCUSSION_MENTIONS_2026_10_16.md).
+
+## 16.10.2026 — PR #13: компактный чат опубликован
+
+По явному запросу commit/push/merge/publication завершены. Frontend
+`ec41c15`, merge `7f06954`. Пузырьки «Отправитель: сообщение», свои справа,
+время рядом, дни разделены. Дополнительные отметки/согласования — плашками
+с раскрытием прежней карточки. Поле ввода 48 px, auto-refresh/draft/scroll/@
+сохранены. Browser **21/21 PASS**, TypeScript/Vite/diff PASS. Production HTTPS
+**16 PASS**, финальный browser **12/12 PASS** (первый GET-overlay прогон завершился
+таймаутом ожидания, повтор без изменения продукта успешен), **0 HTTP write attempts**.
+Core **7/7 healthy**. Frontend backup **39 файлов** восстановлен и сверен EFS/LUKS,
+**32 прежних assets** сохранены. Без простоя/перезапуска backend.
+Backend RC `376a8dd`, БД/миграции/права не менялись. Operational
+wrappers/metadata согласованы; Telegram/receiver выключены, 3 отложенных файла
+сохранены. [Отчёт](TASK_CHAT_BUBBLES_RELEASE_2026_10_16.md).

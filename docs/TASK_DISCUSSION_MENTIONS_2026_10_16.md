@@ -101,3 +101,6 @@ Backend/API payload/RBAC/Outbox/Telegram не менялись, миграций
 
 Проверки: browser **21/21 PASS**, TypeScript/Vite/diff PASS, visual QA 1280/390 px.
 Изменения локальные, commit/push/publication этой доработки не выполнялись.
+
+16.10.2026: компактная переписка/плашки и поле ввода опубликованы в PR #13.
+[Проверки и точка отката](TASK_CHAT_BUBBLES_RELEASE_2026_10_16.md). Статус DEPLOYED_ACCEPTED.
