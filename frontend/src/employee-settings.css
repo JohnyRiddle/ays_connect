@@ -1,0 +1,41 @@
+.employee-card-toolbar { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:18px; }
+.employee-settings-menu { position:relative; }
+.employee-settings-menu>summary { display:flex; align-items:center; gap:14px; list-style:none; cursor:pointer; padding:10px 14px; border:1px solid var(--border); border-radius:9px; background:var(--surface); font-size:14px; }
+.employee-settings-menu>summary::-webkit-details-marker { display:none; }
+.employee-settings-menu nav { position:absolute; z-index:25; top:calc(100% + 6px); right:0; width:240px; border:1px solid var(--border); border-radius:10px; padding:6px; background:var(--surface); box-shadow:0 8px 24px #0002; }
+.employee-settings-menu nav a { display:block; padding:12px; border-radius:6px; color:var(--text); text-decoration:none; }
+.employee-settings-menu nav a:hover { background:var(--brand-soft); }
+.employee-settings-tabs { display:flex; flex-wrap:wrap; gap:6px; border-bottom:1px solid var(--border); padding-bottom:12px; margin:20px 0; }
+.employee-settings-tabs a { padding:10px 16px; border-radius:8px; color:var(--text-muted); text-decoration:none; }
+.employee-settings-tabs a[aria-current=page] { background:var(--brand-soft); color:var(--brand-text); }
+.employee-settings-search { display:grid; gap:8px; font-size:13px; color:var(--text-muted); margin:18px 0; max-width:520px; }
+.employee-settings-search input, .employee-objects-card input[type=search] { width:100%; box-sizing:border-box; border:1px solid var(--border); border-radius:8px; padding:11px 12px; color:var(--text); background:var(--surface); font:inherit; }
+.employee-settings-grid { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); gap:20px; }
+.employee-settings-grid>.people-card { min-width:0; }
+.employee-role-list { max-height:520px; overflow:auto; }
+.employee-role-list article { display:flex; justify-content:space-between; gap:14px; padding:16px 0; border-bottom:1px solid var(--border); }
+.employee-role-list strong { font-size:14px; font-weight:600; overflow-wrap:anywhere; }
+.employee-role-list article>span { font-size:12px; white-space:nowrap; }
+.employee-count { color:var(--text-muted); font-size:12px; font-weight:400; margin-left:8px; }
+.employee-object-summary { display:grid; grid-template-columns:1fr 1fr; gap:20px; padding-bottom:20px; border-bottom:1px solid var(--border); }
+.employee-object-summary dt { color:var(--text-muted); font-size:12px; margin-bottom:8px; }
+.employee-object-summary dd { margin:0; line-height:1.6; overflow-wrap:anywhere; }
+.employee-objects-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:22px; }
+.employee-object-list { max-height:560px; overflow:auto; }
+.employee-object-list article { display:grid; grid-template-columns:minmax(140px,1fr) minmax(0,2fr); gap:18px; padding:16px 4px; border-bottom:1px solid var(--border); }
+.employee-object-list article>strong { font-size:14px; overflow-wrap:anywhere; }
+.employee-object-list article>div { display:grid; gap:5px; font-size:13px; overflow-wrap:anywhere; }
+.employee-object-list small { color:var(--text-muted); font-size:12px; line-height:1.6; }
+.employee-objects-card>details { margin-top:24px; border-top:1px solid var(--border); padding-top:18px; }
+.employee-objects-card>details>summary { cursor:pointer; font-size:14px; }
+.employee-object-choices { max-height:280px; overflow:auto; display:grid; gap:8px; margin-top:12px; }
+.employee-object-choices label { display:flex; align-items:center; gap:10px; }
+.employee-settings-menu summary:focus-visible, .employee-settings-menu a:focus-visible, .employee-settings-tabs a:focus-visible, .employee-object-list:focus-visible { outline:2px solid var(--brand); outline-offset:3px; }
+@media(max-width:700px) {
+ .employee-card-toolbar { align-items:flex-start; flex-wrap:wrap; }
+ .employee-settings-grid, .employee-object-summary { grid-template-columns:1fr; }
+ .employee-object-list article { grid-template-columns:1fr; gap:8px; }
+ .employee-settings-menu nav { width:min(240px,calc(100vw - 50px)); right:auto; left:0; }
+ .employee-role-list article { flex-direction:column; gap:6px; }
+ .employee-settings-tabs a { padding:10px; font-size:13px; }
+}

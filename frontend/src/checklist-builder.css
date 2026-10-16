@@ -32,7 +32,11 @@
 .cb-template-list article>.cb-simple-heading { flex: 1 1 240px; }
 .cb-error, .cb-page [role=alert], .cb-task-panel [role=alert] { color: var(--danger, #b42318); }
 .cb-task-panel { min-width: 0; }
-.cb-task-checklist { margin: 22px 0 0; }
+.cb-task-checklist { margin: 16px 0 0; padding: 18px; border: 1px solid var(--border); border-left: 4px solid var(--brand); border-radius: 12px; background: var(--surface-soft); min-width: 0; }
+.cb-checklist-heading { padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.cb-checklist-icon { flex-shrink: 0; color: var(--brand-text); }
+.cb-task-checklist>.cb-simple-item { padding: 14px 0; }
+.cb-task-checklist>button, .cb-task-checklist>.cb-toolbar { margin-top: 14px; }
 .cb-checklist-heading h3 { font-size: 16px; line-height: 1.5; }
 .cb-attach { margin: 12px 0 20px; }
 .cb-attach>summary { cursor: pointer; color: var(--text-muted); font-size: 13px; }
@@ -47,6 +51,7 @@
 .cb-task-panel button:focus-visible, .cb-info>summary:focus-visible, .cb-attach>summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
 .cb-page [role=status] { padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
 @media(max-width:640px) {
+ .cb-task-checklist { padding: 14px; }
  .cb-editor, .cb-preview, .cb-template-list article { padding: 12px; }
  .cb-edit-item { flex-wrap: wrap; }
  .cb-editor .cb-item-name { flex-basis: calc(100% - 30px); }
