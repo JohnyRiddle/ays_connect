@@ -48,3 +48,8 @@ internal scope и legacy notifications; browser **14/14 PASS**, включая b
 отозванного доступа. TypeScript/Vite/check/drift/diff PASS. Production, реальные
 сообщения и существующие назначения не затрагивались. Commit/push не выполнялись;
 три отложенных Telegram-файла сохранены.
+
+## Публикация
+
+16.10.2026: PR #10 и CSS correction PR #11 опубликованы, итоговый статус
+DEPLOYED_ACCEPTED. [Проверки, ограничения и точка восстановления](TASK_CHAT_MENTION_RELEASE_2026_10_16.md).

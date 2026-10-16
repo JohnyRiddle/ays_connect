@@ -683,3 +683,20 @@ Telegram выключен, отложенные файлы сохранены.
 Согласования и @подсказки сохранены. Browser **16/16 PASS**, повтор scroll/resize
 **2/2 PASS**, TypeScript/Vite/diff PASS. Все изменения этого обсуждения локальные,
 без commit/push/production deployment; предыдущая подготовка сохранена.
+
+## 16.10.2026 — PR #10/#11: чат, вложения и mention popup опубликованы
+
+По явному разрешению commit/push/merge и publication завершены. Backend
+`376a8dd`, frontend `0aad21b`. Отдельные карточки чата/вложений,
+прокручиваемая переписка с полем ввода снизу, popup новых доступных упоминаний
+возле колокольчика. Чат/согласования/права сохранены; миграций и новых grants нет.
+Свежая копия **204 таблицы**, PostgreSQL **712/712**, API **17/17 rollback**
+на копии и production, browser **16/16 + 2/2 accent regression PASS**.
+Frozen DB/media/frontend восстановлены и сверены, окно **98.328 с**.
+Первый live-check обнаружил CSS conflict верхнего акцента; PR #11 исправил
+только frontend без повторного простоя. Финальные HTTPS **16 PASS**, core
+**7/7 healthy**, browser **9/9 PASS**, **0 HTTP write attempts**. Popup UI —
+GET-only synthetic overlay; настоящий mention — API rollback, без внешних отправок.
+Operational wrappers/metadata согласованы; 11 identity/org/RBAC таблиц неизменны,
+временная копия остановлена. Telegram/receiver выключены, три отложенных файла
+сохранены. [Отчёт и доказательства](TASK_CHAT_MENTION_RELEASE_2026_10_16.md).
