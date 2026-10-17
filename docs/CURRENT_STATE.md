@@ -1,3 +1,12 @@
+## 17.10.2026 — clarification marker and live approval refresh (review)
+
+Prepared against main a34d743: circled `!` for clarification-required messages,
+visible-tab approval polling and bounded single-flight authentication refresh.
+Task lifecycle, backend, permissions and Telegram unchanged. TypeScript/Vite
+build and 20 focused tests PASS. Browser test execution blocked by local Chromium
+sandbox; exact reported two-laptop production incident not reproduced.
+Not merged or deployed. [Evidence and remaining gates](TASK_CHAT_CLARIFICATION_FIX_2026_10_17.md).
+
 ## 13.10.2026 — production импорт ЦФО выполнен
 
 По поручению «Приступай», после согласования новых UUID и timezone офиса,

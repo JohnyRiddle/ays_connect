@@ -63,3 +63,9 @@
 
 .header-actions .notification-popover { box-sizing:border-box; max-height:min(600px,calc(100dvh - 100px)); overflow-y:auto; }
 @media(max-width:640px) { .header-actions .notification-popover { position:fixed; top:68px; right:12px; width:calc(100vw - 24px); max-height:calc(100dvh - 88px); } }
+
+
+/* The message needs a reply; this is not a task-status indicator. */
+.approval-status.clarification_requested { display:inline-flex; align-items:center; gap:5px; }
+.approval-attention { display:inline-grid; place-items:center; flex:0 0 auto; width:1.25em; height:1.25em; border:1px solid currentColor; border-radius:50%; font-weight:800; line-height:1; }
+.chat-approval-chip:has(.approval-attention)>summary { border-color:currentColor; }
