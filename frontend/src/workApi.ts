@@ -46,19 +46,61 @@ function messageFromPayload(payload: unknown): string {
   return "Не удалось выполнить запрос.";
 }
 
-async function refreshAccess(): Promise<boolean> {
+// Refresh belongs to the session, not any one polling request. Share it across
+// callers, but give each caller independent cancellation and bound the refresh.
+let refreshPending: { token: string; promise: Promise<boolean> } | null = null;
+function refreshAccess(): Promise<boolean> {
   const refresh = sessionStorage.getItem("refresh");
-  if (!refresh) return false;
-  const response = await fetch(`${AUTH_ROOT}/auth/refresh/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh }),
+  if (refreshPending?.token === refresh) return refreshPending.promise;
+  if (!refresh) return Promise.resolve(false);
+  const controller = new AbortController();
+  let timeout: ReturnType<typeof setTimeout>;
+  const expired = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      controller.abort();
+      reject(new WorkApiError("network", "Не удалось обновить сессию. Повторите запрос."));
+    }, 15000);
   });
-  if (!response.ok) return false;
-  const data = await response.json();
-  sessionStorage.setItem("access", data.access);
-  if (data.refresh) sessionStorage.setItem("refresh", data.refresh);
-  return true;
+  const request = (async () => {
+    try {
+      const response = await fetch(`${AUTH_ROOT}/auth/refresh/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh }),
+        signal: controller.signal,
+      });
+      if ([401, 403].includes(response.status)) return false;
+      if (!response.ok) throw new WorkApiError("network", "Не удалось обновить сессию. Повторите запрос.");
+      const data = await response.json();
+      // Never restore a logged-out session or overwrite a newer login.
+      if (controller.signal.aborted || sessionStorage.getItem("refresh") !== refresh) return false;
+      if (typeof data.access !== "string" || !data.access)
+        throw new WorkApiError("network", "Некорректный ответ обновления сессии.");
+      sessionStorage.setItem("access", data.access);
+      if (typeof data.refresh === "string" && data.refresh) sessionStorage.setItem("refresh", data.refresh);
+      return true;
+    } catch (error) {
+      if (error instanceof WorkApiError) throw error;
+      throw new WorkApiError("network", "Не удалось обновить сессию. Повторите запрос.");
+    }
+  })();
+  const promise = Promise.race([request, expired]).finally(() => {
+    clearTimeout(timeout);
+    if (refreshPending?.promise === promise) refreshPending = null;
+  });
+  refreshPending = { token: refresh, promise };
+  return promise;
+}
+
+function waitForRefresh(signal?: AbortSignal | null): Promise<boolean> {
+  if (signal?.aborted) return Promise.reject(new WorkApiError("network", "Запрос отменён."));
+  const pending = refreshAccess();
+  if (!signal) return pending;
+  return new Promise((resolve, reject) => {
+    const aborted = () => reject(new WorkApiError("network", "Запрос отменён."));
+    signal.addEventListener("abort", aborted, { once: true });
+    pending.then(resolve, reject).finally(() => signal.removeEventListener("abort", aborted));
+  });
 }
 
 export async function workRequest<T>(
@@ -82,8 +124,12 @@ export async function workRequest<T>(
   } catch {
     throw new WorkApiError("network", "Нет соединения с сервером.");
   }
-  if (response.status === 401 && retry && (await refreshAccess()))
-    return workRequest<T>(path, options, false);
+  if (response.status === 401 && retry) {
+    // Another request may already have rotated the token while this was in flight.
+    const current = sessionStorage.getItem("access");
+    if ((current && current !== token) || (await waitForRefresh(options.signal)))
+      return workRequest<T>(path, options, false);
+  }
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
     const fields: Record<string, string[]> = {};
@@ -101,7 +147,10 @@ export async function workRequest<T>(
       429: "throttled",
     };
     const kind = kinds[response.status] || "server";
-    if (kind === "unauthenticated") sessionStorage.clear();
+    if (kind === "unauthenticated" && sessionStorage.getItem("access") === token) {
+      sessionStorage.removeItem("access");
+      sessionStorage.removeItem("refresh");
+    }
     const defaults: Record<ApiErrorKind, string> = {
       validation: "Проверьте заполнение формы.",
       unauthenticated: "Сессия завершена. Войдите снова.",
@@ -139,8 +188,11 @@ export async function workDownload(
   } catch {
     throw new WorkApiError("network", "Нет соединения с сервером.");
   }
-  if (response.status === 401 && retry && (await refreshAccess()))
-    return workDownload(path, filename, false, preview);
+  if (response.status === 401 && retry) {
+    const current = sessionStorage.getItem("access");
+    if ((current && current !== token) || (await refreshAccess()))
+      return workDownload(path, filename, false, preview);
+  }
   if (!response.ok)
     throw new WorkApiError(
       response.status === 403 ? "forbidden" : "server",
@@ -293,3 +345,4 @@ export const lookupApi = {
   legalEntities: () => workRequest<Page<any>>("/legal-entities/"),
   locations: () => workRequest<Page<any>>("/locations/"),
 };
+
