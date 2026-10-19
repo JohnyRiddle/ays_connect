@@ -35,6 +35,54 @@ async function fixture(page:Page,manage=true,attached=false,watcherMode=false){
     await route.fulfill({status:200,json:data});
   });
 }
+for(const width of [1280,390])test(`collapse preserves checklist drafts and saved values at ${width}px`,async({page})=>{
+  await fixture(page,true,true);await page.setViewportSize({width,height:900});await page.goto(`/tasks/${taskId}`);
+  const panel=page.locator('.cb-task-panel');
+  await panel.getByLabel('Ответ: Температура',{exact:true}).fill('0');
+  await panel.getByLabel('Ответ: Результат осмотра помещения и оборудования',{exact:true}).fill('Несохранённый ответ');
+  let writes=0;page.on('request',r=>{if(!['GET','HEAD','OPTIONS'].includes(r.method()))writes++;});
+  for(let i=0;i<3;i++){
+    const collapse=panel.getByRole('button',{name:'Свернуть чек-листы',exact:true});await collapse.focus();await collapse.press(i%2?'Space':'Enter');
+    const expand=panel.getByRole('button',{name:'Развернуть чек-листы',exact:true});
+    await expect(expand).toBeFocused();await expect(expand).toHaveAttribute('aria-expanded','false');
+    await expect(panel.getByRole('heading',{name:'Чек-листы',exact:true})).toBeVisible();
+    await expect(panel.getByLabel('Ответ: Температура',{exact:true})).toBeHidden();
+    await expect(panel.locator('.cb-attach')).toBeHidden();
+    await expand.press('Space');await expect(expand).toHaveCount(0);
+    await expect(panel.getByLabel('Ответ: Температура',{exact:true})).toHaveValue('0');
+    await expect(panel.getByLabel('Ответ: Результат осмотра помещения и оборудования',{exact:true})).toHaveValue('Несохранённый ответ');
+    await expect(panel.getByRole('checkbox',{name:'Рабочее место подготовлено'})).toBeChecked();
+  }
+  expect(writes).toBe(0);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
+  await panel.screenshot({path:`test-results/checklists/collapse-expanded-${width}.png`});
+  await panel.getByRole('button',{name:'Свернуть чек-листы'}).click();
+  await panel.screenshot({path:`test-results/checklists/collapse-closed-${width}.png`});
+});
+test('read-only checklist can collapse without enabling editing',async({page})=>{
+  await fixture(page,false,true);await page.goto(`/tasks/${taskId}`);const panel=page.locator('.cb-task-panel');
+  await panel.getByRole('button',{name:'Свернуть чек-листы'}).click();await panel.getByRole('button',{name:'Развернуть чек-листы'}).click();
+  await expect(panel.getByRole('checkbox',{name:'Рабочее место подготовлено'})).toBeDisabled();
+  await expect(panel.getByLabel('Ответ: Температура',{exact:true})).toBeDisabled();
+  await expect(panel.locator('.cb-attach')).toHaveCount(0);
+});
+test('empty manageable checklist keeps heading and attach selection on collapse',async({page})=>{
+  await fixture(page,true,false);await page.goto(`/tasks/${taskId}`);const panel=page.locator('.cb-task-panel');
+  await panel.locator('.cb-attach summary').click();await panel.getByLabel('Шаблон',{exact:true}).selectOption('template-1');
+  await panel.getByRole('button',{name:'Свернуть чек-листы'}).click();await panel.getByRole('button',{name:'Развернуть чек-листы'}).click();
+  await expect(panel.getByLabel('Шаблон',{exact:true})).toHaveValue('template-1');
+});
+for(const width of [1280,390])test(`list title and task reference remain separate at ${width}px`,async({page})=>{
+  await fixture(page);await page.setViewportSize({width,height:900});
+  const title='Длинное название задачи для проверки переноса текста '.repeat(5);
+  await page.route('**/api/internal/v1/tasks/?*',r=>r.fulfill({json:{count:2,next:null,previous:null,results:[{id:taskId,number:'TASK-3',title,status:'in_progress',priority:'normal',updated_at:'2026-10-19T00:00:00Z'},{id:'empty',number:'TASK-4',title:'',status:'draft',priority:'normal'}]}}));
+  await page.goto('/tasks');const first=page.locator('.task-grid .work-object').first();
+  await expect(first.locator('strong')).toHaveText(title.trim());await expect(first.locator('small')).toContainText('TASK-3');
+  await expect(page.locator('.task-grid .work-object').nth(1).locator('strong')).toBeEmpty();
+  await expect(page.locator('.task-grid .work-object').nth(1).locator('small')).toContainText('TASK-4');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
+  await page.locator('.task-grid').screenshot({path:`test-results/checklists/task-list-${width}.png`});
+  await first.click();await expect(page).toHaveURL(new RegExp(`/tasks/${taskId}$`));
+});
 for(const width of [1280,390])test(`constructor, preview and saved template at ${width}px`,async({page})=>{
   await fixture(page);await page.setViewportSize({width,height:900});await page.goto('/checklists');
   await page.getByRole('button',{name:'Создать шаблон',exact:true}).click();

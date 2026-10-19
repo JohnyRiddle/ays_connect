@@ -1,3 +1,9 @@
+## 19.10.2026 — task list and checklist controls
+
+Prepared: task references move below titles in the task list; checklist panels
+can collapse without unmounting draft answers. Existing permissions, identifiers
+and task lifecycle are preserved. [Scope and validation](TASK_LIST_CHECKLIST_UI_2026_10_19.md).
+
 ## 17.10.2026 — clarification marker and live approval refresh (review)
 
 Prepared against main a34d743: circled `!` for clarification-required messages,
