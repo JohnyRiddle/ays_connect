@@ -307,9 +307,10 @@ function TaskList({ navigate }: { navigate: Navigate }) {
                   onClick={() => navigate(`/tasks/${t.id}`)}
                 >
                   <strong>
-                    {t.number} · {t.title}
+                    {t.title}
                   </strong>
                   <small>
+                    {t.number} ·{" "}
                     {t.active_priority === null ? "Проектная задача" : labels[t.priority] || t.priority} · обновлено{" "}
                     {fmt(t.updated_at)}
                   </small>
