@@ -343,6 +343,14 @@ export const lookupApi = {
     workRequest<Page<any>>(`/employees/?search=${encodeURIComponent(search)}`),
   orgUnits: () => workRequest<Page<any>>("/org-units/"),
   legalEntities: () => workRequest<Page<any>>("/legal-entities/"),
-  locations: () => workRequest<Page<any>>("/locations/"),
+  locations: async (signal?: AbortSignal): Promise<Page<any>> => {
+    const results = new Map<string, any>();
+    for (let page = 1; page <= 1000; page++) {
+      const data = await workRequest<Page<any>>(`/locations/${page === 1 ? '' : `?page=${page}`}`, {signal});
+      for (const location of data.results) results.set(location.id, location);
+      if (!data.next) return {count: results.size, next: null, previous: null, results: [...results.values()]};
+    }
+    throw new WorkApiError('server', 'Не удалось загрузить полный список объектов. Повторите попытку.');
+  },
 };
 

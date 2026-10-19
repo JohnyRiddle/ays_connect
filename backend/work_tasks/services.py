@@ -183,6 +183,11 @@ class TaskService:
             return task
         from organizations.object_services import require_available_location
         if "location" in changes and changes["location"] != task.location:
+            from organizations.object_policies import LocationAccessPolicy
+            if task.location and not LocationAccessPolicy.allows(actor_user, 'location.view', task.location):
+                raise TaskBusinessError('Нет доступа к текущему объекту задачи.', code='task_permission_denied')
+            if changes['location'] and not LocationAccessPolicy.allows(actor_user, 'location.view', changes['location']):
+                raise TaskBusinessError('Нет доступа к выбранному объекту.', code='task_permission_denied')
             require_available_location(changes["location"], actor_user)
         allowed = {"title", "description", "priority", "planned_start_at", "parent", "org_unit", "legal_entity", "location", "acceptance_policy", "completion_policy", "responsible_department"}
         if set(changes) - allowed:
@@ -214,10 +219,15 @@ class TaskService:
             target = employee_target(head)
             TaskAssignmentHistory.objects.create(task=task, assignment_type='responsible', old_target=task.responsible_target, old_employee=task.responsible_employee, new_target=target, new_employee=head, changed_by=actor, reason='Изменение ответственного подразделения')
             changes.update(responsible_target=target, responsible_employee=head)
-        if 'location' in changes and task.responsible_department:
-            for member in (task.responsible_employee, task.executor_employee):
+        if 'location' in changes:
+            from .routing import eligible_for_location
+            department = changes.get('responsible_department', task.responsible_department)
+            for member in (changes.get('responsible_employee', task.responsible_employee), task.executor_employee):
                 if member:
-                    validate_member(member, changes.get('responsible_department', task.responsible_department), changes['location'])
+                    if department:
+                        validate_member(member, department, changes['location'])
+                    elif not eligible_for_location(member, changes['location']):
+                        raise TaskValidationError('Ответственному и исполнителю требуется доступ к выбранному объекту.', code='task_assignment_invalid')
         if 'priority' in changes and changes['priority'] != task.priority:
             cls._authorize(actor=actor, actor_user=actor_user, permission='task.change_deadline', task=task)
             if changes['priority'] == 'blocking' and not task.deadline_is_manual:
