@@ -1,3 +1,9 @@
+## 19.10.2026 — task location selection and editing
+
+Full authorized location pagination and task parameter editing are prepared, with
+source/target visibility and member eligibility checks. No role grants or schema
+changes. [Scope and validation](TASK_LOCATION_EDIT_2026_10_19.md).
+
 ## 19.10.2026 — task list and checklist controls
 
 Prepared: task references move below titles in the task list; checklist panels

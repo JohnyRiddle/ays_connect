@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { workRequest } from './workApi';
+import { TaskLocationField } from './TaskLocationField';
 
 export function DepartmentFields({ value, onChange, location = '', executor = '', onExecutor, fixed = false, assignmentType = 'executor' }: { value: string; onChange: (value: string) => void; location?: string; executor?: string; onExecutor?: (value: string) => void; fixed?: boolean; assignmentType?: string }) {
   const [departments, setDepartments] = useState<any[]>([]);
@@ -77,14 +78,19 @@ export function WatcherSearch({taskId,excluded,busy,onAdd}: {taskId:string;exclu
 export function TaskSettings({ task, reload, onError }: { task: any; reload: () => void; onError: (e: any) => void }) {
   const [department, setDepartment] = useState(task.responsible_department || '');
   const [priority, setPriority] = useState(task.priority);
+  const [location, setLocation] = useState(task.location || '');
+  const [saveError,setSaveError] = useState('');
+  const details=useRef<HTMLDetailsElement>(null);
+  const reset=()=>{setDepartment(task.responsible_department || '');setPriority(task.priority);setLocation(task.location || '');setSaveError('');};
   const [busy, setBusy] = useState(false);
-  return <details><summary>Изменить параметры</summary><form onSubmit={async e => {
-    e.preventDefault(); setBusy(true);
+  return <details ref={details}><summary>Изменить параметры</summary><form onSubmit={async e => {
+    e.preventDefault(); if(busy)return; setBusy(true);setSaveError('');
     const data: any = {version: task.version};
-    if (department !== task.responsible_department) data.responsible_department = department;
+    if (location !== (task.location || '')) data.location = location || null;
+    if (department !== (task.responsible_department || '')) data.responsible_department = department;
     if (task.active_priority !== null && priority !== task.priority) data.priority = priority;
-    try { await workRequest(`/tasks/${task.id}/`, {method: 'PATCH', body: JSON.stringify(data)}); reload(); } catch(e) { onError(e); } finally { setBusy(false); }
-  }}><DepartmentFields fixed={!task.can_change_department} value={department} onChange={setDepartment} location={task.location || ''} />
+    try { await workRequest(`/tasks/${task.id}/`, {method: 'PATCH', body: JSON.stringify(data)}); reload(); } catch(e) { setSaveError(e instanceof Error?e.message:'Не удалось сохранить параметры.'); onError(e); } finally { setBusy(false); }
+  }}><TaskLocationField value={location} onChange={setLocation} disabled={busy} />{saveError&&<p role="alert">{saveError}</p>}<DepartmentFields fixed={!task.can_change_department} value={department} onChange={setDepartment} location={location} />
   {task.active_priority !== null && <label className="work-field"><span>Приоритет</span><select disabled={!task.available_actions?.includes('change_deadline')} value={priority} onChange={e => setPriority(e.target.value)}>{[['blocking','Блокирующая'],['critical','Критическая'],['high','Высокая'],['normal','Обычная'],['low','Низкая']].map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select><small>Срок пересчитается от создания. Для блокирующей задачи сначала задайте явный дедлайн с причиной.</small></label>}
-  <button disabled={busy || !department}>Сохранить</button></form></details>;
+  <button disabled={busy}>Сохранить</button><button type="button" disabled={busy} onClick={()=>{reset();if(details.current)details.current.open=false;}}>Отмена</button></form></details>;
 }

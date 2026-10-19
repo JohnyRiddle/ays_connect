@@ -3,6 +3,7 @@ import { CommentApprovals, TaskApprovalRequest, useTaskApprovals } from "./TaskA
 import { TaskChatComposer } from "./TaskChatComposer";
 import { TaskChatFeed } from "./TaskChatFeed";
 import { TaskChecklistPanel } from "./ChecklistBuilder";
+import { TaskLocationField } from "./TaskLocationField";
 import React, { useEffect, useRef, useState } from "react";
 import { DepartmentFields, TaskSettings, WatcherSearch } from './TaskParticipants';
 import {
@@ -340,8 +341,6 @@ function TaskList({ navigate }: { navigate: Navigate }) {
 
 function TaskCreate({ navigate }: { navigate: Navigate }) {
   const initialLocation = new URLSearchParams(window.location.search).get("location") || "";
-  const [locations, setLocations] = useState<any[]>([]);
-  useEffect(() => { lookupApi.locations().then(x => setLocations(x.results)).catch(() => {}); }, []);
   const [form, setForm] = useState<any>({
     title: "",
     description: "",
@@ -441,7 +440,7 @@ function TaskCreate({ navigate }: { navigate: Navigate }) {
             {form.priority!=='blocking'&&<small>{previewDate?`Ориентировочно: ${fmt(previewDate.toISOString())}. Точный срок будет рассчитан при создании задачи.`:'Загрузка срока…'}</small>}
           </label>
         </div>
-        <label className="work-field"><span>Объект / локация</span><select value={form.location} onChange={event=>setForm({...form,location:event.target.value})}><option value="">Не указано</option>{initialLocation&&!locations.some(x=>x.id===initialLocation)&&<option value={initialLocation}>Выбранный объект</option>}{locations.filter(x=>!x.is_archived).map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
+        <TaskLocationField value={form.location} disabled={busy} onChange={location=>setForm({...form,location})} />
         <DepartmentFields value={form.responsible_department} location={form.location} onChange={value => setForm((old: any) => ({...old, responsible_department: value}))} executor={form.executor_target} onExecutor={value => setForm((old: any) => ({...old, executor_target: value}))} />
         <button className="primary" disabled={busy}>
           {busy ? "Создаём…" : "Создать задачу"}
