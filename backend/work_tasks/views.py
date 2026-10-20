@@ -10,7 +10,7 @@ from .selectors import TaskSelector
 from .serializers import (
     CompleteSerializer, DeadlineSerializer, PauseSerializer, ReasonSerializer,
     ReassignSerializer, ReviewSerializer, TaskCreateSerializer,
-    TaskDetailSerializer, TaskPatchSerializer, TaskSerializer, VersionSerializer,
+    TaskDetailSerializer, TaskPatchSerializer, TaskSerializer, VersionSerializer, TrashSerializer,
 )
 from .services import TaskService
 from access_control.services import PermissionService
@@ -98,6 +98,8 @@ class ProductionTaskViewSet(ApprovalActionsMixin, viewsets.GenericViewSet):
             queryset = self._all()
         else:
             queryset = TaskSelector.visible_to(self._actor())
+        if self.action == 'list':
+            queryset = queryset.filter(deleted_at__isnull=self.request.query_params.get('deleted') != 'true')
         # Employee search is local to participant-options, never a Task title filter.
         if self.action == 'participant_options':
             return queryset
@@ -123,6 +125,19 @@ class ProductionTaskViewSet(ApprovalActionsMixin, viewsets.GenericViewSet):
 
     def retrieve(self, request, pk=None):
         return Response(TaskDetailSerializer(self.get_object(), context={"request": request}).data)
+
+    def get_object(self):
+        task = super().get_object()
+        if task.deleted_at and self.request.method not in {'GET', 'HEAD', 'OPTIONS'} and self.action != 'restore':
+            from .exceptions import TaskValidationError
+            raise TaskValidationError('Сначала восстановите задачу из удалённых.', code='task_deleted')
+        return task
+
+    @action(detail=True, methods=['post'])
+    def trash(self, request, pk=None): return self._command(request, TaskService.trash, TrashSerializer)
+
+    @action(detail=True, methods=['post'])
+    def restore(self, request, pk=None): return self._command(request, TaskService.restore, TrashSerializer)
 
     def create(self, request):
         TaskService._authorize(actor=self._actor(), actor_user=request.user, permission='task.create')

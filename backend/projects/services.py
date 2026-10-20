@@ -114,7 +114,7 @@ class ProjectService:
         if action in {"cancel", "reopen", "restore"} and not reason.strip():
             raise ProjectBusinessError("Укажите причину перехода.")
         if action == "complete":
-            if ProjectTaskLink.objects.filter(project=project, is_active=True).exclude(task__status__in=[TaskStatus.COMPLETED, TaskStatus.CANCELLED]).exists():
+            if ProjectTaskLink.objects.filter(project=project, is_active=True, task__deleted_at__isnull=True).exclude(task__status__in=[TaskStatus.COMPLETED, TaskStatus.CANCELLED]).exists():
                 raise ProjectBusinessError("Завершению мешают незавершённые задачи.", "project_tasks_incomplete")
             if ProjectMilestone.objects.filter(project=project, required=True, confirmed_at__isnull=True).exists():
                 raise ProjectBusinessError("Обязательные контрольные точки не подтверждены.", "project_milestones_incomplete")
@@ -183,7 +183,7 @@ class ProjectService:
         project.save(update_fields=[*changes.keys(), "version", "updated_by", "updated_at"])
         if 'planned_end_at' in changes:
             from django.db.models import Q
-            for linked in Task.objects.select_for_update(of=('self',)).filter(project_link__project=project, project_link__is_active=True).filter(Q(deadline_from_project=True) | Q(due_at__isnull=True)).exclude(status__in=[TaskStatus.COMPLETED, TaskStatus.CANCELLED]):
+            for linked in Task.objects.select_for_update(of=('self',)).filter(project_link__project=project, project_link__is_active=True, deleted_at__isnull=True).filter(Q(deadline_from_project=True) | Q(due_at__isnull=True)).exclude(status__in=[TaskStatus.COMPLETED, TaskStatus.CANCELLED]):
                 TaskService.change_deadline(task=linked, actor=actor, actor_user=actor_user, version=linked.version, new_due_at=None, reason='Изменение срока проекта', correlation_id=correlation_id)
         cls.record(project, actor, actor_user, "project.edited", old=old,
                    new={key: str(getattr(project, key)) for key in changes}, correlation_id=correlation_id)
@@ -377,6 +377,8 @@ class ProjectService:
 class ProjectTaskService:
     @staticmethod
     def authorize_task(actor, actor_user, task):
+        if task.deleted_at:
+            raise ProjectBusinessError('Сначала восстановите задачу из удалённых.', 'task_deleted')
         if actor_user and actor_user.is_superuser: return
         if not TaskSelector.visible_to(actor).filter(pk=task.pk).exists() or not TaskAccessPolicy.allows(employee=actor, permission="task.edit", task=task):
             raise ProjectBusinessError("Задача недоступна для привязки.", "project_task_forbidden")

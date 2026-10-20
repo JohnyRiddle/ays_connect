@@ -1,3 +1,13 @@
+## 20.10.2026 — reversible task deletion, release candidate
+
+Prepared on `codex/task-trash-local`: recoverable deletion of active and final tasks,
+including project-linked tasks, with existing RBAC, versions and preserved history.
+Restoration validates current project/participants and uses current inherited
+deadlines. No implicit project reopening or cascading deletion. PostgreSQL 279,
+synthetic browser 50 and TypeScript/Vite checks pass. Additive migration and
+read-only production acceptance remain release gates.
+[Scope and limitations](TASK_TRASH_LOCAL_2026_10_19.md).
+
 ## 19.10.2026 — task location selection and editing
 
 Full authorized location pagination and task parameter editing are prepared, with

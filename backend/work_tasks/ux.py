@@ -89,6 +89,12 @@ class SystemViewService:
 
 
 class TaskUXService:
+    @staticmethod
+    def can_manage_project(task, employee, is_superuser):
+        from projects.models import ProjectTaskLink
+        from projects.policies import ProjectAccessPolicy
+        link = ProjectTaskLink.objects.select_related('project').filter(task=task, is_active=True).first()
+        return not link or is_superuser or all(ProjectAccessPolicy.allows(employee, p, link.project) for p in ['project.view', 'project.task_link_manage'])
     ACTIONS = {
         "edit": "task.edit", "publish": "task.assign", "start": "task.start",
         "pause": "task.pause", "resume": "task.pause", "complete": "task.complete",
@@ -112,6 +118,8 @@ class TaskUXService:
     def available_actions(cls, task, employee, is_superuser=False):
         if not is_superuser and not TaskAccessPolicy.allows(employee=employee, permission="task.view", task=task):
             return []
+        if task.deleted_at:
+            return ['restore'] if cls.can_manage_project(task, employee, is_superuser) and (is_superuser or TaskAccessPolicy.allows(employee=employee, permission='task.reopen', task=task)) else []
         actions = []
         for action, permission in cls.ACTIONS.items():
             if action in {'checklist_manage', 'checklist_complete'} and task.status in {TaskStatus.COMPLETED, TaskStatus.CANCELLED, TaskStatus.REVIEW}: continue
@@ -134,6 +142,9 @@ class TaskUXService:
             if action == "watch" and is_watching: continue
             if action == "unwatch" and not is_watching: continue
             actions.append(action)
+        if is_superuser or TaskAccessPolicy.allows(employee=employee, permission='task.cancel', task=task):
+            if cls.can_manage_project(task, employee, is_superuser):
+                actions.append('trash')
         return actions
 
     @classmethod
@@ -141,6 +152,20 @@ class TaskUXService:
         """Expose blockers only for actions the current actor may perform."""
         if not is_superuser and not TaskAccessPolicy.allows(employee=employee, permission="task.view", task=task):
             return {}
+        blockers = {}
+        command = 'restore' if task.deleted_at else 'trash'
+        permission = 'task.reopen' if task.deleted_at else 'task.cancel'
+        if cls.can_manage_project(task, employee, is_superuser) and (is_superuser or TaskAccessPolicy.allows(employee=employee, permission=permission, task=task)):
+            from projects.models import ProjectTaskLink
+            link = ProjectTaskLink.objects.select_related('project').filter(task=task, is_active=True).first()
+            if link and (link.project.is_archived or link.project.status in {'completed', 'cancelled'}):
+                blockers[command] = 'Сначала явно откройте проект.'
+            elif not task.deleted_at and task.children.filter(deleted_at__isnull=True).exists():
+                blockers[command] = 'Сначала отдельно удалите подзадачи. Каскадного удаления нет.'
+            elif task.deleted_at and task.parent_id and (task.parent.deleted_at or (task.status not in {'completed','cancelled'} and task.parent.status in {'completed','cancelled'})):
+                blockers[command] = 'Сначала восстановите или откройте родительскую задачу.'
+        if task.deleted_at:
+            return blockers
         may_publish = is_superuser or TaskAccessPolicy.allows(
             employee=employee, permission="task.assign", task=task
         )
@@ -151,21 +176,22 @@ class TaskUXService:
             if not task.responsible_target_id: missing.append("ответственного")
             if not task.responsible_department_id: missing.append('ответственное подразделение (административное заполнение)')
             if missing:
-                return {"publish": f"Для публикации укажите {', '.join(missing)}."}
+                return {**blockers, "publish": f"Для публикации укажите {', '.join(missing)}."}
         may_complete = is_superuser or TaskAccessPolicy.allows(
             employee=employee, permission="task.complete", task=task
         )
         if not may_complete or task.status != TaskStatus.IN_PROGRESS:
-            return {}
+            return blockers
         if task.production_checklists.filter(
             removed_at__isnull=True, items__required=True, items__is_completed=False
         ).exists():
-            return {"complete": "Завершите обязательные пункты чек-листа."}
-        return {}
+            return {**blockers, "complete": "Завершите обязательные пункты чек-листа."}
+        return blockers
 
     @staticmethod
     def counters(employee, queryset=None):
         queryset = queryset if queryset is not None else TaskSelector.visible_to(employee)
+        queryset = queryset.filter(deleted_at__isnull=True)
         queryset = TaskSelector.with_effective_deadline(queryset)
         return queryset.aggregate(
             my_tasks=Count("id", filter=Q(responsible_employee=employee) | Q(executor_employee=employee), distinct=True),

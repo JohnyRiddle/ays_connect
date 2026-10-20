@@ -272,7 +272,7 @@ class ProjectViewSet(viewsets.GenericViewSet):
 
     def visible_tasks(self, project):
         qs=Task.objects.all() if self.request.user.is_superuser else TaskSelector.visible_to(self.actor())
-        return qs.filter(project_link__project=project,project_link__is_active=True)
+        return qs.filter(project_link__project=project,project_link__is_active=True,deleted_at__isnull=True)
 
     @action(detail=True,methods=["get"])
     def tasks(self,request,pk=None):

@@ -188,8 +188,8 @@ def aggregate_employee(employee, period_from, period_to, reporting_timezone):
         for code in METRICS:
             selected = list(qs.filter(metric_code=code))
             value = _metric_value(code, selected)
-            if code == "active_tasks": value = Task.objects.filter(Q(responsible_employee=employee) | Q(executor_employee=employee), status__in=ACTIVE_TASKS).distinct().count()
-            elif code == "overdue_tasks": value = Task.objects.filter(Q(responsible_employee=employee) | Q(executor_employee=employee), status__in=ACTIVE_TASKS, due_at__lt=timezone.now()).distinct().count()
+            if code == "active_tasks": value = Task.objects.filter(Q(responsible_employee=employee) | Q(executor_employee=employee), deleted_at__isnull=True, status__in=ACTIVE_TASKS).distinct().count()
+            elif code == "overdue_tasks": value = Task.objects.filter(Q(responsible_employee=employee) | Q(executor_employee=employee), deleted_at__isnull=True, status__in=ACTIVE_TASKS, due_at__lt=timezone.now()).distinct().count()
             elif code in ("active_requests", "backlog_requests"): value = ServiceRequest.objects.filter(Q(assigned_employee=employee) | Q(responsible_employee=employee)).exclude(status__in=TERMINAL_REQUESTS).distinct().count()
             elif code == "throughput": value = _metric_value("tasks_completed", list(qs.filter(metric_code="tasks_completed"))) or 0
             elif code == "net_flow": value = (sum(f.value for f in qs.filter(metric_code="tasks_created")) - sum(f.value for f in qs.filter(metric_code="tasks_completed")))
