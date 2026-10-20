@@ -113,6 +113,7 @@ class Task(models.Model):
     source_template = models.ForeignKey("TaskTemplate", on_delete=models.PROTECT, null=True, blank=True, related_name="created_tasks")
     recurrence_rule = models.ForeignKey("TaskRecurrenceRule", on_delete=models.PROTECT, null=True, blank=True, related_name="generated_tasks")
     version = models.PositiveIntegerField(default=1)
+    deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_work_tasks")
     updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="updated_work_tasks")
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
@@ -136,7 +137,7 @@ class Task(models.Model):
     @property
     def is_overdue(self):
         due = self.effective_due_at
-        return bool(due and due < timezone.now() and self.status not in {TaskStatus.COMPLETED, TaskStatus.CANCELLED})
+        return bool(not self.deleted_at and due and due < timezone.now() and self.status not in {TaskStatus.COMPLETED, TaskStatus.CANCELLED})
 
     @property
     def effective_due_at(self):

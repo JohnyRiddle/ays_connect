@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 
 from access_control.services import PermissionService
@@ -19,6 +19,9 @@ from .policies import TaskAccessPolicy
 class CollaborationService:
     @staticmethod
     def _authorize(*, actor, actor_user, permission, task):
+        state = Task.objects.select_for_update() if connection.in_atomic_block else Task.objects.all()
+        if state.values_list('deleted_at', flat=True).get(pk=task.pk):
+            raise TaskValidationError('Сначала восстановите задачу из удалённых.', code='task_deleted')
         if actor_user and actor_user.is_superuser:
             return
         if not PermissionService.has_permission(employee=actor, permission="task.view", obj=task) or not PermissionService.has_permission(employee=actor, permission=permission, obj=task):

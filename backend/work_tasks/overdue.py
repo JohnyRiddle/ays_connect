@@ -12,12 +12,12 @@ def process_overdue(limit=100):
     from .services import TaskService
     from .exceptions import TaskVersionConflict
     noticed = TaskOverdueNotice.objects.filter(task_id=OuterRef('pk'), due_at=OuterRef('effective_deadline'))
-    pending = TaskSelector.with_effective_deadline(Task.objects.all()).filter(effective_deadline__lt=timezone.now()).exclude(status__in=['draft', 'completed', 'cancelled']).annotate(already_noticed=Exists(noticed)).filter(already_noticed=False).order_by('effective_deadline', 'pk')
+    pending = TaskSelector.with_effective_deadline(Task.objects.filter(deleted_at__isnull=True)).filter(effective_deadline__lt=timezone.now()).exclude(status__in=['draft', 'completed', 'cancelled']).annotate(already_noticed=Exists(noticed)).filter(already_noticed=False).order_by('effective_deadline', 'pk')
     for pk in pending.values_list('pk', flat=True)[:limit]:
         with transaction.atomic():
             task = Task.objects.get(pk=pk)
             try:
-                task = TaskService._locked(task, task.version)
+                task = TaskService._locked(task, task.version, allow_deleted=True)
             except TaskVersionConflict:
                 continue
             if not task.is_overdue:

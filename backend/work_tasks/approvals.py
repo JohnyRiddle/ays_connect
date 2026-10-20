@@ -1,6 +1,6 @@
 """Comment approval commands deliberately never call TaskService or save a Task."""
 from functools import wraps
-from django.db import transaction, IntegrityError
+from django.db import connection, transaction, IntegrityError
 from rest_framework.exceptions import PermissionDenied
 from access_control.services import PermissionService
 from audit.services import AuditService
@@ -53,6 +53,9 @@ def can_invite_approver(*, employee, task, comment):
 
 
 def require(*, employee, user, permission, task, comment, approval=None):
+    state = Task.objects.select_for_update() if connection.in_atomic_block else Task.objects.all()
+    if state.values_list('deleted_at', flat=True).get(pk=task.pk):
+        raise TaskValidationError('Сначала восстановите задачу из удалённых.', code='task_deleted')
     if not visible_source(employee=employee, user=user, task=task, comment=comment, approval=approval):
         raise PermissionDenied('Нет доступа к согласованию.')
     if not user.is_superuser and (not PermissionService.has_permission(employee=employee, permission='task.approval.view', obj=task) or not PermissionService.has_permission(employee=employee, permission=permission, obj=task)):
@@ -61,6 +64,8 @@ def require(*, employee, user, permission, task, comment, approval=None):
 
 def actions(approval, employee, user):
     result=[]
+    if approval.task.deleted_at:
+        return result
     if not visible_source(employee=employee,user=user,task=approval.task,comment=approval.comment,approval=approval):
         return result
     def allowed(code):

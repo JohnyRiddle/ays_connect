@@ -75,6 +75,10 @@ class TaskService:
 
     @staticmethod
     def _validate_parent(task, parent):
+        if parent:
+            parent = Task.objects.select_for_update().get(pk=parent.pk)
+            if parent.deleted_at:
+                raise TaskValidationError('Удалённая задача не может быть родительской.', code='task_deleted')
         cursor = parent
         visited = set()
         while cursor:
@@ -106,7 +110,7 @@ class TaskService:
         DomainEventService.publish(event_type=action, entity=task, actor=actor_user, payload=cls._payload(task, actor, **payload), correlation_id=correlation_id)
 
     @staticmethod
-    def _locked(task, version):
+    def _locked(task, version, *, allow_deleted=False):
         from projects.models import ProjectTaskLink
         from projects.services import project_lock
         project_id = ProjectTaskLink.objects.filter(task_id=task.pk, is_active=True).values_list('project_id', flat=True).first()
@@ -117,7 +121,85 @@ class TaskService:
             raise TaskVersionConflict('Связь задачи с проектом изменилась; повторите операцию.')
         if version != locked.version:
             raise TaskVersionConflict(f"Версия задачи изменилась: ожидалась {version}, текущая {locked.version}.")
+        if locked.deleted_at and not allow_deleted:
+            raise TaskValidationError('Сначала восстановите задачу из удалённых.', code='task_deleted')
         return locked
+
+    @classmethod
+    def _trash_context(cls, task, actor, actor_user, project_version, *, restoring=False):
+        from projects.models import Project, ProjectTaskLink, ProjectStatus
+        from projects.policies import ProjectAccessPolicy
+        link = ProjectTaskLink.objects.select_for_update().filter(task=task, is_active=True).first()
+        project = None
+        if link:
+            project = Project.objects.select_for_update().get(pk=link.project_id)
+            if not actor_user.is_superuser and not all(ProjectAccessPolicy.allows(actor, p, project) for p in ['project.view','project.task_link_manage']):
+                raise TaskBusinessError('Нет права менять состав задач проекта.', code='task_permission_denied')
+            if project_version != project.version:
+                raise TaskVersionConflict('Проект изменился. Обновите задачу и повторите действие.')
+            if project.is_archived or project.status in {ProjectStatus.COMPLETED, ProjectStatus.CANCELLED}:
+                raise TaskValidationError('Сначала явно откройте проект. Его статус не изменяется автоматически.', code='task_trash_project_closed')
+            if link.stage_id and not project.stages.filter(pk=link.stage_id).exists():
+                raise TaskValidationError('Этап задачи недоступен.', code='task_trash_stage_invalid')
+        if task.parent_id:
+            parent = Task.objects.select_for_update().get(pk=task.parent_id)
+            if restoring and (parent.deleted_at or (task.status not in {TaskStatus.COMPLETED, TaskStatus.CANCELLED} and parent.status in {TaskStatus.COMPLETED, TaskStatus.CANCELLED})):
+                raise TaskValidationError('Сначала восстановите или откройте родительскую задачу.', code='task_trash_parent_closed')
+        return project
+
+    @staticmethod
+    def _record_project_trash(project, task, actor, actor_user, action, correlation_id):
+        if project:
+            from projects.services import ProjectService
+            project.version += 1
+            project.updated_by = actor_user
+            project.save(update_fields=['version', 'updated_by', 'updated_at'])
+            ProjectService.record(project, actor, actor_user, action, new={'task_id': str(task.pk)}, correlation_id=correlation_id)
+
+    @classmethod
+    @transaction.atomic
+    def trash(cls, *, task, actor, actor_user, version, project_version=None, correlation_id=None):
+        task = cls._locked(task, version)
+        cls._authorize(actor=actor, actor_user=actor_user, permission='task.cancel', task=task)
+        project = cls._trash_context(task, actor, actor_user, project_version)
+        if task.children.filter(deleted_at__isnull=True).exists():
+            raise TaskValidationError('Сначала отдельно удалите подзадачи. Каскадное удаление не выполняется.', code='task_trash_linked')
+        task.deleted_at = timezone.now()
+        task.version += 1
+        task.updated_by = actor_user
+        task.save(update_fields=['deleted_at', 'version', 'updated_by', 'updated_at'])
+        cls._record(task, actor, actor_user, 'task.trashed', old={'deleted_at': None}, new={'deleted_at': task.deleted_at}, correlation_id=correlation_id)
+        cls._record_project_trash(project, task, actor, actor_user, 'project.task_trashed', correlation_id)
+        return task
+
+    @classmethod
+    @transaction.atomic
+    def restore(cls, *, task, actor, actor_user, version, project_version=None, correlation_id=None):
+        task = cls._locked(task, version, allow_deleted=True)
+        cls._authorize(actor=actor, actor_user=actor_user, permission='task.reopen', task=task)
+        if not task.deleted_at:
+            raise TaskValidationError('Задача не удалена.', code='task_not_deleted')
+        project = cls._trash_context(task, actor, actor_user, project_version, restoring=True)
+        if task.status not in {TaskStatus.DRAFT, TaskStatus.COMPLETED, TaskStatus.CANCELLED}:
+            from organizations.object_services import require_available_location
+            require_available_location(task.location, actor_user)
+            cls._work_ready(task)
+        before = task.deleted_at
+        old_due = task.due_at
+        if project:
+            from .routing import validate_project_deadline
+            if task.deadline_from_project or task.due_at is None:
+                task.due_at = project.planned_end_at
+            validate_project_deadline(project, task.due_at)
+        if old_due != task.due_at:
+            TaskDeadlineHistory.objects.create(task=task, old_due_at=old_due, new_due_at=task.due_at, changed_by=actor, reason='Восстановление: актуальный срок проекта')
+        task.deleted_at = None
+        task.version += 1
+        task.updated_by = actor_user
+        task.save(update_fields=['deleted_at', 'due_at', 'version', 'updated_by', 'updated_at'])
+        cls._record(task, actor, actor_user, 'task.restored', old={'deleted_at': before}, new={'deleted_at': None}, correlation_id=correlation_id)
+        cls._record_project_trash(project, task, actor, actor_user, 'project.task_restored', correlation_id)
+        return task
 
     @classmethod
     def _transition(cls, task, to_status, actor, reason=""):
@@ -328,7 +410,7 @@ class TaskService:
         from .models import TaskChecklistItem
         if TaskChecklistItem.objects.select_for_update().filter(checklist__task=task, checklist__removed_at__isnull=True, required=True, is_completed=False).exists():
             raise TaskValidationError("Обязательные пункты чек-листа не выполнены.", code="task_checklist_incomplete")
-        if task.completion_policy == CompletionPolicy.ALL_CHILDREN_COMPLETED and task.children.exclude(status__in=(TaskStatus.COMPLETED, TaskStatus.CANCELLED)).exists():
+        if task.completion_policy == CompletionPolicy.ALL_CHILDREN_COMPLETED and task.children.filter(deleted_at__isnull=True).exclude(status__in=(TaskStatus.COMPLETED, TaskStatus.CANCELLED)).exists():
             raise TaskValidationError("Сначала завершите активные подзадачи.", code="task_children_incomplete")
 
     @classmethod

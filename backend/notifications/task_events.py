@@ -21,7 +21,7 @@ def ingest_task_event(event):
     from access_control.services import PermissionService
     from .services import NotificationChannelRouter
     payload = event.payload
-    task = Task.objects.filter(pk=payload.get('task_id')).first()
+    task = Task.objects.select_for_update().filter(pk=payload.get('task_id'), deleted_at__isnull=True).first()
     intent, _ = NotificationIntent.objects.select_for_update().get_or_create(source_event_id=event.event_id, defaults={'event_type': event.event_type, 'reason': 'WORK_TASK_EVENT', 'payload': {}})
     if intent.status == 'materialized':
         return intent

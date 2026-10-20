@@ -37,6 +37,8 @@ const labels: Record<string, string> = {
   blocking: "Блокирующая",
 };
 const actionLabels: Record<string, string> = {
+  trash: "Удалить задачу",
+  restore: "Восстановить задачу",
   publish: "Опубликовать",
   start: "Начать работу",
   pause: "Приостановить",
@@ -188,6 +190,7 @@ export function WorkHome({ navigate }: { navigate: Navigate }) {
 }
 
 function TaskList({ navigate }: { navigate: Navigate }) {
+  const [deleted, setDeleted] = useState(false);
   const [page, setPage] = useState<Page<any> | null>(null);
   const [error, setError] = useState<any>();
   const [search, setSearch] = useState("");
@@ -206,6 +209,7 @@ function TaskList({ navigate }: { navigate: Navigate }) {
       ordering,
     });
     if (search) q.set("search", search);
+    if (deleted) q.set("deleted", "true");
     if (status) q.set("status", status);
     if (priority) q.set("priority", priority);
     if (project) q.set("project", project);
@@ -216,7 +220,7 @@ function TaskList({ navigate }: { navigate: Navigate }) {
   useEffect(() => {
     const timer = setTimeout(load, 300);
     return () => clearTimeout(timer);
-  }, [search, status, priority, project, stage, ordering, pageNo]);
+  }, [search, status, priority, project, stage, ordering, pageNo, deleted]);
   useEffect(() => { workRequest<Page<{ id: string; number: string; name: string }>>("/projects/").then(x => setProjects(x.results)).catch(() => {}); }, []);
   useEffect(() => { setStage(""); if (project) workRequest<{ id: string; name: string }[]>(`/projects/${project}/stages/`).then(setStages).catch(() => setStages([])); else setStages([]); }, [project]);
   return (
@@ -232,6 +236,7 @@ function TaskList({ navigate }: { navigate: Navigate }) {
         </button>
       </header>
       <div className="work-filters">
+        <label><input type="checkbox" checked={deleted} onChange={e => { setDeleted(e.target.checked); setPageNo(1); }} />Удалённые задачи</label>
         <input
           aria-label="Поиск задач"
           value={search}
@@ -514,6 +519,8 @@ function ActionDialog({
         }}
       >
         <h2>{actionLabels[action] || action}</h2>
+        {action === 'trash' && <p>Удалить задачу «{taskContext?.title}»? Она будет перенесена в «Удалённые задачи». Обсуждения, вложения и история сохранятся. Задачу можно восстановить в прежнем статусе. Сроки не сдвигаются; работа и новые действия по задаче недоступны до восстановления.</p>}
+        {action === 'restore' && <p>Восстановить задачу «{taskContext?.title}»? Она вернётся в список с прежним статусом. {taskContext?.project && <>Связь с проектом и этапом сохранена. Наследуемый срок будет взят из текущего проекта: {fmt(taskContext.project.planned_end_at)}.</>}</p>}
         {action === 'reassign' && taskContext?.responsible_department && <label className="work-field"><span>Тип назначения</span><select value={assignmentType} onChange={e => {setAssignmentType(e.target.value); setTarget('');}}><option value="executor">Исполнитель</option><option value="responsible">Ответственный руководитель</option></select></label>}
         {action === "reassign" && (
           taskContext?.responsible_department ? <DepartmentFields fixed assignmentType={assignmentType} value={taskContext.responsible_department} location={taskContext.location || ''} onChange={() => {}} executor={target} onExecutor={setTarget} /> : <AssignmentSelector
@@ -596,6 +603,7 @@ function TaskActions({ task, busy, onAction }: { task: any; busy: boolean; onAct
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const available = (task.available_actions || []).filter((name: string) => !hiddenHeaderActions.has(name));
+  if (task.action_blockers?.trash && !available.includes('trash')) available.push('trash');
   const primaryByStatus: Record<string, string> = { draft: "publish", open: "start", waiting: "resume", in_progress: "complete", review: "accept" };
   const candidate = primaryByStatus[task.status];
   const primary = available.includes(candidate) ? candidate : "";
@@ -622,7 +630,8 @@ function TaskActions({ task, busy, onAction }: { task: any; busy: boolean; onAct
     {secondary.length > 0 && <div className="work-action-menu">
       <button ref={trigger} type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(value => !value)} disabled={busy}>Действия <span aria-hidden="true">⌄</span></button>
       {open && <div className="work-action-menu-list" role="menu" aria-label="Действия задачи">{secondary.map((name: string) => <React.Fragment key={name}>
-        {name === "cancel" && <hr />}<button role="menuitem" className={name === "cancel" ? "danger" : ""} disabled={busy} onClick={() => { setOpen(false); onAction(name); }}>{actionLabels[name] || name}</button>
+        {(name === "cancel" || name === "trash") && <hr />}<button role="menuitem" className={name === "cancel" || name === "trash" ? "danger" : ""} disabled={busy || (['trash','restore'].includes(name) && !!task.action_blockers?.[name])} onClick={() => { setOpen(false); onAction(name); }}>{actionLabels[name] || name}</button>
+        {['trash','restore'].includes(name) && task.action_blockers?.[name] && <p className="work-action-blocker">{task.action_blockers[name]}</p>}
       </React.Fragment>)}</div>}
     </div>}
   </div>;
@@ -690,6 +699,7 @@ function TaskDetail({ id, navigate, employeeId }: { id: string; navigate: Naviga
       }
       const updated = await tasksApi.action(id, endpoint, {
         version: task.version,
+        ...(['trash','restore'].includes(actionName) && task.project ? { project_version: task.project.version } : {}),
         ...data,
       });
       setTask(updated);
@@ -763,6 +773,7 @@ function TaskDetail({ id, navigate, employeeId }: { id: string; navigate: Naviga
           ["publish", "start", "resume", "accept"].includes(name) ? run(name) : setAction(name)
         } />
       </header>
+      {task.deleted_at && <p role="status">Задача удалена. Обсуждение и история сохранены. Для изменений восстановите задачу.</p>}
       {error && <ErrorState error={error} />}{" "}
       {conflict && (
         <div className="conflict" role="alert">
@@ -842,7 +853,7 @@ function TaskDetail({ id, navigate, employeeId }: { id: string; navigate: Naviga
             <h2>Вложения · {attachments.length}</h2>
             <label className="upload">
               {busy ? "Загрузка…" : "Прикрепить файл"}
-              <input type="file" disabled={busy} onChange={(e) => upload(e.target.files?.[0])} />
+              <input type="file" disabled={busy || !!task.deleted_at} onChange={(e) => upload(e.target.files?.[0])} />
             </label>
           </div>
           {attachments.length ? attachments.map((a) => (
@@ -854,7 +865,7 @@ function TaskDetail({ id, navigate, employeeId }: { id: string; navigate: Naviga
           )) : <p className="muted">Файлы не прикреплены.</p>}
         </section>
         <section className="work-card task-chat" aria-label="Чат задачи">
-          <div className="task-chat-heading"><h2>Чат задачи</h2><TaskApprovalRequest key={id} taskId={id} reload={async()=>{await Promise.all([approvalState.refresh(),refreshComments()])}}/></div>
+          <div className="task-chat-heading"><h2>Чат задачи</h2>{!task.deleted_at && <TaskApprovalRequest key={id} taskId={id} reload={async()=>{await Promise.all([approvalState.refresh(),refreshComments()])}}/>}</div>
           <div className="detail-tabs" role="group" aria-label="Обсуждение задачи">
             <button type="button" aria-pressed={discussion === "comments"} onClick={() => setDiscussion("comments")}>Чат · {comments.length}</button>
             <button type="button" aria-pressed={discussion === "history"} onClick={() => setDiscussion("history")}>История изменений</button>
@@ -879,7 +890,7 @@ function TaskDetail({ id, navigate, employeeId }: { id: string; navigate: Naviga
             </React.Fragment>;
           })}
           </TaskChatFeed>
-          <div className="task-chat-compose-area"><TaskChatComposer taskId={id} value={comment} onChange={setComment} mentions={mentions} onMentions={setMentions} busy={busy} onSend={()=>addComment()}/></div>
+          {!task.deleted_at && <div className="task-chat-compose-area"><TaskChatComposer taskId={id} value={comment} onChange={setComment} mentions={mentions} onMentions={setMentions} busy={busy} onSend={()=>addComment()}/></div>}
           </div>
           <div hidden={discussion !== "history"}>
           {(activity?.results || activity?.items || []).map(

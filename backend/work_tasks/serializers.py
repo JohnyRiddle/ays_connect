@@ -61,7 +61,7 @@ class TaskSerializer(serializers.ModelSerializer):
             return None
         if not request.user.is_superuser and not ProjectAccessPolicy.visible_to(getattr(request.user,"employee",None)).filter(pk=link.project_id).exists():
             return None
-        return {"id":str(link.project_id),"number":link.project.number,"stage_id":str(link.stage_id) if link.stage_id else None}
+        return {"id":str(link.project_id),"number":link.project.number,"stage_id":str(link.stage_id) if link.stage_id else None, "version":link.project.version, "planned_end_at":link.project.planned_end_at}
 
     @staticmethod
     def _target_display(target):
@@ -182,6 +182,10 @@ class TaskPatchSerializer(serializers.Serializer):
 
 class VersionSerializer(serializers.Serializer):
     version = serializers.IntegerField(min_value=1)
+
+
+class TrashSerializer(VersionSerializer):
+    project_version = serializers.IntegerField(min_value=1, required=False)
 
 
 class PauseSerializer(VersionSerializer):
