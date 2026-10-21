@@ -1,3 +1,15 @@
+## 21.10.2026 — private owner feedback, local review
+
+Isolated `feat/private-owner-feedback` on main `41c6de4`: header form,
+private owner history, pinned-identity API/admin ACL and independent durable
+Telegram queue. No global notifications enabled. Owner email confirmed in the
+existing production UI; Telegram shows not connected. Server identity pins,
+receiver/config and actual delivery NOT VERIFIED after SSH publickey rejection.
+Publication now authorized; draft PR preparation proceeds independently. Merge and
+deployment remain blocked by unverified server gates and required-check policy.
+Local validation and release gates:
+[PRIVATE_FEEDBACK_2026_10_21.md](PRIVATE_FEEDBACK_2026_10_21.md).
+
 ## 20.10.2026 — reversible task deletion, release candidate
 
 Prepared on `codex/task-trash-local`: recoverable deletion of active and final tasks,

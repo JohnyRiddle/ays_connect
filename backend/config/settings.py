@@ -10,6 +10,7 @@ ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,backend,t
 CSRF_TRUSTED_ORIGINS = [value for value in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if value]
 
 INSTALLED_APPS = [
+    "feedback",
     "iiko",
     "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",
     "django.contrib.sessions", "django.contrib.messages", "django.contrib.staticfiles", "rest_framework_simplejwt.token_blacklist",
@@ -112,6 +113,11 @@ FRONTEND_BASE_URL=os.getenv("FRONTEND_BASE_URL", os.getenv("AYS_CONNECT_PUBLIC_U
 EMAIL_BACKEND=os.getenv("EMAIL_BACKEND","django.core.mail.backends.console.EmailBackend")
 EMAIL_TIMEOUT = 10
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"].update({"registration_status": "60/min", "registration_locations": "60/min", "registration_resend": "3/hour"})
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["feedback"] = "10/hour"
+# Fail closed until the deployment owner has verified both existing identities.
+FEEDBACK_OWNER_USER_ID = os.getenv("FEEDBACK_OWNER_USER_ID", "")
+FEEDBACK_OWNER_EMPLOYEE_ID = os.getenv("FEEDBACK_OWNER_EMPLOYEE_ID", "")
+FEEDBACK_TELEGRAM_ENABLED = os.getenv("FEEDBACK_TELEGRAM_ENABLED", "0") == "1"
 EMAIL_HOST=os.getenv("EMAIL_HOST","");EMAIL_PORT=int(os.getenv("EMAIL_PORT","587"));EMAIL_HOST_USER=os.getenv("EMAIL_HOST_USER","");EMAIL_HOST_PASSWORD=os.getenv("EMAIL_HOST_PASSWORD","");EMAIL_USE_TLS=os.getenv("EMAIL_USE_TLS","1")=="1";DEFAULT_FROM_EMAIL=os.getenv("DEFAULT_FROM_EMAIL","AYS Connect <no-reply@localhost>")
 
 # iiko credentials stay outside Git in the existing server-side env file.
