@@ -5,8 +5,10 @@ private owner history, pinned-identity API/admin ACL and independent durable
 Telegram queue. No global notifications enabled. Owner email confirmed in the
 existing production UI; Telegram shows not connected. Server identity pins,
 receiver/config and actual delivery NOT VERIFIED after SSH publickey rejection.
-Publication now authorized; draft PR preparation proceeds independently. Merge and
-deployment remain blocked by unverified server gates and required-check policy.
+Publication authorized; implementation `160c8dd` pushed as draft PR #24. Full local
+backend 761/761, UI 8/8, build/check/drift PASS. External CI is not configured;
+ordinary GitHub branch metadata confirms main unprotected with no required checks.
+Merge/deployment remain blocked by unverified server identity/backup/restore gates.
 Local validation and release gates:
 [PRIVATE_FEEDBACK_2026_10_21.md](PRIVATE_FEEDBACK_2026_10_21.md).
 

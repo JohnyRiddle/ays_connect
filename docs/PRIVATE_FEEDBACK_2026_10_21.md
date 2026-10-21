@@ -3,8 +3,10 @@
 Base: `41c6de4c4b724238d9ab9f4c043dc2d6828debf2`, branch
 `feat/private-owner-feedback`. Separate clone on ADMIN:
 `C:\Users\riddl\Documents\Codex\2026-10-21\task-3\ays_connect`.
-Publication authorized on 21 October 2026; prepared for commit/push and draft PR.
-Merge/deployment remain gated by server identity, backup/restore and CI evidence.
+Publication authorized on 21 October 2026. Implementation commit
+`160c8dd65a31d91ccb3d776c6deefd49bd7c03e9` pushed to
+[draft PR #24](https://github.com/JohnyRiddle/ays_connect/pull/24).
+Merge/deployment remain gated by server identity and backup/restore evidence.
 Existing dirty OneDrive checkout untouched.
 
 Implemented: header feedback button beside profile, improvement/bug selector,
@@ -66,7 +68,11 @@ Validation:
 - API responses use Cache-Control: private, no-store. Model permission grants,
   staff or superuser status do not bypass the pinned-owner predicate.
 - git diff --check and whitespace checks on all new files PASS.
-- Full repository test suite and live Telegram delivery were NOT run.
+- Release validation on implementation commit 160c8dd: full backend PostgreSQL
+  suite **761/761 PASS**, parallel=3, 214.027 seconds; UI **8/8 PASS**, 19.0 seconds;
+  TypeScript/Vite/check/drift/diff PASS. Subsequent changes are documentation only.
+  These are local tests, not external CI or production acceptance. Real Telegram
+  delivery was NOT run.
 
 Isolated temporary resources outside repository: feedback-postgres/ runtime,
 feedback-pg/ synthetic cluster on 127.0.0.1:15443, feedback-browsers/ Chromium.
@@ -122,11 +128,14 @@ evidence of production deployment or real Telegram delivery.
 
 ## Release gate status after publication authorization
 
-Fresh origin/main fetch still resolves to the base SHA above; no integration
-conflicts. This feature includes neither announcements nor iiko changes.
+Fresh origin/main fetch still resolves to the base SHA above; GitHub reports the
+PR mergeable and clean. This feature includes neither announcements nor iiko changes.
 There are no tracked GitHub Actions workflows in this baseline. The GitHub App
-cannot read main branch protection (403 Resource not accessible by integration),
-so required-check policy is NOT VERIFIED. Empty CI results must not be called PASS.
+cannot read the administration-only protection endpoint (403), but the allowed
+ordinary branch endpoint confirms protected=false, protection.enabled=false,
+required_status_checks.enforcement_level=off and empty contexts/checks. Rulesets
+are empty. At implementation SHA: 0 statuses, 0 check-runs and 0 PR workflow runs.
+External required CI is not configured; empty results are not a successful CI run.
 
 Server stages are BLOCKED by the already observed SSH publickey rejection. No
 retry, alternate key, access change or alternate server route was attempted after
