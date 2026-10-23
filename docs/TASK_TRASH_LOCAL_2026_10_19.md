@@ -1,5 +1,19 @@
 # Reversible task deletion
 
+## 2026-10-23: secondary trash filter
+
+The deleted-only checkbox now follows the main filters and uses a compact native
+16px control with secondary text, a 44px label target and explicit keyboard focus.
+It no longer inherits the full-width, 42px-high text-field presentation. Existing
+deleted query, pagination reset, routes, restore actions and permissions are unchanged.
+
+Local validation on main a2c4265: TypeScript/Vite build and 54 synthetic browser
+scenarios pass, including light/dark themes at 1280/390px, Tab/Space, label click,
+pagination reset, trash/restore and viewer restrictions. Text contrast against the
+page token is 6.96:1 light and 10.99:1 dark. This is not production acceptance.
+Production publication must use 41c6de4 plus this UI patch until feedback PR24 is
+released; do not deploy a main build or invalidate its pending release launcher.
+
 Prepared against e70f79695634198ad197361fe7d26b3763148a80.
 
 The task action menu offers deletion with confirmation. The deleted-only list
