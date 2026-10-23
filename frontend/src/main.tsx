@@ -36,6 +36,7 @@ import {
 import { BrandLogo } from "./BrandLogo";
 import { ThemeSwitch } from "./theme";
 import { ReleaseNotes } from "./ReleaseNotes";
+import { FeedbackButton } from "./Feedback";
 import "./design-tokens.css";
 import "./styles.css";
 import "./tasks.css";
@@ -767,6 +768,7 @@ function App() {
           <div className="header-actions">
             <ThemeSwitch />
             <NotificationBell userId={profile.id}/>
+            <FeedbackButton key={profile.id}/>
             <AccountMenu profile={profile} navigate={navigate} logout={logout}/>
           </div>
         </header>
