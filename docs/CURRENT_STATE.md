@@ -1,3 +1,13 @@
+## 23.10.2026 — secondary deleted-task filter published
+
+UI-only frontend `6eaf799` deployed from production `41c6de4` plus the compact
+trash-filter patch. Main's feedback PR24 was not deployed. The old feedback launcher
+was reversibly disabled by its owner before this release and needs a new baseline.
+Backend/DB unchanged; 54 main + 54 exact-build browser tests, build, 24 public HTTPS
+and four public browser smoke checks PASS (synthetic API data, zero real writes).
+All ten core containers preserved, seven app services healthy. Full hashes,
+rollback evidence and limits: [task trash](TASK_TRASH_LOCAL_2026_10_19.md).
+
 ## 21.10.2026 — private owner feedback, local review
 
 Isolated `feat/private-owner-feedback` on main `41c6de4`: header form,
