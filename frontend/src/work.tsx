@@ -236,7 +236,6 @@ function TaskList({ navigate }: { navigate: Navigate }) {
         </button>
       </header>
       <div className="work-filters">
-        <label><input type="checkbox" checked={deleted} onChange={e => { setDeleted(e.target.checked); setPageNo(1); }} />Удалённые задачи</label>
         <input
           aria-label="Поиск задач"
           value={search}
@@ -289,6 +288,10 @@ function TaskList({ navigate }: { navigate: Navigate }) {
           <option value="due_at">Ближайший срок</option>
           <option value="number">По номеру</option>
         </select>
+        <label className="work-trash-filter">
+          <input type="checkbox" checked={deleted} onChange={e => { setDeleted(e.target.checked); setPageNo(1); }} />
+          <span>Удалённые задачи</span>
+        </label>
       </div>
       {error ? (
         <ErrorState error={error} onRetry={load} />

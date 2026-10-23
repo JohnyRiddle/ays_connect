@@ -1,4 +1,47 @@
 import {test,expect,Page} from '@playwright/test';
+
+for (const width of [1280, 390]) for (const theme of ['light', 'dark']) {
+  test(`secondary trash filter: keyboard, label and pagination at ${width} ${theme}`, async ({page}) => {
+    await setup(page);
+    await page.setViewportSize({width, height: 950});
+    await page.addInitScript(theme => localStorage.setItem('ays-connect-theme', theme), theme);
+    const queries: URLSearchParams[] = [];
+    await page.route('**/api/internal/v1/tasks/?*', route => {
+      const query = new URL(route.request().url()).searchParams;
+      queries.push(query);
+      return route.fulfill({json: {count: 21, next: 'next', previous: query.get('page') === '2' ? 'previous' : null,
+        results: [{id, number: 'TASK-99', title: query.has('deleted') ? 'Удалённая тестовая задача' : 'Активная тестовая задача', status: 'in_progress', priority: 'normal'}]}});
+    });
+    await page.goto('/tasks');
+    await expect(page.getByText('Активная тестовая задача', {exact: true})).toBeVisible();
+    const checkbox = page.getByRole('checkbox', {name: 'Удалённые задачи', exact: true});
+    await expect(checkbox).not.toBeChecked();
+    await page.getByRole('button', {name: 'Далее', exact: true}).click();
+    await expect.poll(() => queries.at(-1)?.get('page')).toBe('2');
+    await page.getByLabel('Сортировка', {exact: true}).focus();
+    await page.keyboard.press('Tab');
+    await expect(checkbox).toBeFocused();
+    await expect(checkbox).toHaveCSS('outline-style', 'solid');
+    await expect(checkbox).toHaveCSS('outline-width', '2px');
+    await page.keyboard.press('Space');
+    await expect(checkbox).toBeChecked();
+    await expect(page.getByText('Удалённая тестовая задача', {exact: true})).toBeVisible();
+    expect(queries.at(-1)?.get('deleted')).toBe('true');
+    expect(queries.at(-1)?.get('page')).toBe('1');
+    const box = (await checkbox.boundingBox())!;
+    expect(box.width).toBeLessThanOrEqual(20);
+    expect(box.height).toBeLessThanOrEqual(20);
+    const label = page.locator('label').filter({has: checkbox});
+    expect((await label.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+    await page.screenshot({path: `test-results/checklists/trash-filter-${width}-${theme}.png`, fullPage: true});
+    await label.click();
+    await expect(checkbox).not.toBeChecked();
+    await expect(page.getByText('Активная тестовая задача', {exact: true})).toBeVisible();
+    expect(queries.at(-1)?.has('deleted')).toBe(false);
+  });
+}
+
 const id='00000000-0000-4000-8000-000000000099';
 async function setup(page:Page, allowed=true, status='in_progress', project=false) {
   const writes:string[]=[];

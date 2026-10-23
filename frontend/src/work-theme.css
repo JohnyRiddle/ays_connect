@@ -58,6 +58,36 @@
   outline: 0;
 }
 
+/* Secondary filter: retain a native checkbox without text-field dimensions. */
+.work-filters .work-trash-filter {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.work-filters .work-trash-filter input {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.work-filters .work-trash-filter input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+  box-shadow: none;
+}
+
 .work-table {
   border-color: var(--border);
   border-radius: 12px;
